@@ -53,7 +53,7 @@ export default async function DealsPage({ searchParams }: PageProps<"/crm/deals"
           const col = deals.filter((d) => d.stage === stage);
           const total = col.reduce((s, d) => s + Number(d.value), 0);
           return (
-            <div key={stage} className="w-72 shrink-0">
+            <div key={stage} className="w-64 shrink-0">
               <div className="mb-2 flex items-center justify-between px-1">
                 <Badge color={dealStageColor[stage]}>{humanize(stage)}</Badge>
                 <span className="text-xs text-slate-500">
