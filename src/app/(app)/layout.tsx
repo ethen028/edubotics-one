@@ -34,17 +34,28 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </div>
           <div className="space-y-0.5">
             <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">HR</div>
-            <NavLink href="/hr/employees">People</NavLink>
+            {user.employee && <NavLink href={`/hr/employees/${user.employee.id}`}>My profile</NavLink>}
+            <NavLink href="/hr/attendance" exact>
+              My attendance
+            </NavLink>
             <NavLink href="/hr/leave">My leave</NavLink>
+            <NavLink href="/hr/employees" exact>
+              People
+            </NavLink>
+            {isManagerOrAdmin(user) && <NavLink href="/hr/attendance/register">Attendance register</NavLink>}
             {isManagerOrAdmin(user) && <NavLink href="/hr/approvals">Leave approvals</NavLink>}
+            {isManagerOrAdmin(user) && <NavLink href="/hr/onboarding">Onboarding</NavLink>}
+            {isManagerOrAdmin(user) && <NavLink href="/hr/training">Training</NavLink>}
+            {isAdmin(user) && <NavLink href="/hr/assets">Assets</NavLink>}
             <NavLink href="/hr/holidays">Holidays</NavLink>
-            {isAdmin(user) && <NavLink href="/hr/departments">Departments</NavLink>}
-            {isAdmin(user) && <NavLink href="/hr/leave-types">Leave types</NavLink>}
           </div>
           {isAdmin(user) && (
             <div className="space-y-0.5">
               <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Admin</div>
               <NavLink href="/admin/users">Users</NavLink>
+              <NavLink href="/hr/departments">Departments</NavLink>
+              <NavLink href="/hr/leave-types">Leave types</NavLink>
+              <NavLink href="/admin/settings">Settings</NavLink>
             </div>
           )}
         </nav>

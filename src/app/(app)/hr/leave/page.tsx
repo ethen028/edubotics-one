@@ -35,7 +35,7 @@ export default async function MyLeavePage() {
 
   return (
     <>
-      <PageHeader title="My leave" subtitle={`Balances for ${today.getFullYear()}. Sundays and company holidays aren't counted.`} />
+      <PageHeader title="My leave" subtitle={`Balances for ${today.getFullYear()}. Weekly offs and company holidays aren't counted.`} />
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {balances.map((b) => (
           <div key={b.leaveTypeId} className="card">

@@ -61,8 +61,8 @@ export function EmployeeForm({ action, employee: e, departments, managers, withL
             </select>
           </Field>
           <Field label="Status">
-            <select name="status" defaultValue={e?.status ?? "ACTIVE"} className="input">
-              <Options values={["ACTIVE", "ON_NOTICE", "EXITED"]} labels={humanize} />
+            <select name="status" defaultValue={e?.status ?? "ONBOARDING"} className="input">
+              <Options values={["ONBOARDING", "ACTIVE", "ON_NOTICE", "EXITED"]} labels={humanize} />
             </select>
           </Field>
           <Field label="Date of joining *">

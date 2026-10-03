@@ -8,6 +8,7 @@ import { formatDate, humanize } from "@/lib/format";
 import { EmployeeForm } from "../../employee-form";
 import { updateEmployee } from "../../actions";
 import { LeaveStatusBadge } from "../../leave/status-badge";
+import { AssetsSection, DocumentsSection, OnboardingSection, TrainingSection } from "./sections";
 
 export default async function EmployeePage({ params }: PageProps<"/hr/employees/[id]">) {
   const user = await requireUser();
@@ -20,6 +21,9 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
       reports: { orderBy: { firstName: "asc" } },
       user: { select: { email: true, role: true, active: true } },
       leaveRequests: { include: { leaveType: true }, orderBy: { startDate: "desc" }, take: 10 },
+      onboardingTasks: { orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }] },
+      trainings: { include: { module: true }, orderBy: { createdAt: "asc" } },
+      assets: { where: { status: "ASSIGNED" }, orderBy: { assignedAt: "desc" } },
     },
   });
   if (!employee) notFound();
@@ -30,10 +34,15 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
   const canSeePrivate = admin || isSelf || isManager;
   const name = `${employee.firstName} ${employee.lastName}`;
 
-  const [balances, departments, managers] = await Promise.all([
+  const canSeeDocuments = admin || isSelf;
+  const [balances, departments, managers, documents, modules] = await Promise.all([
     canSeePrivate ? getLeaveBalances(employee.id) : Promise.resolve([]),
     admin ? db.department.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
     admin ? db.employee.findMany({ where: { status: { not: "EXITED" } }, orderBy: { firstName: "asc" } }) : Promise.resolve([]),
+    canSeeDocuments
+      ? db.employeeDocument.findMany({ where: { employeeId: id }, omit: { data: true }, orderBy: { createdAt: "desc" } })
+      : Promise.resolve([]),
+    admin || isManager ? db.trainingModule.findMany({ orderBy: { title: "asc" } }) : Promise.resolve([]),
   ]);
 
   return (
@@ -137,6 +146,21 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
           </div>
         )}
       </div>
+
+      {canSeePrivate && (
+        <div className="mb-6 grid gap-4 lg:grid-cols-2">
+          <OnboardingSection employeeId={employee.id} tasks={employee.onboardingTasks} canEdit={admin || isManager} isSelf={isSelf} />
+          {canSeeDocuments && <DocumentsSection employeeId={employee.id} documents={documents} isSelf={isSelf} admin={admin} />}
+          <TrainingSection
+            employeeId={employee.id}
+            assignments={employee.trainings}
+            modules={modules}
+            canEdit={admin || isManager}
+            isSelf={isSelf}
+          />
+          <AssetsSection assets={employee.assets} admin={admin} />
+        </div>
+      )}
 
       {admin && (
         <>

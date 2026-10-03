@@ -1,9 +1,10 @@
 /**
- * Starter data: departments, leave types, fixed-date national holidays and the first admin login.
+ * Starter data: departments, leave types, fixed-date national holidays, training modules and the first admin login.
  * Safe to run more than once. Run with `npm run db:seed`.
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { TRAINING_MODULES } from "../src/lib/hr-constants";
 
 const db = new PrismaClient();
 
@@ -39,6 +40,10 @@ async function main() {
       const date = new Date(`${y}-${md}T00:00:00.000Z`);
       await db.holiday.upsert({ where: { date }, update: {}, create: { date, name } });
     }
+  }
+
+  for (const m of TRAINING_MODULES) {
+    await db.trainingModule.upsert({ where: { title: m.title }, update: {}, create: m });
   }
 
   const email = (process.env.SEED_ADMIN_EMAIL ?? "").trim().toLowerCase();

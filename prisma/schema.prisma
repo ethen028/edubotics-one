@@ -32,6 +32,8 @@ model User {
   ownedDeals         Deal[]         @relation("DealOwner")
   activities         Activity[]     @relation("ActivityAssignee")
   createdActivities  Activity[]     @relation("ActivityCreator")
+  uploadedDocuments  EmployeeDocument[] @relation("DocUploader")
+  reviewedDocuments  EmployeeDocument[] @relation("DocReviewer")
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -51,6 +53,7 @@ enum EmploymentType {
 }
 
 enum EmployeeStatus {
+  ONBOARDING
   ACTIVE
   ON_NOTICE
   EXITED
@@ -86,6 +89,13 @@ model Employee {
   user             User?          @relation(fields: [userId], references: [id])
   leaveRequests    LeaveRequest[] @relation("LeaveApplicant")
   approvedRequests LeaveRequest[] @relation("LeaveApprover")
+  attendance       AttendanceSession[]
+  attendanceMarks  AttendanceMark[]
+  corrections      AttendanceCorrection[]
+  onboardingTasks  OnboardingTask[]
+  documents        EmployeeDocument[]
+  assets           Asset[]
+  trainings        TrainingAssignment[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 }
@@ -133,6 +143,187 @@ model Holiday {
   date     DateTime @unique @db.Date
   name     String
   optional Boolean  @default(false) // restricted holiday
+}
+
+// ─── Company settings (single row, id = 1) ─────────────────────────────────
+
+model CompanySettings {
+  id                 Int   @id @default(1)
+  workMinutesPerDay  Int   @default(540) // 9 hours, as in Edubotics HR V1.2
+  overtimeAfterMins  Int   @default(30) // OD once a day runs this far past the target
+  weeklyOffDays      Int[] @default([0, 6]) // 0 = Sunday … 6 = Saturday
+}
+
+// ─── Attendance ────────────────────────────────────────────────────────────
+
+/// One check-in/check-out pair. A day can have several sessions.
+model AttendanceSession {
+  id         String    @id @default(cuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workDate   DateTime  @db.Date // IST calendar date of the check-in
+  checkIn    DateTime
+  checkOut   DateTime?
+  createdAt  DateTime  @default(now())
+
+  corrections AttendanceCorrection[]
+
+  @@index([employeeId, workDate])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  INCOMPLETE // ID: worked less than the daily target
+  OVERTIME // OD: worked past the target plus the overtime threshold
+  ABSENT
+  LEAVE
+  MISPUNCH // checked in but never checked out
+  HOLIDAY
+  WEEKLY_OFF
+}
+
+/// HR/admin decision for a day that replaces the computed status.
+model AttendanceMark {
+  id         String           @id @default(cuid())
+  employeeId String
+  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workDate   DateTime         @db.Date
+  status     AttendanceStatus
+  note       String?
+  markedById String
+  createdAt  DateTime         @default(now())
+
+  @@unique([employeeId, workDate])
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Punch-out regularization: the employee forgot to check out.
+model AttendanceCorrection {
+  id                String            @id @default(cuid())
+  employeeId        String
+  employee          Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  sessionId         String
+  session           AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  requestedCheckOut DateTime
+  reason            String
+  status            RequestStatus     @default(PENDING)
+  decidedById       String?
+  decidedAt         DateTime?
+  createdAt         DateTime          @default(now())
+}
+
+// ─── Onboarding ────────────────────────────────────────────────────────────
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  NOT_APPLICABLE
+}
+
+model OnboardingTask {
+  id         String     @id @default(cuid())
+  employeeId String
+  employee   Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title      String
+  category   String // Documents, Admin, IT Setup, HR, Manager, Training
+  dueDate    DateTime?  @db.Date
+  status     TaskStatus @default(PENDING)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([employeeId])
+}
+
+// ─── Documents ─────────────────────────────────────────────────────────────
+
+enum DocumentStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+/// Files live in Postgres so the app needs no separate storage service (5 MB cap each).
+model EmployeeDocument {
+  id           String         @id @default(cuid())
+  employeeId   String
+  employee     Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type         String // Aadhaar / ID proof, PAN card, Bank details, Offer letter…
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  status       DocumentStatus @default(PENDING)
+  reviewNote   String?
+  uploadedById String
+  uploadedBy   User           @relation("DocUploader", fields: [uploadedById], references: [id])
+  reviewedById String?
+  reviewedBy   User?          @relation("DocReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  createdAt    DateTime       @default(now())
+
+  @@index([employeeId])
+}
+
+// ─── Assets ────────────────────────────────────────────────────────────────
+
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  REPAIR
+  RETIRED
+}
+
+model Asset {
+  id           String      @id @default(cuid())
+  code         String      @unique // EDU-LAP-021
+  name         String
+  category     String // Laptop, Access card, Lab kit, Phone…
+  serialNo     String?
+  purchaseDate DateTime?   @db.Date
+  status       AssetStatus @default(AVAILABLE)
+  employeeId   String?
+  employee     Employee?   @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  assignedAt   DateTime?
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+// ─── Training ──────────────────────────────────────────────────────────────
+
+model TrainingModule {
+  id          String               @id @default(cuid())
+  title       String               @unique
+  description String?
+  active      Boolean              @default(true)
+  assignments TrainingAssignment[]
+  createdAt   DateTime             @default(now())
+}
+
+enum TrainingStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model TrainingAssignment {
+  id          String         @id @default(cuid())
+  employeeId  String
+  employee    Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  moduleId    String
+  module      TrainingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  status      TrainingStatus @default(ASSIGNED)
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+
+  @@unique([employeeId, moduleId])
 }
 
 // ─── CRM ───────────────────────────────────────────────────────────────────
