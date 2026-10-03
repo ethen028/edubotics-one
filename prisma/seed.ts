@@ -11,11 +11,11 @@ const db = new PrismaClient();
 
 const departments = ["Management", "Training & Delivery", "Sales & Partnerships", "Operations", "R&D / Technical"];
 
-// Defaults in line with common Kerala Shops & Establishments practice. Edit under HR → Leave types.
+// Edubotics policy (Ethen, Oct 2026): 15 casual + 3 sick = 18 paid days a year, plus unpaid LOP.
+// Edit under Admin → Leave types. A quota of 0 means unlimited, so earned leave isn't seeded.
 const leaveTypes = [
-  { code: "CL", name: "Casual leave", annualQuota: 12, paid: true },
-  { code: "SL", name: "Sick leave", annualQuota: 12, paid: true },
-  { code: "EL", name: "Earned leave", annualQuota: 12, paid: true },
+  { code: "CL", name: "Casual leave", annualQuota: 15, paid: true },
+  { code: "SL", name: "Sick leave", annualQuota: 3, paid: true },
   { code: "LOP", name: "Loss of pay", annualQuota: 0, paid: false },
 ];
 
