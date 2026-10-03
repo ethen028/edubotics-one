@@ -30,6 +30,10 @@ Planned next: timesheets, projects (programme delivery per school), inventory (k
 
 Next.js 16 (App Router, server actions) · TypeScript · Tailwind CSS 4 · PostgreSQL · Prisma 6. Sign-in is email + password with a signed, HTTP-only session cookie.
 
+## Run it in the office without hosting
+
+One office computer can run the whole app with Docker Desktop, and staff on the same Wi-Fi use it from their browsers. Plain step-by-step guide: [docs/run-on-your-computer.md](docs/run-on-your-computer.md).
+
 ## Run locally
 
 Requires Node 22+ and PostgreSQL 14+.

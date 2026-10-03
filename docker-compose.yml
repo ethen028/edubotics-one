@@ -1,0 +1,42 @@
+# Run Edubotics One on this computer: `docker compose up -d`, then open http://localhost:3000
+# Staff on the same Wi-Fi open http://<this computer's IP address>:3000
+# A fixed name keeps the same data when you replace this folder with a newer download.
+name: edubotics-one
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: edubotics
+      POSTGRES_PASSWORD: edubotics
+      POSTGRES_DB: edubotics
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edubotics"]
+      interval: 3s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://edubotics:edubotics@db:5432/edubotics
+      # The office network uses plain http, so the login cookie can't require https.
+      COOKIE_SECURE: "false"
+      # First admin login, created on first start only. Change the password after signing in.
+      SEED_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@edubotics.local}
+      SEED_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-edubotics2026}
+      SEED_ADMIN_NAME: ${ADMIN_NAME:-Admin}
+    volumes:
+      - app-data:/data
+
+volumes:
+  db-data:
+  app-data:
