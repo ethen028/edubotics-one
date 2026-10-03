@@ -1,0 +1,97 @@
+// Payroll arithmetic. Pure functions so the rules are easy to read and check.
+
+export type Structure = { basic: number; hra: number; specialAllowance: number };
+export type PayrollRules = {
+  lopDivisor: number;
+  pfEnabled: boolean;
+  esiEnabled: boolean;
+  ptEnabled: boolean;
+  tdsEnabled: boolean;
+};
+export type Manual = { otherEarnings: number; professionalTax: number; tds: number; otherDeductions: number };
+
+/** Statutory rates used when the switches are turned on (employee share). */
+export const PF_RATE = 0.12;
+export const PF_WAGE_CEILING = 15000;
+export const ESI_RATE = 0.0075;
+export const ESI_GROSS_LIMIT = 21000;
+
+const rupees = (n: number) => Math.round(n);
+
+export const monthlyGross = (s: Structure) => s.basic + s.hra + s.specialAllowance;
+
+/**
+ * One employee's pay for one month.
+ * - Salary is prorated for joining or leaving mid-month (calendar days employed ÷ days in month).
+ * - LOP per day = full monthly gross ÷ lopDivisor (30 by default, as in Edubotics HR V1.2).
+ * - PF and ESI are worked out only when switched on; PT and TDS are entered by hand when switched on.
+ */
+export function calculateSlip(args: {
+  structure: Structure;
+  daysInMonth: number;
+  employedDays: number;
+  lopDays: number;
+  manual: Manual;
+  rules: PayrollRules;
+}) {
+  const { structure, daysInMonth, employedDays, rules, manual } = args;
+  const lopDays = Math.min(Math.max(0, args.lopDays), employedDays);
+  const factor = employedDays / daysInMonth;
+  const basic = rupees(structure.basic * factor);
+  const hra = rupees(structure.hra * factor);
+  const specialAllowance = rupees(structure.specialAllowance * factor);
+  const otherEarnings = rupees(manual.otherEarnings);
+  const gross = basic + hra + specialAllowance + otherEarnings;
+  const lopDeduction = Math.min(gross, rupees((monthlyGross(structure) / rules.lopDivisor) * lopDays));
+
+  const paidShare = employedDays ? (employedDays - lopDays) / employedDays : 0;
+  const pf = rules.pfEnabled ? rupees(PF_RATE * Math.min(basic * paidShare, PF_WAGE_CEILING)) : 0;
+  const esi =
+    rules.esiEnabled && monthlyGross(structure) <= ESI_GROSS_LIMIT ? Math.ceil(ESI_RATE * (gross - lopDeduction)) : 0;
+  const professionalTax = rules.ptEnabled ? rupees(manual.professionalTax) : 0;
+  const tds = rules.tdsEnabled ? rupees(manual.tds) : 0;
+  const otherDeductions = rupees(manual.otherDeductions);
+  const totalDeductions = lopDeduction + pf + esi + professionalTax + tds + otherDeductions;
+
+  return {
+    daysInMonth,
+    paidDays: employedDays - lopDays,
+    lopDays,
+    basic,
+    hra,
+    specialAllowance,
+    otherEarnings,
+    gross,
+    lopDeduction,
+    pf,
+    esi,
+    professionalTax,
+    tds,
+    otherDeductions,
+    totalDeductions,
+    net: Math.max(0, gross - totalDeductions),
+  };
+}
+
+/** "2026-10" → first and last day (UTC midnight) and the day count. */
+export function monthRange(month: string) {
+  const m = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!m || Number(m[2]) < 1 || Number(m[2]) > 12) throw new Error("Invalid month");
+  const start = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1));
+  const end = new Date(Date.UTC(Number(m[1]), Number(m[2]), 0));
+  return { start, end, days: end.getUTCDate() };
+}
+
+export function monthLabel(month: string) {
+  return monthRange(month).start.toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+/** Calendar days of the month the employee was on the rolls. */
+export function employedDaysIn(month: string, joined: Date, exited: Date | null) {
+  const { start, end } = monthRange(month);
+  const from = joined > start ? joined : start;
+  const to = exited && exited < end ? exited : end;
+  return to < from ? 0 : Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
+}
+
+export const RUN_COLOR = { DRAFT: "amber", FINALIZED: "blue", PAID: "green" } as const;

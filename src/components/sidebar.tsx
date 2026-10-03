@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 export function Sidebar({ header, children }: { header: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <aside className="bg-brand-900 text-white md:sticky md:top-0 md:h-screen md:w-56 md:shrink-0">
+    <aside className="bg-brand-900 text-white print:hidden md:sticky md:top-0 md:h-screen md:w-56 md:shrink-0">
       <div className="flex h-full flex-col p-4">
         <div className="flex items-center justify-between md:mb-5">
           {header}

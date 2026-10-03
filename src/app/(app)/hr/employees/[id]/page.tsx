@@ -4,11 +4,12 @@ import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { getLeaveBalances } from "@/lib/leave-balance";
 import { Badge, PageHeader } from "@/components/ui";
-import { formatDate, humanize } from "@/lib/format";
+import { formatDate, humanize, toDateInput } from "@/lib/format";
+import { istDate } from "@/lib/attendance";
 import { EmployeeForm } from "../../employee-form";
 import { updateEmployee } from "../../actions";
 import { LeaveStatusBadge } from "../../leave/status-badge";
-import { AssetsSection, DocumentsSection, OnboardingSection, TrainingSection } from "./sections";
+import { AssetsSection, DocumentsSection, OnboardingSection, SalarySection, TrainingSection } from "./sections";
 
 export default async function EmployeePage({ params }: PageProps<"/hr/employees/[id]">) {
   const user = await requireUser();
@@ -24,6 +25,7 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
       onboardingTasks: { orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }] },
       trainings: { include: { module: true }, orderBy: { createdAt: "asc" } },
       assets: { where: { status: "ASSIGNED" }, orderBy: { assignedAt: "desc" } },
+      salaries: { orderBy: { effectiveFrom: "desc" } },
     },
   });
   if (!employee) notFound();
@@ -159,6 +161,16 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
             isSelf={isSelf}
           />
           <AssetsSection assets={employee.assets} admin={admin} />
+          {canSeeDocuments && (
+            <div className="lg:col-span-2">
+              <SalarySection
+                employeeId={employee.id}
+                salaries={employee.salaries}
+                admin={admin}
+                today={toDateInput(istDate(new Date()))}
+              />
+            </div>
+          )}
         </div>
       )}
 

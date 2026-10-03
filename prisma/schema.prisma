@@ -34,6 +34,7 @@ model User {
   createdActivities  Activity[]     @relation("ActivityCreator")
   uploadedDocuments  EmployeeDocument[] @relation("DocUploader")
   reviewedDocuments  EmployeeDocument[] @relation("DocReviewer")
+  payrollRuns        PayrollRun[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -96,6 +97,8 @@ model Employee {
   documents        EmployeeDocument[]
   assets           Asset[]
   trainings        TrainingAssignment[]
+  salaries         SalaryStructure[]
+  payslips         Payslip[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 }
@@ -153,6 +156,13 @@ model CompanySettings {
   workMinutesPerDay  Int   @default(540) // 9 hours, as in Edubotics HR V1.2
   overtimeAfterMins  Int   @default(30) // OD once a day runs this far past the target
   weeklyOffDays      Int[] @default([0, 6]) // 0 = Sunday … 6 = Saturday
+
+  // Payroll. Deductions start switched off (Edubotics deducts none today).
+  lopDivisor   Int     @default(30) // LOP per day = monthly gross ÷ this, as in HR V1.2
+  pfEnabled    Boolean @default(false)
+  esiEnabled   Boolean @default(false)
+  ptEnabled    Boolean @default(false)
+  tdsEnabled   Boolean @default(false)
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -325,6 +335,68 @@ model TrainingAssignment {
   createdAt   DateTime       @default(now())
 
   @@unique([employeeId, moduleId])
+}
+
+// ─── Payroll ───────────────────────────────────────────────────────────────
+
+/// Monthly salary, effective from a date. The latest row on or before a month's start applies.
+model SalaryStructure {
+  id               String   @id @default(cuid())
+  employeeId       String
+  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  effectiveFrom    DateTime @db.Date
+  basic            Decimal  @db.Decimal(12, 2)
+  hra              Decimal  @default(0) @db.Decimal(12, 2)
+  specialAllowance Decimal  @default(0) @db.Decimal(12, 2)
+  note             String?
+  createdAt        DateTime @default(now())
+
+  @@unique([employeeId, effectiveFrom])
+}
+
+enum PayrollStatus {
+  DRAFT
+  FINALIZED
+  PAID
+}
+
+model PayrollRun {
+  id          String        @id @default(cuid())
+  month       String        @unique // "2026-10"
+  status      PayrollStatus @default(DRAFT)
+  createdById String
+  createdBy   User          @relation(fields: [createdById], references: [id])
+  finalizedAt DateTime?
+  paidOn      DateTime?     @db.Date
+  payslips    Payslip[]
+  createdAt   DateTime      @default(now())
+}
+
+model Payslip {
+  id               String     @id @default(cuid())
+  runId            String
+  run              PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  daysInMonth      Int
+  paidDays         Decimal    @db.Decimal(5, 1) // days employed in the month, minus LOP
+  lopDays          Decimal    @default(0) @db.Decimal(5, 1)
+  basic            Decimal    @db.Decimal(12, 2) // earned amounts, after proration
+  hra              Decimal    @db.Decimal(12, 2)
+  specialAllowance Decimal    @db.Decimal(12, 2)
+  otherEarnings    Decimal    @default(0) @db.Decimal(12, 2) // bonus, reimbursement…
+  gross            Decimal    @db.Decimal(12, 2)
+  lopDeduction     Decimal    @default(0) @db.Decimal(12, 2)
+  pf               Decimal    @default(0) @db.Decimal(12, 2)
+  esi              Decimal    @default(0) @db.Decimal(12, 2)
+  professionalTax  Decimal    @default(0) @db.Decimal(12, 2)
+  tds              Decimal    @default(0) @db.Decimal(12, 2)
+  otherDeductions  Decimal    @default(0) @db.Decimal(12, 2)
+  totalDeductions  Decimal    @db.Decimal(12, 2)
+  net              Decimal    @db.Decimal(12, 2)
+  note             String?
+
+  @@unique([runId, employeeId])
 }
 
 // ─── CRM ───────────────────────────────────────────────────────────────────

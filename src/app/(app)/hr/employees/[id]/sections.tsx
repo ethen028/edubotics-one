@@ -1,11 +1,12 @@
 import Link from "next/link";
-import type { Asset, EmployeeDocument, OnboardingTask, TrainingAssignment, TrainingModule } from "@prisma/client";
+import type { Asset, EmployeeDocument, OnboardingTask, SalaryStructure, TrainingAssignment, TrainingModule } from "@prisma/client";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge } from "@/components/ui";
-import { formatDate, humanize } from "@/lib/format";
+import { formatDate, formatINR, humanize } from "@/lib/format";
 import { DOCUMENT_TYPES, TASK_CATEGORIES } from "@/lib/hr-constants";
 import { addTask, applyChecklist, deleteDocument, deleteTask, reviewDocument, setTaskStatus, uploadDocument } from "../../onboarding/actions";
 import { assignTraining, removeTraining, setTrainingStatus } from "../../training/actions";
+import { deleteSalary, saveSalary } from "../../../payroll/actions";
 
 const TASK_COLOR = { PENDING: "gray", IN_PROGRESS: "blue", COMPLETED: "green", NOT_APPLICABLE: "gray" } as const;
 const DOC_COLOR = { PENDING: "amber", UNDER_REVIEW: "blue", VERIFIED: "green", REJECTED: "red" } as const;
@@ -287,3 +288,88 @@ export function AssetsSection({ assets, admin }: { assets: Asset[]; admin: boole
   );
 }
 
+
+export function SalarySection({
+  employeeId,
+  salaries,
+  admin,
+  today,
+}: {
+  employeeId: string;
+  salaries: SalaryStructure[];
+  admin: boolean;
+  today: string;
+}) {
+  const gross = (s: SalaryStructure) => Number(s.basic) + Number(s.hra) + Number(s.specialAllowance);
+  return (
+    <section id="salary" className="card text-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-semibold">Salary</h2>
+        <Link href={admin ? "/payroll" : "/payroll/my"} className="link text-xs">
+          {admin ? "Payroll" : "My payslips"}
+        </Link>
+      </div>
+      {salaries.length === 0 ? (
+        <p className="text-slate-500">No salary set.</p>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>From</th>
+              <th className="text-right">Basic</th>
+              <th className="text-right">HRA</th>
+              <th className="text-right">Special</th>
+              <th className="text-right">Gross / month</th>
+              {admin && <th></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {salaries.map((s) => (
+              <tr key={s.id}>
+                <td>
+                  {formatDate(s.effectiveFrom)}
+                  {s.note && <div className="text-xs text-slate-500">{s.note}</div>}
+                </td>
+                <td className="text-right">{formatINR(s.basic)}</td>
+                <td className="text-right">{formatINR(s.hra)}</td>
+                <td className="text-right">{formatINR(s.specialAllowance)}</td>
+                <td className="text-right font-semibold">{formatINR(gross(s))}</td>
+                {admin && (
+                  <td>
+                    <form action={deleteSalary.bind(null, s.id)}>
+                      <button className="text-xs text-slate-400 hover:text-red-600" title="Delete">
+                        ✕
+                      </button>
+                    </form>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {admin && (
+        <ActionForm action={saveSalary.bind(null, employeeId)} className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-4">
+          <label className="text-xs">
+            Effective from
+            <input name="effectiveFrom" type="date" required defaultValue={today} className="input py-1" />
+          </label>
+          <label className="text-xs">
+            Basic (₹/month)
+            <input name="basic" type="number" min="1" required className="input py-1" />
+          </label>
+          <label className="text-xs">
+            HRA
+            <input name="hra" type="number" min="0" defaultValue="0" className="input py-1" />
+          </label>
+          <label className="text-xs">
+            Special allowance
+            <input name="specialAllowance" type="number" min="0" defaultValue="0" className="input py-1" />
+          </label>
+          <input name="note" placeholder="Note, e.g. annual increment" className="input col-span-2 py-1 sm:col-span-3" />
+          <SubmitButton className="btn-secondary btn-sm">Save salary</SubmitButton>
+        </ActionForm>
+      )}
+    </section>
+  );
+}

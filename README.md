@@ -6,6 +6,7 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 - **HRM**: employee records, departments, reporting lines, leave requests with manager approval, leave balances, and the holiday calendar.
 - **Attendance**: check-in/out, a monthly calendar per person, and a daily register for managers. Statuses follow Edubotics HR V1.2: Present, ID (incomplete duty), OD (overtime duty), Mis-punch, Absent, Leave. Employees request a fix for a missed punch-out; managers approve. Monthly CSV export.
 - **Onboarding**: a standard joining checklist (added automatically for new joiners), document upload (Aadhaar, PAN, bank details, offer letter; PDF or image up to 5 MB, visible only to the employee and admins) with admin verification, training modules with progress, and an asset register (laptops, access cards, lab and robotics kits).
+- **Payroll**: salary per employee (Basic + HRA + special allowance, with history), a monthly payroll run with loss-of-pay from approved unpaid leave and proration for mid-month joiners or leavers, hand-entered bonuses and deductions, finalize and mark paid, printable payslips each employee can see, and a CSV export. PF, ESI, professional tax and TDS are switches under **Admin → Settings**, all off by default.
 
 Planned next: timesheets, projects (programme delivery per school), inventory (kits), and operations.
 
