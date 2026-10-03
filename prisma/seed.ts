@@ -5,6 +5,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { TRAINING_MODULES } from "../src/lib/hr-constants";
+import { KERALA_HOLIDAYS } from "./kerala-holidays";
 
 const db = new PrismaClient();
 
@@ -18,7 +19,7 @@ const leaveTypes = [
   { code: "LOP", name: "Loss of pay", annualQuota: 0, paid: false },
 ];
 
-// Only fixed-date holidays. Onam, Vishu, Eid, Deepavali, etc. move every year: add them under HR → Holidays.
+// Fixed-date holidays for years after the Kerala list below. Onam, Vishu, Eid, Deepavali, etc. move every year: add them under HR → Holidays.
 const fixedHolidays = [
   ["01-26", "Republic Day"],
   ["05-01", "May Day"],
@@ -33,6 +34,10 @@ async function main() {
   }
   for (const t of leaveTypes) {
     await db.leaveType.upsert({ where: { code: t.code }, update: {}, create: t });
+  }
+  for (const [day, name, tentative = false] of KERALA_HOLIDAYS) {
+    const date = new Date(`${day}T00:00:00.000Z`);
+    await db.holiday.upsert({ where: { date }, update: {}, create: { date, name, tentative } });
   }
   const year = new Date().getFullYear();
   for (const y of [year, year + 1]) {

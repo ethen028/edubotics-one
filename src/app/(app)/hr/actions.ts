@@ -194,6 +194,12 @@ export async function createHoliday(_: FormState, formData: FormData): Promise<F
   return { ok: `Added ${name}.` };
 }
 
+export async function confirmHoliday(id: string) {
+  await requireUser(["ADMIN"]);
+  await db.holiday.update({ where: { id }, data: { tentative: false } });
+  revalidatePath("/hr/holidays");
+}
+
 export async function deleteHoliday(id: string) {
   await requireUser(["ADMIN"]);
   await db.holiday.delete({ where: { id } });

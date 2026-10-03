@@ -142,7 +142,8 @@ model Holiday {
   id       String   @id @default(cuid())
   date     DateTime @unique @db.Date
   name     String
-  optional Boolean  @default(false) // restricted holiday
+  optional  Boolean  @default(false) // restricted holiday
+  tentative Boolean  @default(false) // date depends on the moon or isn't notified yet
 }
 
 // ─── Company settings (single row, id = 1) ─────────────────────────────────
