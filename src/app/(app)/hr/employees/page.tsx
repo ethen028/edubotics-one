@@ -9,10 +9,15 @@ export const metadata = { title: "People" };
 
 export default async function EmployeesPage({ searchParams }: PageProps<"/hr/employees">) {
   const user = await requireUser();
-  const { q = "", dept = "", status = "ACTIVE" } = (await searchParams) as Record<string, string | undefined>;
+  const { q = "", dept = "", status = "CURRENT" } = (await searchParams) as Record<string, string | undefined>;
 
   const where: Prisma.EmployeeWhereInput = {
-    ...(status !== "ALL" ? { status: status as Prisma.EnumEmployeeStatusFilter["equals"] } : {}),
+    // "Current" covers everyone still on the rolls, including new joiners who are onboarding.
+    ...(status === "CURRENT"
+      ? { status: { not: "EXITED" as const } }
+      : status !== "ALL"
+        ? { status: status as Prisma.EnumEmployeeStatusFilter["equals"] }
+        : {}),
     ...(dept ? { departmentId: dept } : {}),
     ...(q
       ? {
@@ -58,6 +63,8 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/hr/emp
           ))}
         </select>
         <select name="status" defaultValue={status} className="input w-auto">
+          <option value="CURRENT">Current</option>
+          <option value="ONBOARDING">Onboarding</option>
           <option value="ACTIVE">Active</option>
           <option value="ON_NOTICE">On notice</option>
           <option value="EXITED">Exited</option>
