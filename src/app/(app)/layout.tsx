@@ -49,6 +49,17 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             {isAdmin(user) && <NavLink href="/hr/assets">Assets</NavLink>}
             <NavLink href="/hr/holidays">Holidays</NavLink>
           </div>
+          {(user.employee || isAdmin(user)) && (
+            <div className="space-y-0.5">
+              <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Payroll</div>
+              {user.employee && <NavLink href="/payroll/my">My payslips</NavLink>}
+              {isAdmin(user) && (
+                <NavLink href="/payroll" exact>
+                  Payroll
+                </NavLink>
+              )}
+            </div>
+          )}
           {isAdmin(user) && (
             <div className="space-y-0.5">
               <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Admin</div>
