@@ -4,6 +4,8 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 
 - **CRM**: leads, institutions (schools, colleges, companies), contacts, a deal pipeline in ₹, and follow-ups (calls, visits, meetings, tasks).
 - **HRM**: employee records, departments, reporting lines, leave requests with manager approval, leave balances, and the holiday calendar.
+- **Attendance**: check-in/out, a monthly calendar per person, and a daily register for managers. Statuses follow Edubotics HR V1.2: Present, ID (incomplete duty), OD (overtime duty), Mis-punch, Absent, Leave. Employees request a fix for a missed punch-out; managers approve. Monthly CSV export.
+- **Onboarding**: a standard joining checklist (added automatically for new joiners), document upload (Aadhaar, PAN, bank details, offer letter; PDF or image up to 5 MB, visible only to the employee and admins) with admin verification, training modules with progress, and an asset register (laptops, access cards, lab and robotics kits).
 
 Planned next: timesheets, projects (programme delivery per school), inventory (kits), and operations.
 
@@ -21,7 +23,7 @@ Planned next: timesheets, projects (programme delivery per school), inventory (k
 | Leave approvals | Managers approve their direct reports; admins can approve anyone |
 | Admin → Users | Create logins, set roles, reset passwords, disable access |
 
-**Roles**: `ADMIN` (HR records and settings), `MANAGER` (approves their team's leave), `EMPLOYEE`. Everyone can use the CRM; only admins delete CRM records.
+**Roles**: `ADMIN` (HR records, assets, document verification and settings), `MANAGER` (approves their team's leave and attendance fixes, runs their onboarding and training), `EMPLOYEE`. Everyone can use the CRM; only admins delete CRM records.
 
 ## Tech
 
@@ -39,7 +41,7 @@ SEED_ADMIN_EMAIL=you@eduboticsglobal.com SEED_ADMIN_PASSWORD='choose-a-password'
 npm run dev                     # http://localhost:3000
 ```
 
-The seed adds departments, leave types (CL 12, SL 12, EL 12, LOP) and the fixed-date national holidays. Add Onam, Vishu, Eid, Deepavali and other moving holidays each year under **HR → Holidays**, and adjust quotas under **HR → Leave types**.
+The seed adds departments, leave types (15 casual and 3 sick days a year, plus unpaid LOP), the fixed-date national holidays and four training modules. Working hours (default 9 h, OD after 30 extra minutes) and weekly offs (default Saturday and Sunday) are under **Admin → Settings**. It also adds the Kerala general holiday list for 2026 and 2027 (Onam, Vishu, Eid, Deepavali and the rest); moon-dependent and not-yet-notified dates are marked tentative. Confirm or correct them, and add later years, under **HR → Holidays**, and adjust quotas under **Admin → Leave types**.
 
 ## Deploy
 

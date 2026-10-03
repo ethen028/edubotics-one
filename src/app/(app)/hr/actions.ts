@@ -8,6 +8,8 @@ import { db } from "@/lib/db";
 import { hashPassword, isAdmin, requireUser } from "@/lib/auth";
 import { countLeaveDays, parseDateOnly } from "@/lib/leave";
 import { getLeaveBalances } from "@/lib/leave-balance";
+import { getSettings } from "@/lib/settings";
+import { checklistRows } from "@/lib/hr-constants";
 import type { FormState } from "@/components/action-form";
 
 const optional = z
@@ -49,7 +51,7 @@ const employeeSchema = z.object({
   departmentId: optional,
   managerId: optional,
   employmentType: z.enum(["FULL_TIME", "PART_TIME", "CONTRACT", "INTERN"]),
-  status: z.enum(["ACTIVE", "ON_NOTICE", "EXITED"]),
+  status: z.enum(["ONBOARDING", "ACTIVE", "ON_NOTICE", "EXITED"]),
   dateOfJoining: z.string().trim().min(1, "required").transform(parseDateOnly),
   dateOfExit: optionalDate,
   dateOfBirth: optionalDate,
@@ -82,7 +84,12 @@ export async function createEmployee(_: FormState, formData: FormData): Promise<
             data: { email: data.workEmail, name: `${data.firstName} ${data.lastName}`, passwordHash, role },
           })
         : null;
-      return tx.employee.create({ data: { ...data, userId: user?.id } });
+      const created = await tx.employee.create({ data: { ...data, userId: user?.id } });
+      // New joiners start with the standard onboarding checklist.
+      if (created.status === "ONBOARDING") {
+        await tx.onboardingTask.createMany({ data: checklistRows(created.id, created.dateOfJoining) });
+      }
+      return created;
     });
     id = employee.id;
   } catch (e) {
@@ -187,6 +194,12 @@ export async function createHoliday(_: FormState, formData: FormData): Promise<F
   return { ok: `Added ${name}.` };
 }
 
+export async function confirmHoliday(id: string) {
+  await requireUser(["ADMIN"]);
+  await db.holiday.update({ where: { id }, data: { tentative: false } });
+  revalidatePath("/hr/holidays");
+}
+
 export async function deleteHoliday(id: string) {
   await requireUser(["ADMIN"]);
   await db.holiday.delete({ where: { id } });
@@ -220,8 +233,9 @@ export async function applyLeave(_: FormState, formData: FormData): Promise<Form
     where: { date: { gte: startDate, lte: endDate }, optional: false },
     select: { date: true },
   });
-  const days = countLeaveDays(startDate, endDate, holidays.map((h) => h.date), halfDay);
-  if (days === 0) return { error: "Those dates are all Sundays or holidays, so no leave is needed." };
+  const { weeklyOffDays } = await getSettings();
+  const days = countLeaveDays(startDate, endDate, holidays.map((h) => h.date), halfDay, weeklyOffDays);
+  if (days === 0) return { error: "Those dates are all weekly offs or holidays, so no leave is needed." };
 
   const overlap = await db.leaveRequest.findFirst({
     where: {

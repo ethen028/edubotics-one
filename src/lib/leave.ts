@@ -8,15 +8,21 @@ export function parseDateOnly(value: string): Date {
 const key = (d: Date) => d.toISOString().slice(0, 10);
 
 /**
- * Working days between start and end (inclusive), skipping Sundays and
- * company holidays. Second Saturdays are working days unless listed as holidays.
+ * Working days between start and end (inclusive), skipping the company's weekly
+ * off days (0 = Sunday … 6 = Saturday) and holidays.
  */
-export function countLeaveDays(start: Date, end: Date, holidays: Date[], halfDay = false): number {
+export function countLeaveDays(
+  start: Date,
+  end: Date,
+  holidays: Date[],
+  halfDay = false,
+  weeklyOffDays: number[] = [0],
+): number {
   if (end < start) return 0;
   const off = new Set(holidays.map(key));
   let days = 0;
   for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
-    if (d.getUTCDay() === 0 || off.has(key(d))) continue;
+    if (weeklyOffDays.includes(d.getUTCDay()) || off.has(key(d))) continue;
     days += 1;
   }
   if (halfDay && days > 0) return days === 1 ? 0.5 : days - 0.5;

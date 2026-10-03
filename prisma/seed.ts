@@ -1,23 +1,25 @@
 /**
- * Starter data: departments, leave types, fixed-date national holidays and the first admin login.
+ * Starter data: departments, leave types, fixed-date national holidays, training modules and the first admin login.
  * Safe to run more than once. Run with `npm run db:seed`.
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { TRAINING_MODULES } from "../src/lib/hr-constants";
+import { KERALA_HOLIDAYS } from "./kerala-holidays";
 
 const db = new PrismaClient();
 
 const departments = ["Management", "Training & Delivery", "Sales & Partnerships", "Operations", "R&D / Technical"];
 
-// Defaults in line with common Kerala Shops & Establishments practice. Edit under HR → Leave types.
+// Edubotics policy (Ethen, Oct 2026): 15 casual + 3 sick = 18 paid days a year, plus unpaid LOP.
+// Edit under Admin → Leave types. A quota of 0 means unlimited, so earned leave isn't seeded.
 const leaveTypes = [
-  { code: "CL", name: "Casual leave", annualQuota: 12, paid: true },
-  { code: "SL", name: "Sick leave", annualQuota: 12, paid: true },
-  { code: "EL", name: "Earned leave", annualQuota: 12, paid: true },
+  { code: "CL", name: "Casual leave", annualQuota: 15, paid: true },
+  { code: "SL", name: "Sick leave", annualQuota: 3, paid: true },
   { code: "LOP", name: "Loss of pay", annualQuota: 0, paid: false },
 ];
 
-// Only fixed-date holidays. Onam, Vishu, Eid, Deepavali, etc. move every year: add them under HR → Holidays.
+// Fixed-date holidays for years after the Kerala list below. Onam, Vishu, Eid, Deepavali, etc. move every year: add them under HR → Holidays.
 const fixedHolidays = [
   ["01-26", "Republic Day"],
   ["05-01", "May Day"],
@@ -33,12 +35,20 @@ async function main() {
   for (const t of leaveTypes) {
     await db.leaveType.upsert({ where: { code: t.code }, update: {}, create: t });
   }
+  for (const [day, name, tentative = false] of KERALA_HOLIDAYS) {
+    const date = new Date(`${day}T00:00:00.000Z`);
+    await db.holiday.upsert({ where: { date }, update: {}, create: { date, name, tentative } });
+  }
   const year = new Date().getFullYear();
   for (const y of [year, year + 1]) {
     for (const [md, name] of fixedHolidays) {
       const date = new Date(`${y}-${md}T00:00:00.000Z`);
       await db.holiday.upsert({ where: { date }, update: {}, create: { date, name } });
     }
+  }
+
+  for (const m of TRAINING_MODULES) {
+    await db.trainingModule.upsert({ where: { title: m.title }, update: {}, create: m });
   }
 
   const email = (process.env.SEED_ADMIN_EMAIL ?? "").trim().toLowerCase();
