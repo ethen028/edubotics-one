@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Edubotics One
 
-## Getting Started
+Internal operations software for **Edubotics Global** (Kochi, Kerala). One app for the whole team, starting with:
 
-First, run the development server:
+- **CRM**: leads, institutions (schools, colleges, companies), contacts, a deal pipeline in ₹, and follow-ups (calls, visits, meetings, tasks).
+- **HRM**: employee records, departments, reporting lines, leave requests with manager approval, leave balances, and the holiday calendar.
+
+Planned next: timesheets, projects (programme delivery per school), inventory (kits), and operations.
+
+## How it works
+
+| Area | What people can do |
+|---|---|
+| Dashboard | Open leads, pipeline value, won this month, your follow-ups, who is on leave, upcoming holidays |
+| Leads | Capture enquiries, log calls, then **Convert** one into an institution + contact + deal in one step |
+| Deals | Board by stage (Prospect → Demo → Proposal → Negotiation → Won/Lost) with programme, students covered and value |
+| Institutions / Contacts | Every school, college or company and the people there, with all their deals and activity |
+| Follow-ups | Your overdue, today and upcoming follow-ups |
+| People | Directory; admins add and edit employee records and can create a login at the same time |
+| My leave | Balances per leave type and requests. Sundays and company holidays are not counted |
+| Leave approvals | Managers approve their direct reports; admins can approve anyone |
+| Admin → Users | Create logins, set roles, reset passwords, disable access |
+
+**Roles**: `ADMIN` (HR records and settings), `MANAGER` (approves their team's leave), `EMPLOYEE`. Everyone can use the CRM; only admins delete CRM records.
+
+## Tech
+
+Next.js 16 (App Router, server actions) · TypeScript · Tailwind CSS 4 · PostgreSQL · Prisma 6. Sign-in is email + password with a signed, HTTP-only session cookie.
+
+## Run locally
+
+Requires Node 22+ and PostgreSQL 14+.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env            # set DATABASE_URL and SESSION_SECRET
+npm install
+npm run db:migrate              # create tables
+SEED_ADMIN_EMAIL=you@eduboticsglobal.com SEED_ADMIN_PASSWORD='choose-a-password' SEED_ADMIN_NAME='Your Name' npm run db:seed
+npm run dev                     # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The seed adds departments, leave types (CL 12, SL 12, EL 12, LOP) and the fixed-date national holidays. Add Onam, Vishu, Eid, Deepavali and other moving holidays each year under **HR → Holidays**, and adjust quotas under **HR → Leave types**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Any Node host plus a managed PostgreSQL works. For a 10-person team the simplest options are:
 
-## Learn More
+- A small VPS (e.g. Mumbai/Bangalore region) running `npm run build && npm start` behind Nginx, with Postgres on the same box or managed.
+- A platform such as Railway or Render with their Postgres add-on.
 
-To learn more about Next.js, take a look at the following resources:
+On each deploy run `npm run db:deploy` before starting the app. Set a long random `SESSION_SECRET` (`openssl rand -base64 48`) and serve over HTTPS.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build and server |
+| `npm run typecheck` / `npm run lint` | Checks (also run in CI) |
+| `npm run db:migrate` | Create a migration after editing `prisma/schema.prisma` |
+| `npm run db:deploy` | Apply migrations in production |
+| `npm run db:seed` | Starter data and first admin |

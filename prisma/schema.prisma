@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Access ────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN // full access, manages users and HR records
+  MANAGER // approves leave for their team
+  EMPLOYEE
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role      @default(EMPLOYEE)
+  active       Boolean   @default(true)
+  employee     Employee?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  ownedLeads         Lead[]         @relation("LeadOwner")
+  ownedOrganizations Organization[] @relation("OrgOwner")
+  ownedContacts      Contact[]      @relation("ContactOwner")
+  ownedDeals         Deal[]         @relation("DealOwner")
+  activities         Activity[]     @relation("ActivityAssignee")
+  createdActivities  Activity[]     @relation("ActivityCreator")
+}
+
+// ─── HRM ───────────────────────────────────────────────────────────────────
+
+model Department {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  employees Employee[]
+  createdAt DateTime   @default(now())
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_NOTICE
+  EXITED
+}
+
+model Employee {
+  id               String         @id @default(cuid())
+  code             String         @unique // e.g. EBG-001
+  firstName        String
+  lastName         String
+  workEmail        String         @unique
+  personalEmail    String?
+  phone            String?
+  designation      String
+  departmentId     String?
+  department       Department?    @relation(fields: [departmentId], references: [id])
+  managerId        String?
+  manager          Employee?      @relation("Reports", fields: [managerId], references: [id])
+  reports          Employee[]     @relation("Reports")
+  employmentType   EmploymentType @default(FULL_TIME)
+  status           EmployeeStatus @default(ACTIVE)
+  dateOfJoining    DateTime       @db.Date
+  dateOfExit       DateTime?      @db.Date
+  dateOfBirth      DateTime?      @db.Date
+  gender           String?
+  bloodGroup       String?
+  address          String?
+  city             String?
+  state            String?        @default("Kerala")
+  emergencyName    String?
+  emergencyPhone   String?
+  userId           String?        @unique
+  user             User?          @relation(fields: [userId], references: [id])
+  leaveRequests    LeaveRequest[] @relation("LeaveApplicant")
+  approvedRequests LeaveRequest[] @relation("LeaveApprover")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model LeaveType {
+  id          String         @id @default(cuid())
+  code        String         @unique // CL, SL, EL, LOP
+  name        String
+  annualQuota Float          @default(0) // days per calendar year; 0 = unlimited (e.g. LOP)
+  paid        Boolean        @default(true)
+  active      Boolean        @default(true)
+  requests    LeaveRequest[]
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  employeeId   String
+  employee     Employee    @relation("LeaveApplicant", fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId  String
+  leaveType    LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  startDate    DateTime    @db.Date
+  endDate      DateTime    @db.Date
+  halfDay      Boolean     @default(false)
+  days         Float // working days, excluding Sundays and holidays
+  reason       String
+  status       LeaveStatus @default(PENDING)
+  approverId   String?
+  approver     Employee?   @relation("LeaveApprover", fields: [approverId], references: [id])
+  decisionNote String?
+  decidedAt    DateTime?
+  createdAt    DateTime    @default(now())
+
+  @@index([employeeId, startDate])
+}
+
+model Holiday {
+  id       String   @id @default(cuid())
+  date     DateTime @unique @db.Date
+  name     String
+  optional Boolean  @default(false) // restricted holiday
+}
+
+// ─── CRM ───────────────────────────────────────────────────────────────────
+
+enum OrgType {
+  SCHOOL
+  COLLEGE
+  UNIVERSITY
+  CORPORATE
+  GOVERNMENT
+  NGO
+  PARTNER
+  OTHER
+}
+
+model Organization {
+  id         String     @id @default(cuid())
+  name       String
+  type       OrgType    @default(SCHOOL)
+  board      String? // CBSE, ICSE, State, IB… for schools
+  phone      String?
+  email      String?
+  website    String?
+  address    String?
+  city       String?
+  district   String?
+  state      String?    @default("Kerala")
+  notes      String?
+  ownerId    String?
+  owner      User?      @relation("OrgOwner", fields: [ownerId], references: [id])
+  contacts   Contact[]
+  deals      Deal[]
+  activities Activity[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([name])
+}
+
+model Contact {
+  id             String        @id @default(cuid())
+  name           String
+  designation    String? // Principal, HOD, Director…
+  email          String?
+  phone          String?
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  ownerId        String?
+  owner          User?         @relation("ContactOwner", fields: [ownerId], references: [id])
+  notes          String?
+  deals          Deal[]
+  activities     Activity[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  UNQUALIFIED
+  CONVERTED
+}
+
+enum LeadSource {
+  WEBSITE
+  REFERRAL
+  WALK_IN
+  PHONE
+  EMAIL
+  SOCIAL
+  EVENT
+  OTHER
+}
+
+model Lead {
+  id               String     @id @default(cuid())
+  name             String // person's name
+  organizationName String?
+  orgType          OrgType?
+  email            String?
+  phone            String?
+  city             String?
+  interest         String? // what they asked about
+  source           LeadSource @default(OTHER)
+  status           LeadStatus @default(NEW)
+  notes            String?
+  ownerId          String?
+  owner            User?      @relation("LeadOwner", fields: [ownerId], references: [id])
+  convertedDealId  String?    @unique
+  convertedDeal    Deal?      @relation(fields: [convertedDealId], references: [id], onDelete: SetNull)
+  activities       Activity[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+enum DealStage {
+  PROSPECT
+  DEMO
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+model Deal {
+  id             String        @id @default(cuid())
+  title          String
+  value          Decimal       @default(0) @db.Decimal(14, 2) // INR
+  stage          DealStage     @default(PROSPECT)
+  program        String? // STEM programme, engineering workshop, teacher training, kits…
+  students       Int? // learners covered, for programmes and workshops
+  expectedClose  DateTime?     @db.Date
+  closedAt       DateTime?
+  lostReason     String?
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contactId      String?
+  contact        Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  ownerId        String?
+  owner          User?         @relation("DealOwner", fields: [ownerId], references: [id])
+  notes          String?
+  lead           Lead?
+  activities     Activity[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([stage])
+}
+
+enum ActivityType {
+  CALL
+  MEETING
+  EMAIL
+  VISIT
+  TASK
+  NOTE
+}
+
+model Activity {
+  id             String        @id @default(cuid())
+  type           ActivityType  @default(NOTE)
+  subject        String
+  body           String?
+  dueAt          DateTime?
+  done           Boolean       @default(false)
+  assigneeId     String?
+  assignee       User?         @relation("ActivityAssignee", fields: [assigneeId], references: [id])
+  createdById    String
+  createdBy      User          @relation("ActivityCreator", fields: [createdById], references: [id])
+  leadId         String?
+  lead           Lead?         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  dealId         String?
+  deal           Deal?         @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contactId      String?
+  contact        Contact?      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+
+  @@index([assigneeId, done, dueAt])
+}
