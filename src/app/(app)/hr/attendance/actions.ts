@@ -11,6 +11,7 @@ import type { FormState } from "@/components/action-form";
 
 function refresh() {
   revalidatePath("/hr/attendance", "layout");
+  revalidatePath("/approvals");
   revalidatePath("/");
 }
 

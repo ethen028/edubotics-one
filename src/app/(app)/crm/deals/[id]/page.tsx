@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { isAdmin, requireUser } from "@/lib/auth";
+import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { Badge, PageHeader } from "@/components/ui";
 import { formatINR, humanize } from "@/lib/format";
 import { DealForm } from "../../forms";
@@ -19,6 +19,7 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
       organization: true,
       contact: true,
       lead: true,
+      projects: { select: { id: true, name: true, stage: true } },
       activities: { include: activityInclude, orderBy: { createdAt: "desc" } },
     },
   });
@@ -64,6 +65,11 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
             <Link href="/crm/deals" className="btn-secondary">
               Pipeline
             </Link>
+            {deal.stage === "WON" && isManagerOrAdmin(user) && (
+              <Link href={`/projects/new?deal=${deal.id}`} className="btn-primary">
+                Start delivery project
+              </Link>
+            )}
             {isAdmin(user) && (
               <form action={deleteDeal.bind(null, deal.id)}>
                 <button className="btn-danger">Delete</button>
@@ -78,6 +84,20 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
           <Link href={`/crm/leads/${deal.lead.id}`} className="link">
             {deal.lead.name}
           </Link>
+        </p>
+      )}
+      {deal.projects.length > 0 && (
+        <p className="-mt-2 mb-4 text-sm text-slate-500">
+          Delivery:{" "}
+          {deal.projects.map((p, i) => (
+            <span key={p.id}>
+              {i > 0 && ", "}
+              <Link href={`/projects/${p.id}`} className="link">
+                {p.name}
+              </Link>{" "}
+              ({humanize(p.stage)})
+            </span>
+          ))}
         </p>
       )}
       <div className="grid gap-6 xl:grid-cols-5">
