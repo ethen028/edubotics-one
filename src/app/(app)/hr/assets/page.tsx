@@ -34,7 +34,16 @@ export default async function AssetsPage({ searchParams }: PageProps<"/hr/assets
 
   return (
     <>
-      <PageHeader title="Assets" subtitle="Laptops, access cards, lab and robotics kits, and who has them." />
+      <PageHeader title="Assets" subtitle={
+          <>
+            Equipment tracked one by one and issued to a person: laptops, phones, access cards, a trainer&apos;s own kit. Kits and parts
+            counted by quantity and lent to projects are in{" "}
+            <Link href="/inventory" className="link">
+              Inventory
+            </Link>
+            .
+          </>
+        } />
       <div className="mb-4 flex flex-wrap gap-2 text-sm">
         <Link href="?" className={!filter ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>
           In use or stock

@@ -30,6 +30,8 @@ import {
   toggleMilestone,
   updateProject,
 } from "../actions";
+import { outstanding, requestNo } from "@/lib/inventory";
+import { RequestBadge } from "../../inventory/ui";
 import { ProjectForm } from "../forms";
 import { projectFormOptions } from "../data";
 import { PriorityBadge, ProgressBar, StageBadge, StageRail, WORK_STATUSES, WorkBadge } from "../ui";
@@ -50,6 +52,11 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
       tasks: {
         include: { assignee: { select: { id: true, name: true } }, milestone: { select: { title: true } } },
         orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+      },
+      stockRequests: {
+        where: { status: { notIn: ["CANCELLED", "REJECTED"] } },
+        include: { lines: { include: { item: { select: { name: true, returnable: true } } } } },
+        orderBy: { createdAt: "desc" },
       },
     },
   });
@@ -339,6 +346,40 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                 <input name="role" placeholder="Role, e.g. Trainer" className="input" />
                 <SubmitButton className="btn-secondary btn-sm">Add to team</SubmitButton>
               </ActionForm>
+            )}
+          </section>
+
+          <section className="card">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">Kits and parts</h2>
+              {project.stage !== "COMPLETE" && (
+                <Link href={`/inventory/requests/new?project=${project.id}`} className="link text-sm">
+                  Request
+                </Link>
+              )}
+            </div>
+            {project.stockRequests.length === 0 ? (
+              <p className="text-sm text-slate-500">Nothing requested from inventory.</p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {project.stockRequests.map((r) => {
+                  const out = r.lines.reduce((n, l) => n + outstanding(l), 0);
+                  return (
+                    <li key={r.id}>
+                      <div className="flex items-center justify-between gap-2">
+                        <Link href={`/inventory/requests/${r.id}`} className="link">
+                          {requestNo(r.number)}
+                        </Link>
+                        <RequestBadge status={r.status} />
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {r.lines.map((l) => `${l.quantity} × ${l.item.name}`).join(", ")}
+                        {out > 0 && ` · ${out} still out`}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </section>
 
