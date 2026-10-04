@@ -301,4 +301,6 @@ export async function decideLeave(id: string, formData: FormData) {
   });
   revalidatePath("/hr/approvals");
   revalidatePath("/hr/leave");
+  revalidatePath("/approvals");
+  revalidatePath("/");
 }

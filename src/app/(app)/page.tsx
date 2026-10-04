@@ -1,48 +1,89 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
+import { pendingApprovals } from "@/lib/approvals";
 import { daysFromNow, todayIST } from "@/lib/time";
-import { Badge, PageHeader, Stat } from "@/components/ui";
+import { mondayOf } from "@/lib/week";
+import { OPEN_PROJECT_STAGES, progress, projectScope } from "@/lib/projects";
+import { Badge, Stat } from "@/components/ui";
 import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
 import { OPEN_STAGES } from "./crm/constants";
+import { PriorityBadge, ProgressBar, StageBadge } from "./projects/ui";
+import { TimesheetBadge } from "./timesheets/badge";
 
-export const metadata = { title: "Dashboard" };
+export const metadata = { title: "Home" };
 
-export default async function Dashboard({ searchParams }: PageProps<"/">) {
+const PRIORITY_ORDER = { HIGH: 0, MEDIUM: 1, LOW: 2 } as const;
+
+function greeting() {
+  const hour = Number(new Date().toLocaleString("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" }));
+  return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+}
+
+export default async function Home({ searchParams }: PageProps<"/">) {
   const user = await requireUser();
   const { denied } = (await searchParams) as Record<string, string | undefined>;
+  const admin = isAdmin(user);
+  const manager = isManagerOrAdmin(user);
 
   const now = new Date();
-  const todayUTC = todayIST();
-  const monthStart = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), 1));
+  const today = todayIST();
+  const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const weekStart = mondayOf(today);
 
-  const [openLeads, pipeline, wonThisMonth, myFollowUps, onLeaveToday, holidays, pendingApprovals, recentLeads] =
+  const [myTasks, projects, myWeek, approvals, myPendingLeave, myFollowUps, onLeaveToday, holidays, pipeline, wonThisMonth] =
     await Promise.all([
-      db.lead.count({ where: { status: { in: ["NEW", "CONTACTED", "QUALIFIED"] } } }),
-      db.deal.aggregate({ where: { stage: { in: [...OPEN_STAGES] } }, _sum: { value: true }, _count: true }),
-      db.deal.aggregate({ where: { stage: "WON", closedAt: { gte: monthStart } }, _sum: { value: true }, _count: true }),
+      db.projectTask.findMany({
+        where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" }, onHold: false } },
+        include: { project: { select: { id: true, name: true } } },
+      }),
+      db.project.findMany({
+        where: { ...projectScope(user), stage: { in: [...OPEN_PROJECT_STAGES] } },
+        include: {
+          tasks: { select: { status: true } },
+          milestones: { where: { doneAt: null }, orderBy: { dueDate: { sort: "asc", nulls: "last" } }, take: 1 },
+        },
+        orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],
+      }),
+      user.employee
+        ? db.timesheet.findUnique({
+            where: { employeeId_weekStart: { employeeId: user.employee.id, weekStart } },
+            include: { entries: { select: { hours: true } } },
+          })
+        : null,
+      pendingApprovals(user),
+      user.employee ? db.leaveRequest.count({ where: { employeeId: user.employee.id, status: "PENDING" } }) : 0,
       db.activity.findMany({
         where: { assigneeId: user.id, done: false, dueAt: { not: null, lt: daysFromNow(2) } },
         include: { deal: true, lead: true, organization: true },
         orderBy: { dueAt: "asc" },
-        take: 8,
+        take: 6,
       }),
       db.leaveRequest.findMany({
-        where: { status: "APPROVED", startDate: { lte: todayUTC }, endDate: { gte: todayUTC } },
+        where: { status: "APPROVED", startDate: { lte: today }, endDate: { gte: today } },
         include: { employee: true, leaveType: true },
       }),
-      db.holiday.findMany({ where: { date: { gte: todayUTC } }, orderBy: { date: "asc" }, take: 4 }),
-      isManagerOrAdmin(user)
-        ? db.leaveRequest.count({
-            where: {
-              status: "PENDING",
-              employeeId: { not: user.employee?.id ?? "" },
-              ...(isAdmin(user) ? {} : { employee: { managerId: user.employee?.id ?? "__none__" } }),
-            },
-          })
-        : Promise.resolve(0),
-      db.lead.findMany({ where: { status: "NEW" }, orderBy: { createdAt: "desc" }, take: 5 }),
+      db.holiday.findMany({ where: { date: { gte: today } }, orderBy: { date: "asc" }, take: 4 }),
+      db.deal.aggregate({ where: { stage: { in: [...OPEN_STAGES] } }, _sum: { value: true }, _count: true }),
+      db.deal.aggregate({ where: { stage: "WON", closedAt: { gte: monthStart } }, _sum: { value: true }, _count: true }),
     ]);
+
+  // Overdue first, then nearest due date, then priority.
+  myTasks.sort((a, b) => {
+    const da = a.dueDate?.getTime() ?? Infinity;
+    const dbb = b.dueDate?.getTime() ?? Infinity;
+    return da - dbb || PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  });
+  const focus = myTasks[0];
+  const dueToday = myTasks.filter((t) => t.dueDate && t.dueDate <= today).length;
+  const weekHours = myWeek?.entries.reduce((s, e) => s + Number(e.hours), 0) ?? 0;
+  const lateProjects = projects.filter((p) => p.dueDate && p.dueDate < today).length;
+
+  const roleNote = admin
+    ? "Company performance and decisions in one place."
+    : manager
+      ? "Team delivery, approvals and project health."
+      : "Focus on what needs your attention today.";
 
   return (
     <>
@@ -51,55 +92,214 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           You don&apos;t have access to that page.
         </div>
       )}
-      <PageHeader title={`Hello, ${user.name.split(" ")[0]}`} subtitle={formatDate(todayUTC)} />
+
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold tracking-wider text-brand-700 uppercase">
+            {today.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}
+          </div>
+          <h1 className="mt-1 text-2xl font-semibold text-slate-900">
+            {greeting()}, {user.name.split(" ")[0]}
+          </h1>
+          <p className="text-sm text-slate-500">{roleNote}</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/timesheets" className="btn-secondary">
+            Log time
+          </Link>
+          {manager && (
+            <Link href="/projects/new" className="btn-primary">
+              New project
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {focus && (
+        <section className="mb-6 rounded-2xl bg-brand-900 p-5 text-white shadow-lg">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-semibold tracking-widest text-brand-300">NEXT PRIORITY</div>
+              <h2 className="mt-1 text-xl font-semibold">{focus.title}</h2>
+              <p className="text-sm text-brand-100/80">
+                {focus.project.name}
+                {focus.dueDate && ` · due ${formatDate(focus.dueDate)}`}
+                {focus.dueDate && focus.dueDate < today && " (overdue)"}
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                focus.priority === "HIGH" ? "bg-red-400/20 text-red-200" : "bg-white/10 text-brand-100"
+              }`}
+            >
+              {focus.priority}
+            </span>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href={`/projects/${focus.project.id}`} className="btn bg-white text-brand-900 hover:bg-brand-50">
+              Open project
+            </Link>
+            <Link href="/work" className="btn text-white ring-1 ring-white/30 hover:bg-white/10">
+              All my work ({myTasks.length})
+            </Link>
+          </div>
+        </section>
+      )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Open leads" value={openLeads} href="/crm/leads" />
-        <Stat label={`Open pipeline (${pipeline._count} deals)`} value={formatINR(pipeline._sum.value ?? 0)} href="/crm/deals" />
-        <Stat label={`Won this month (${wonThisMonth._count})`} value={formatINR(wonThisMonth._sum.value ?? 0)} />
-        {isManagerOrAdmin(user) ? (
-          <Stat label="Leave waiting for you" value={pendingApprovals} href="/hr/approvals" />
+        <Stat label={`My open tasks · ${dueToday} due or overdue`} value={myTasks.length} href="/work" />
+        <Stat label={`Active projects${lateProjects ? ` · ${lateProjects} late` : ""}`} value={projects.length} href="/projects" />
+        <Stat label="Hours this week" value={weekHours} href="/timesheets" />
+        {manager ? (
+          <Stat label="Waiting for your approval" value={approvals.total} href="/approvals" />
         ) : (
-          <Stat label="On leave today" value={onLeaveToday.length} href="/hr/employees" />
+          <Stat label="My leave requests pending" value={myPendingLeave} href="/hr/leave" />
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="card lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-semibold">Your follow-ups (overdue and next 2 days)</h2>
-            <Link href="/crm/activities" className="link text-sm">
-              All
-            </Link>
-          </div>
-          {myFollowUps.length === 0 ? (
-            <p className="text-sm text-slate-500">You&apos;re all caught up.</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 text-sm">
-              {myFollowUps.map((a) => {
-                const href = a.deal
-                  ? `/crm/deals/${a.deal.id}`
-                  : a.lead
-                    ? `/crm/leads/${a.lead.id}`
-                    : a.organization
-                      ? `/crm/organizations/${a.organization.id}`
-                      : "/crm/activities";
-                return (
-                  <li key={a.id} className="flex items-center justify-between gap-3 py-2">
-                    <Link href={href} className="hover:underline">
-                      <Badge>{humanize(a.type)}</Badge> {a.subject}
-                      <span className="text-slate-500"> · {a.deal?.title ?? a.lead?.name ?? a.organization?.name}</span>
-                    </Link>
-                    <Badge color={a.dueAt! < now ? "red" : "amber"}>{formatDateTime(a.dueAt)}</Badge>
+      {admin && (
+        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Stat label={`Open pipeline (${pipeline._count} deals)`} value={formatINR(pipeline._sum.value ?? 0)} href="/crm/deals" />
+          <Stat label={`Won this month (${wonThisMonth._count})`} value={formatINR(wonThisMonth._sum.value ?? 0)} />
+          <Stat label="Projects on track" value={`${projects.length - lateProjects} / ${projects.length}`} href="/projects" />
+          <Stat label="On leave today" value={onLeaveToday.length} href="/hr/employees" />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          <section className="card">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">Up next</h2>
+              <Link href="/work" className="link text-sm">
+                All
+              </Link>
+            </div>
+            {myTasks.length === 0 ? (
+              <p className="text-sm text-slate-500">No tasks assigned to you.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 text-sm">
+                {myTasks.slice(0, 6).map((t, i) => (
+                  <li key={t.id} className="flex items-center gap-3 py-2">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{t.title}</div>
+                      <div className="truncate text-xs text-slate-500">{t.project.name}</div>
+                    </div>
+                    <PriorityBadge priority={t.priority} />
+                    <span
+                      className={`w-24 text-right text-xs ${t.dueDate && t.dueDate < today ? "font-medium text-red-600" : "text-slate-500"}`}
+                    >
+                      {t.dueDate ? formatDate(t.dueDate) : ""}
+                    </span>
                   </li>
-                );
-              })}
-            </ul>
-          )}
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="card">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">{manager ? "Project health" : "My projects"}</h2>
+              <Link href="/projects" className="link text-sm">
+                All
+              </Link>
+            </div>
+            {projects.length === 0 ? (
+              <p className="text-sm text-slate-500">No active projects.</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {projects.slice(0, 6).map((p) => {
+                  const pct = progress(p.tasks);
+                  return (
+                    <Link key={p.id} href={`/projects/${p.id}`} className="rounded-xl border border-slate-100 p-3 hover:border-brand-300">
+                      <div className="flex justify-between gap-2 text-sm">
+                        <b className="truncate">{p.name}</b>
+                        <span className="font-semibold text-brand-700">{pct}%</span>
+                      </div>
+                      <ProgressBar value={pct} className="my-2" />
+                      <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+                        <span className="truncate">{p.milestones[0]?.title ?? "No open milestone"}</span>
+                        <StageBadge stage={p.stage} onHold={p.onHold} />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="card">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">CRM follow-ups (overdue and next 2 days)</h2>
+              <Link href="/crm/activities" className="link text-sm">
+                All
+              </Link>
+            </div>
+            {myFollowUps.length === 0 ? (
+              <p className="text-sm text-slate-500">You&apos;re all caught up.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 text-sm">
+                {myFollowUps.map((a) => {
+                  const href = a.deal
+                    ? `/crm/deals/${a.deal.id}`
+                    : a.lead
+                      ? `/crm/leads/${a.lead.id}`
+                      : a.organization
+                        ? `/crm/organizations/${a.organization.id}`
+                        : "/crm/activities";
+                  return (
+                    <li key={a.id} className="flex items-center justify-between gap-3 py-2">
+                      <Link href={href} className="hover:underline">
+                        <Badge>{humanize(a.type)}</Badge> {a.subject}
+                        <span className="text-slate-500"> · {a.deal?.title ?? a.lead?.name ?? a.organization?.name}</span>
+                      </Link>
+                      <Badge color={a.dueAt! < now ? "red" : "amber"}>{formatDateTime(a.dueAt)}</Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
 
         <div className="space-y-6">
-          <div className="card">
+          {manager ? (
+            <section className="card">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-semibold">Needs your approval</h2>
+                <Link href="/approvals" className="link text-sm">
+                  Open
+                </Link>
+              </div>
+              {approvals.total === 0 ? (
+                <p className="text-sm text-slate-500">Nothing waiting.</p>
+              ) : (
+                <ul className="space-y-1.5 text-sm">
+                  {approvals.projects.length > 0 && <li>Projects · {approvals.projects.length}</li>}
+                  {approvals.timesheets.length > 0 && <li>Timesheets · {approvals.timesheets.length}</li>}
+                  {approvals.leave.length > 0 && <li>Leave · {approvals.leave.length}</li>}
+                  {approvals.corrections.length > 0 && <li>Missed punch-outs · {approvals.corrections.length}</li>}
+                </ul>
+              )}
+            </section>
+          ) : (
+            <section className="card">
+              <h2 className="mb-2 font-semibold">This week&apos;s timesheet</h2>
+              <div className="flex items-center justify-between text-sm">
+                <span>
+                  <b className="text-lg">{weekHours}</b> h logged
+                </span>
+                {myWeek ? <TimesheetBadge status={myWeek.status} /> : <Badge>Not started</Badge>}
+              </div>
+              <Link href="/timesheets" className="link mt-2 inline-block text-sm">
+                Open timesheet
+              </Link>
+            </section>
+          )}
+          <section className="card">
             <h2 className="mb-2 font-semibold">On leave today</h2>
             {onLeaveToday.length === 0 ? (
               <p className="text-sm text-slate-500">Everyone&apos;s in.</p>
@@ -112,8 +312,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                 ))}
               </ul>
             )}
-          </div>
-          <div className="card">
+          </section>
+          <section className="card">
             <h2 className="mb-2 font-semibold">Upcoming holidays</h2>
             {holidays.length === 0 ? (
               <p className="text-sm text-slate-500">None listed.</p>
@@ -127,24 +327,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                 ))}
               </ul>
             )}
-          </div>
-          <div className="card">
-            <h2 className="mb-2 font-semibold">New leads</h2>
-            {recentLeads.length === 0 ? (
-              <p className="text-sm text-slate-500">No new leads.</p>
-            ) : (
-              <ul className="space-y-1 text-sm">
-                {recentLeads.map((l) => (
-                  <li key={l.id}>
-                    <Link href={`/crm/leads/${l.id}`} className="link">
-                      {l.name}
-                    </Link>
-                    {l.organizationName && <span className="text-slate-500"> · {l.organizationName}</span>}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          </section>
         </div>
       </div>
     </>

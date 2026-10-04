@@ -8,13 +8,20 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 - **Onboarding**: a standard joining checklist (added automatically for new joiners), document upload (Aadhaar, PAN, bank details, offer letter; PDF or image up to 5 MB, visible only to the employee and admins) with admin verification, training modules with progress, and an asset register (laptops, access cards, lab and robotics kits).
 - **Payroll**: salary per employee (Basic + HRA + special allowance, with history), a monthly payroll run with loss-of-pay from approved unpaid leave and proration for mid-month joiners or leavers, hand-entered bonuses and deductions, finalize and mark paid, printable payslips each employee can see, and a CSV export. PF, ESI, professional tax and TDS are switches under **Admin → Settings**, all off by default.
 
-Planned next: timesheets, projects (programme delivery per school), inventory (kits), and operations.
+- **Projects and tasks**: every school programme, college workshop, final-year project or internal job runs through the same eight steps (Create → Assign → Plan → Execute → Review → Approval → Handover → Complete), with a team, milestones and tasks. A won CRM deal starts its delivery project in one click, with the institution and programme filled in. Approval is a gate: an admin or the owner's manager approves or sends it back with a note.
+- **My work and timesheets**: each person's tasks ordered by what is overdue and due next; a weekly timesheet logged against tasks or projects, submitted to the manager for approval.
+- **Approvals**: one inbox for managers and admins with projects, timesheets, leave and missed punch-outs.
+
+Planned next: inventory (kits) and operations.
 
 ## How it works
 
 | Area | What people can do |
 |---|---|
-| Dashboard | Open leads, pipeline value, won this month, your follow-ups, who is on leave, upcoming holidays |
+| Home | Your next priority, open tasks, hours this week, project health, approvals waiting, CRM follow-ups, who is on leave, holidays. Admins also see pipeline and won-this-month |
+| My work / Projects | Tasks assigned to you; projects you are on (managers: also their team's; admins: all) |
+| Timesheet | Log hours per day against a task or project, submit the week, see it approved or sent back |
+| Approvals | Managers and admins approve projects, timesheets, leave and attendance fixes in one place |
 | Leads | Capture enquiries, log calls, then **Convert** one into an institution + contact + deal in one step |
 | Deals | Board by stage (Prospect → Demo → Proposal → Negotiation → Won/Lost) with programme, students covered and value |
 | Institutions / Contacts | Every school, college or company and the people there, with all their deals and activity |
