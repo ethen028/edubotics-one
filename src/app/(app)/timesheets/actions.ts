@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { Project, ProjectTask } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -9,6 +10,7 @@ import { parseDateOnly } from "@/lib/leave";
 import { canManage } from "@/lib/team";
 import { mondayOf } from "@/lib/week";
 import { todayIST } from "@/lib/time";
+import { toDateInput } from "@/lib/format";
 import { canUpdateTask, projectScope } from "@/lib/projects";
 import { readFiles } from "@/lib/project-files";
 import { recordTaskUpdate } from "@/lib/task-updates";
@@ -51,20 +53,16 @@ const entrySchema = z.object({
   remarks: optionalText,
 });
 
-/**
- * Logs a piece of the day's work (Task Flow's daily worksheet) into the week's timesheet. Hours come from the start and
- * end times, minus the lunch break, or are typed in. Against one of your tasks it can also move the task's progress and
- * attach files, which then show on the task for the project owner.
- */
-export async function addEntry(_: FormState, formData: FormData): Promise<FormState> {
-  const user = await requireUser();
-  if (!user.employee) return { error: "Timesheets need an employee record linked to your login. Ask an admin." };
+type EntryInput = z.infer<typeof entrySchema>;
+
+/** Validates the form and works out the hours (from start and end, minus lunch, or typed in). */
+function readEntry(formData: FormData): { error: string } | { data: EntryInput; hours: number } {
   const parsed = entrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return { error: `${issue.path.join(".") || "Form"}: ${issue.message}` };
   }
-  const { date, target, startTime, endTime, title, note, workStatus, progress, remarks } = parsed.data;
+  const { date, startTime, endTime } = parsed.data;
   if (date > todayIST()) return { error: "You can't log work for a future day." };
 
   let hours = parsed.data.hours;
@@ -77,18 +75,41 @@ export async function addEntry(_: FormState, formData: FormData): Promise<FormSt
   if (hours === null || Number.isNaN(hours)) return { error: "Give the start and end time, or the hours." };
   if (hours < 0.25) return { error: "hours: at least 15 minutes" };
   if (hours > 16) return { error: "hours: at most 16 hours" };
+  return { data: parsed.data, hours };
+}
 
+/** Resolves "task:<id>" / "project:<id>" to a task and project the user is on. */
+async function readTarget(user: Awaited<ReturnType<typeof requireUser>>, target: string) {
   let projectId: string | null = null;
   let task: (ProjectTask & { project: Project }) | null = null;
   if (target.startsWith("task:")) {
     task = await db.projectTask.findUnique({ where: { id: target.slice(5) }, include: { project: true } });
-    if (!task) return { error: "That task no longer exists." };
+    if (!task) return { error: "That task no longer exists." } as const;
     projectId = task.projectId;
   } else if (target.startsWith("project:")) {
     projectId = target.slice(8);
   }
   if (projectId && !(await db.project.findFirst({ where: { id: projectId, ...projectScope(user) }, select: { id: true } })))
-    return { error: "You aren't on that project." };
+    return { error: "You aren't on that project." } as const;
+  return { projectId, task };
+}
+
+/**
+ * Logs a piece of the day's work (Task Flow's daily worksheet) into the week's timesheet. Hours come from the start and
+ * end times, minus the lunch break, or are typed in. Against one of your tasks it can also move the task's progress and
+ * attach files, which then show on the task for the project owner.
+ */
+export async function addEntry(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  if (!user.employee) return { error: "Timesheets need an employee record linked to your login. Ask an admin." };
+  const checked = readEntry(formData);
+  if ("error" in checked) return { error: checked.error };
+  const { hours } = checked;
+  const { date, target, startTime, endTime, title, note, workStatus, progress, remarks } = checked.data;
+
+  const resolved = await readTarget(user, target);
+  if ("error" in resolved) return { error: resolved.error };
+  const { projectId, task } = resolved;
   if (!projectId && !title && !note) return { error: "Pick a project or say what the time was for." };
 
   const read = await readFiles(formData);
@@ -139,6 +160,53 @@ export async function addEntry(_: FormState, formData: FormData): Promise<FormSt
   refresh();
   if (projectId) revalidatePath(`/projects/${projectId}`, "layout");
   return { ok: progressChange !== undefined ? `Logged ${hours} h and updated the task to ${progressChange}%.` : `Logged ${hours} h.` };
+}
+
+/**
+ * Corrects one of your own entries while its week is still open (WorkPulse's "edit work entry"). The day stays in the
+ * same week; each change is counted so a manager can see the entry was changed after it was first logged.
+ */
+export async function updateEntry(id: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const entry = await db.timeEntry.findUnique({ where: { id }, include: { timesheet: true } });
+  if (!entry || !user.employee || entry.timesheet.employeeId !== user.employee.id) return { error: "That entry isn't yours." };
+  if (entry.timesheet.status === "SUBMITTED" || entry.timesheet.status === "APPROVED")
+    return { error: "That week is already submitted. Ask your manager to send it back to change it." };
+
+  const checked = readEntry(formData);
+  if ("error" in checked) return { error: checked.error };
+  const { hours } = checked;
+  const { date, target, startTime, endTime, title, note, workStatus, remarks } = checked.data;
+  if (mondayOf(date).getTime() !== entry.timesheet.weekStart.getTime())
+    return { error: "Pick a day in the same week. To move it to another week, remove it and log it there." };
+
+  const resolved = await readTarget(user, target);
+  if ("error" in resolved) return { error: resolved.error };
+  const { projectId, task } = resolved;
+  if (!projectId && !title && !note) return { error: "Pick a project or say what the time was for." };
+
+  const dayTotal = await db.timeEntry.aggregate({ where: { timesheetId: entry.timesheetId, date, id: { not: id } }, _sum: { hours: true } });
+  if (Number(dayTotal._sum.hours ?? 0) + hours > 24) return { error: "That would be more than 24 hours on one day." };
+
+  await db.timeEntry.update({
+    where: { id },
+    data: {
+      date,
+      projectId,
+      taskId: task?.id ?? null,
+      hours,
+      note,
+      title,
+      startTime,
+      endTime,
+      workStatus: workStatus ?? null,
+      remarks,
+      editCount: { increment: 1 },
+      editedAt: new Date(),
+    },
+  });
+  refresh();
+  redirect(`/timesheets?week=${toDateInput(entry.timesheet.weekStart)}`);
 }
 
 export async function deleteEntry(id: string) {

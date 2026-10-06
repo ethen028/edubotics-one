@@ -790,6 +790,9 @@ model TimeEntry {
   title       String?
   workStatus  DailyWorkStatus?
   remarks     String?
+  // WorkPulse: entries can be corrected while the week is open; the team view shows they were changed.
+  editCount   Int          @default(0)
+  editedAt    DateTime?
   createdAt   DateTime     @default(now())
 
   @@index([timesheetId, date])
