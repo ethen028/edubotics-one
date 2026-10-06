@@ -5,6 +5,7 @@ import { pendingApprovals } from "@/lib/approvals";
 import { daysFromNow, todayIST } from "@/lib/time";
 import { mondayOf } from "@/lib/week";
 import { OPEN_PROJECT_STAGES, progress, projectScope } from "@/lib/projects";
+import { needsLogWhere, timeRange } from "@/lib/operations";
 import { Badge, Stat } from "@/components/ui";
 import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
 import { OPEN_STAGES } from "./crm/constants";
@@ -31,8 +32,21 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
   const weekStart = mondayOf(today);
 
-  const [myTasks, projects, myWeek, approvals, myPendingLeave, myFollowUps, onLeaveToday, holidays, pipeline, wonThisMonth] =
-    await Promise.all([
+  const [
+    myTasks,
+    projects,
+    myWeek,
+    approvals,
+    myPendingLeave,
+    myFollowUps,
+    onLeaveToday,
+    holidays,
+    pipeline,
+    wonThisMonth,
+    mySessions,
+    myLogsDue,
+    allLogsDue,
+  ] = await Promise.all([
       db.projectTask.findMany({
         where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" }, onHold: false } },
         include: { project: { select: { id: true, name: true } } },
@@ -66,6 +80,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       db.holiday.findMany({ where: { date: { gte: today } }, orderBy: { date: "asc" }, take: 4 }),
       db.deal.aggregate({ where: { stage: { in: [...OPEN_STAGES] } }, _sum: { value: true }, _count: true }),
       db.deal.aggregate({ where: { stage: "WON", closedAt: { gte: monthStart } }, _sum: { value: true }, _count: true }),
+      db.programmeSession.findMany({
+        where: { trainerId: user.id, date: today, status: { not: "CANCELLED" } },
+        include: { programme: { select: { organization: { select: { name: true } } } } },
+        orderBy: { startTime: "asc" },
+      }),
+      db.programmeSession.count({ where: { trainerId: user.id, ...needsLogWhere(today) } }),
+      manager ? db.programmeSession.count({ where: needsLogWhere(today) }) : 0,
     ]);
 
   // Overdue first, then nearest due date, then priority.
@@ -266,6 +287,35 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
 
         <div className="space-y-6">
+          {(mySessions.length > 0 || myLogsDue > 0 || allLogsDue > 0) && (
+            <section className="card">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-semibold">My school sessions today</h2>
+                <Link href="/operations" className="link text-sm">
+                  Open
+                </Link>
+              </div>
+              {mySessions.length === 0 ? (
+                <p className="text-sm text-slate-500">No classes today.</p>
+              ) : (
+                <ul className="space-y-1.5 text-sm">
+                  {mySessions.map((s) => (
+                    <li key={s.id}>
+                      <Link href={`/operations/sessions/${s.id}`} className="hover:underline">
+                        <span className="text-slate-500">{timeRange(s.startTime, s.durationMins).split(" – ")[0]}</span>{" "}
+                        {s.programme.organization.name}
+                        {s.classGroup && ` · ${s.classGroup}`}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {myLogsDue > 0 && <p className="mt-2 text-sm font-medium text-red-600">{myLogsDue} of your sessions need a log.</p>}
+              {allLogsDue > myLogsDue && (
+                <p className="mt-1 text-xs text-slate-500">{allLogsDue} logs due across all schools.</p>
+              )}
+            </section>
+          )}
           {manager ? (
             <section className="card">
               <div className="mb-3 flex items-center justify-between">
