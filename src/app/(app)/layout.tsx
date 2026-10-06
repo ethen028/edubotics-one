@@ -52,6 +52,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <NavLink href="/crm/contacts">Contacts</NavLink>
             <NavLink href="/crm/activities">Follow-ups</NavLink>
           </div>
+          {isManagerOrAdmin(user) && (
+            <div className="space-y-0.5">
+              <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Billing</div>
+              <NavLink href="/invoices" exact>
+                Invoices
+              </NavLink>
+              <NavLink href="/invoices/dues">Payments due</NavLink>
+            </div>
+          )}
           <div className="space-y-0.5">
             <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">HR</div>
             {user.employee && <NavLink href={`/hr/employees/${user.employee.id}`}>My profile</NavLink>}

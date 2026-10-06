@@ -3,6 +3,7 @@ import { WEEKDAYS, getSettings } from "@/lib/settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Field, PageHeader } from "@/components/ui";
 import { updateSettings } from "./actions";
+import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
 
 export const metadata = { title: "Settings" };
 
@@ -11,7 +12,7 @@ export default async function SettingsPage() {
   const s = await getSettings();
   return (
     <>
-      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave and payroll." />
+      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll and invoices." />
       <div className="card max-w-xl">
         <ActionForm action={updateSettings} className="space-y-4">
           <Field label="Working time per day">
@@ -57,6 +58,84 @@ export default async function SettingsPage() {
                 </label>
               ))}
             </div>
+          </fieldset>
+          <fieldset className="space-y-3 border-t border-slate-100 pt-4">
+            <legend className="pt-4 font-semibold">Invoices</legend>
+            <p className="text-xs text-slate-500">Printed at the top and bottom of every invoice.</p>
+            <Field label="Company name">
+              <input name="companyName" required defaultValue={s.companyName} className="input" />
+            </Field>
+            <Field label="Address">
+              <textarea name="companyAddress" rows={2} required defaultValue={s.companyAddress} className="input" />
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="State (GST registration)">
+                <select name="companyState" defaultValue={s.companyState} className="input">
+                  {INDIAN_STATES.map((st) => (
+                    <option key={st}>{st}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Phone">
+                <input name="companyPhone" defaultValue={s.companyPhone ?? ""} className="input" />
+              </Field>
+              <Field label="Email">
+                <input name="companyEmail" type="email" defaultValue={s.companyEmail ?? ""} className="input" />
+              </Field>
+              <Field label="PAN">
+                <input name="pan" defaultValue={s.pan ?? ""} maxLength={10} className="input uppercase" />
+              </Field>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="gstEnabled" defaultChecked={s.gstEnabled} />
+              Charge GST on invoices (switch off if Edubotics isn&apos;t GST registered)
+            </label>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="GSTIN">
+                <input name="gstin" defaultValue={s.gstin ?? ""} maxLength={15} className="input uppercase" />
+              </Field>
+              <Field label="Default GST rate">
+                <select name="defaultGstRate" defaultValue={s.defaultGstRate} className="input">
+                  {GST_RATES.map((r) => (
+                    <option key={r} value={r}>
+                      {r}%
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Default SAC / HSN">
+                <input name="defaultSac" defaultValue={s.defaultSac ?? ""} className="input" />
+              </Field>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Invoice number prefix">
+                <input name="invoicePrefix" required defaultValue={s.invoicePrefix} maxLength={6} className="input uppercase" />
+                <p className="mt-1 text-xs text-slate-500">Numbers look like {s.invoicePrefix}/26-27/001 and restart each April.</p>
+              </Field>
+              <Field label="Payment due after (days)">
+                <input name="paymentTermsDays" type="number" min={0} max={180} defaultValue={s.paymentTermsDays} className="input w-24" />
+              </Field>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Bank">
+                <input name="bankName" defaultValue={s.bankName ?? ""} className="input" />
+              </Field>
+              <Field label="Account name">
+                <input name="bankAccountName" defaultValue={s.bankAccountName ?? ""} className="input" />
+              </Field>
+              <Field label="Account number">
+                <input name="bankAccountNo" defaultValue={s.bankAccountNo ?? ""} className="input" />
+              </Field>
+              <Field label="IFSC">
+                <input name="bankIfsc" defaultValue={s.bankIfsc ?? ""} maxLength={11} className="input uppercase" />
+              </Field>
+              <Field label="UPI ID">
+                <input name="upiId" defaultValue={s.upiId ?? ""} className="input" />
+              </Field>
+            </div>
+            <Field label="Note at the bottom of every invoice">
+              <textarea name="invoiceNote" rows={2} defaultValue={s.invoiceNote ?? ""} className="input" />
+            </Field>
           </fieldset>
           <SubmitButton>Save settings</SubmitButton>
         </ActionForm>

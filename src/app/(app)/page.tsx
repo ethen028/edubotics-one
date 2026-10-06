@@ -10,6 +10,7 @@ import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
 import { OPEN_STAGES } from "./crm/constants";
 import { PriorityBadge, ProgressBar, StageBadge } from "./projects/ui";
 import { TimesheetBadge } from "./timesheets/badge";
+import { invoicesWithBalance } from "./invoices/data";
 
 export const metadata = { title: "Home" };
 
@@ -67,6 +68,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       db.deal.aggregate({ where: { stage: { in: [...OPEN_STAGES] } }, _sum: { value: true }, _count: true }),
       db.deal.aggregate({ where: { stage: "WON", closedAt: { gte: monthStart } }, _sum: { value: true }, _count: true }),
     ]);
+
+  const overdueInvoices = admin
+    ? (await invoicesWithBalance({ status: "ISSUED", dueDate: { lt: today } })).filter((i) => i.balance > 0)
+    : [];
 
   // Overdue first, then nearest due date, then priority.
   myTasks.sort((a, b) => {
@@ -158,11 +163,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       </div>
 
       {admin && (
-        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
           <Stat label={`Open pipeline (${pipeline._count} deals)`} value={formatINR(pipeline._sum.value ?? 0)} href="/crm/deals" />
           <Stat label={`Won this month (${wonThisMonth._count})`} value={formatINR(wonThisMonth._sum.value ?? 0)} />
           <Stat label="Projects on track" value={`${projects.length - lateProjects} / ${projects.length}`} href="/projects" />
           <Stat label="On leave today" value={onLeaveToday.length} href="/hr/employees" />
+          <Stat
+            label={`School payments overdue (${overdueInvoices.length})`}
+            value={formatINR(overdueInvoices.reduce((s, i) => s + i.balance, 0))}
+            href="/invoices/dues"
+          />
         </div>
       )}
 

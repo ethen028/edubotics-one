@@ -20,6 +20,11 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
       contact: true,
       lead: true,
       projects: { select: { id: true, name: true, stage: true } },
+      invoices: {
+        where: { status: { not: "CANCELLED" } },
+        select: { id: true, number: true, subtotal: true },
+        orderBy: { issueDate: "asc" },
+      },
       activities: { include: activityInclude, orderBy: { createdAt: "desc" } },
     },
   });
@@ -70,6 +75,11 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
                 Start delivery project
               </Link>
             )}
+            {deal.stage === "WON" && isManagerOrAdmin(user) && (
+              <Link href={`/invoices/new?deal=${deal.id}`} className="btn-secondary">
+                Create invoice
+              </Link>
+            )}
             {isAdmin(user) && (
               <form action={deleteDeal.bind(null, deal.id)}>
                 <button className="btn-danger">Delete</button>
@@ -96,6 +106,19 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
                 {p.name}
               </Link>{" "}
               ({humanize(p.stage)})
+            </span>
+          ))}
+        </p>
+      )}
+      {isManagerOrAdmin(user) && deal.invoices.length > 0 && (
+        <p className="-mt-2 mb-4 text-sm text-slate-500">
+          Billed {formatINR(deal.invoices.reduce((n, i) => n + Number(i.subtotal), 0))} of {formatINR(deal.value)} before GST:{" "}
+          {deal.invoices.map((i, k) => (
+            <span key={i.id}>
+              {k > 0 && ", "}
+              <Link href={`/invoices/${i.id}`} className="link">
+                {i.number ?? "draft"}
+              </Link>
             </span>
           ))}
         </p>

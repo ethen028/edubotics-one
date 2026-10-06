@@ -124,6 +124,9 @@ export function OrganizationForm({ action, org, users }: { action: Action; org?:
         <Field label="Address" className="sm:col-span-2">
           <input name="address" defaultValue={org?.address ?? ""} className="input" />
         </Field>
+        <Field label="GSTIN (for invoices)">
+          <input name="gstin" defaultValue={org?.gstin ?? ""} className="input uppercase" maxLength={15} />
+        </Field>
         <OwnerSelect users={users} value={org?.ownerId} />
         <Field label="Notes" className="sm:col-span-2 lg:col-span-3">
           <textarea name="notes" rows={3} defaultValue={org?.notes ?? ""} className="input" />

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { isAdmin, requireUser } from "@/lib/auth";
+import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
 import { formatDate, humanize } from "@/lib/format";
@@ -104,6 +104,11 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             <Link href="/projects" className="btn-secondary">
               All projects
             </Link>
+            {isManagerOrAdmin(user) && project.organization && (
+              <Link href={`/invoices/new?project=${project.id}`} className="btn-secondary">
+                Create invoice
+              </Link>
+            )}
             {canEdit && project.stage !== "COMPLETE" && (
               <form action={toggleHold.bind(null, project.id)}>
                 <button className="btn-secondary">{project.onHold ? "Resume" : "Put on hold"}</button>
