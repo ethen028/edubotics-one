@@ -15,6 +15,8 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
       overtimeAfterMins: z.coerce.number().int().min(0).max(600),
       weeklyOffDays: z.array(z.coerce.number().int().min(0).max(6)).max(6),
       lopDivisor: z.coerce.number().int().min(20).max(31),
+      twoWheelerRatePerKm: z.coerce.number().min(0).max(100),
+      carRatePerKm: z.coerce.number().min(0).max(100),
     })
     .safeParse({
       hours: formData.get("hours"),
@@ -22,9 +24,11 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
       overtimeAfterMins: formData.get("overtimeAfterMins"),
       weeklyOffDays: formData.getAll("weeklyOffDays"),
       lopDivisor: formData.get("lopDivisor"),
+      twoWheelerRatePerKm: formData.get("twoWheelerRatePerKm") || 0,
+      carRatePerKm: formData.get("carRatePerKm") || 0,
     });
-  if (!parsed.success) return { error: "Check the hours, overtime minutes, weekly offs and LOP divisor." };
-  const { hours, minutes, overtimeAfterMins, weeklyOffDays, lopDivisor } = parsed.data;
+  if (!parsed.success) return { error: "Check the hours, overtime minutes, weekly offs, LOP divisor and per-km rates." };
+  const { hours, minutes, overtimeAfterMins, weeklyOffDays, lopDivisor, twoWheelerRatePerKm, carRatePerKm } = parsed.data;
   const on = (k: string) => formData.get(k) === "on";
   const data = {
     workMinutesPerDay: hours * 60 + minutes,
@@ -35,6 +39,8 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
     esiEnabled: on("esiEnabled"),
     ptEnabled: on("ptEnabled"),
     tdsEnabled: on("tdsEnabled"),
+    twoWheelerRatePerKm,
+    carRatePerKm,
   };
   await db.companySettings.upsert({ where: { id: 1 }, update: data, create: { id: 1, ...data } });
   revalidatePath("/", "layout");

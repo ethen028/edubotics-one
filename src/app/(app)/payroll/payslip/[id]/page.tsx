@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { monthLabel } from "@/lib/payroll";
 import { formatDate, formatINR } from "@/lib/format";
+import { CATEGORY_LABEL, payableOf } from "@/lib/expenses";
 import { PrintButton } from "./print-button";
 
 export const metadata = { title: "Payslip" };
@@ -13,7 +14,11 @@ export default async function PayslipPage({ params }: PageProps<"/payroll/paysli
   const { id } = await params;
   const p = await db.payslip.findUnique({
     where: { id },
-    include: { run: true, employee: { include: { department: true } } },
+    include: {
+      run: true,
+      employee: { include: { department: true } },
+      expenseClaims: { orderBy: { date: "asc" } },
+    },
   });
   const own = p && user.employee?.id === p.employeeId && p.run.status !== "DRAFT";
   if (!p || (!isAdmin(user) && !own)) notFound();
@@ -124,8 +129,35 @@ export default async function PayslipPage({ params }: PageProps<"/payroll/paysli
             </tbody>
           </table>
         </div>
+        {Number(p.reimbursements) > 0 && (
+          <table className="table mt-6">
+            <thead>
+              <tr>
+                <th>Expense claims paid back</th>
+                <th className="text-right">₹</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.expenseClaims.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    {formatDate(c.date)} · {CATEGORY_LABEL[c.category]} · {c.description}
+                  </td>
+                  <td className="text-right">{formatINR(payableOf(c))}</td>
+                </tr>
+              ))}
+              <tr className="font-semibold">
+                <td>Total expense claims</td>
+                <td className="text-right">{formatINR(p.reimbursements)}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
         <div className="mt-6 flex items-center justify-between rounded-lg bg-slate-50 p-4">
-          <span className="font-semibold">Net pay</span>
+          <span className="font-semibold">
+            Net pay
+            {Number(p.reimbursements) > 0 && <span className="block text-xs font-normal text-slate-500">Salary after deductions, plus expense claims</span>}
+          </span>
           <span className="text-2xl font-semibold">{formatINR(p.net)}</span>
         </div>
         {p.note && <p className="mt-3 text-sm text-slate-600">Note: {p.note}</p>}

@@ -41,6 +41,7 @@ model User {
   createdTasks       ProjectTask[]  @relation("TaskCreator")
   decidedProjects    Project[]      @relation("ProjectApprover")
   decidedTimesheets  Timesheet[]    @relation("TimesheetApprover")
+  decidedClaims      ExpenseClaim[] @relation("ClaimApprover")
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -107,6 +108,7 @@ model Employee {
   salaries         SalaryStructure[]
   payslips         Payslip[]
   timesheets       Timesheet[]
+  expenseClaims    ExpenseClaim[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 }
@@ -171,6 +173,10 @@ model CompanySettings {
   esiEnabled   Boolean @default(false)
   ptEnabled    Boolean @default(false)
   tdsEnabled   Boolean @default(false)
+
+  // Expense claims: own-vehicle travel paid per km. 0 = enter the amount by hand.
+  twoWheelerRatePerKm Decimal @default(0) @db.Decimal(6, 2)
+  carRatePerKm        Decimal @default(0) @db.Decimal(6, 2)
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -401,8 +407,10 @@ model Payslip {
   tds              Decimal    @default(0) @db.Decimal(12, 2)
   otherDeductions  Decimal    @default(0) @db.Decimal(12, 2)
   totalDeductions  Decimal    @db.Decimal(12, 2)
-  net              Decimal    @db.Decimal(12, 2)
+  reimbursements   Decimal    @default(0) @db.Decimal(12, 2) // approved expense claims, paid on top of salary
+  net              Decimal    @db.Decimal(12, 2) // includes reimbursements
   note             String?
+  expenseClaims    ExpenseClaim[]
 
   @@unique([runId, employeeId])
 }
@@ -439,6 +447,7 @@ model Organization {
   deals      Deal[]
   activities Activity[]
   projects   Project[]
+  expenseClaims ExpenseClaim[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
@@ -619,6 +628,7 @@ model Project {
   milestones     Milestone[]
   tasks          ProjectTask[]
   timeEntries    TimeEntry[]
+  expenseClaims  ExpenseClaim[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -728,4 +738,67 @@ model TimeEntry {
   createdAt   DateTime     @default(now())
 
   @@index([timesheetId, date])
+}
+
+// ─── Expense claims ────────────────────────────────────────────────────────
+
+enum ExpenseCategory {
+  TRAVEL
+  FOOD
+  LODGING
+  KITS_MATERIALS // parts or materials bought for a session or project
+  PRINTING
+  PHONE_INTERNET
+  OTHER
+}
+
+enum ClaimStatus {
+  SUBMITTED // waiting for the manager or an admin
+  APPROVED // to be paid: in the next payroll, or by hand
+  REJECTED
+  PAID
+}
+
+/// Money an employee spent for work and wants back. Approved claims ride on the next payroll run.
+model ExpenseClaim {
+  id             String          @id @default(cuid())
+  employeeId     String
+  employee       Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date           DateTime        @db.Date // when the money was spent
+  category       ExpenseCategory
+  description    String // what it was for, e.g. "Kakkanad ↔ Choice School, robotics class"
+  amount         Decimal         @db.Decimal(12, 2) // claimed
+  approvedAmount Decimal?        @db.Decimal(12, 2) // what will be paid; may be less than claimed
+  distanceKm     Decimal?        @db.Decimal(7, 1) // own-vehicle travel
+  vehicle        String? // TWO_WHEELER or CAR, for own-vehicle travel
+  projectId      String?
+  project        Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  organizationId String?
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  receipt        ExpenseReceipt?
+  status         ClaimStatus     @default(SUBMITTED)
+  decidedById    String?
+  decidedBy      User?           @relation("ClaimApprover", fields: [decidedById], references: [id])
+  decidedAt      DateTime?
+  decisionNote   String?
+  payslipId      String? // set while the claim is on a payroll run
+  payslip        Payslip?        @relation(fields: [payslipId], references: [id], onDelete: SetNull)
+  paidOn         DateTime?       @db.Date
+  paidNote       String? // how it was paid when not through payroll, e.g. "UPI"
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([employeeId, date])
+  @@index([status])
+}
+
+/// The bill or photo of it, kept apart so lists don't load file bytes (5 MB cap).
+model ExpenseReceipt {
+  id       String       @id @default(cuid())
+  claimId  String       @unique
+  claim    ExpenseClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  fileName String
+  mimeType String
+  size     Int
+  data     Bytes
 }

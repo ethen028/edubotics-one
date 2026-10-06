@@ -7,7 +7,8 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
 import { monthRange } from "@/lib/payroll";
-import { draftSlip } from "@/lib/payroll-data";
+import { claimsDueFor, draftSlip } from "@/lib/payroll-data";
+import { payableOf } from "@/lib/expenses";
 import type { FormState } from "@/components/action-form";
 
 const money = z.coerce.number().min(0, "Amounts can't be negative").max(10_000_000);
@@ -54,6 +55,23 @@ function employeesFor(month: string) {
   });
 }
 
+/** Builds one payslip, attaching the person's approved expense claims that are due. */
+async function createSlip(
+  runId: string,
+  month: string,
+  employee: { id: string; dateOfJoining: Date; dateOfExit: Date | null },
+  opts: Parameters<typeof draftSlip>[2] = {},
+  note?: string | null,
+) {
+  const claims = await claimsDueFor(employee.id, month);
+  const reimbursements = claims.reduce((s, c) => s + payableOf(c), 0);
+  const slip = await draftSlip(employee, month, { ...opts, reimbursements });
+  if (!slip) return;
+  const created = await db.payslip.create({ data: { runId, employeeId: employee.id, ...slip, note } });
+  if (claims.length)
+    await db.expenseClaim.updateMany({ where: { id: { in: claims.map((c) => c.id) } }, data: { payslipId: created.id } });
+}
+
 export async function startRun(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser(["ADMIN"]);
   const month = String(formData.get("month") ?? "");
@@ -64,11 +82,9 @@ export async function startRun(_: FormState, formData: FormData): Promise<FormSt
   }
   if (await db.payrollRun.findUnique({ where: { month } })) redirect(`/payroll/${month}`);
   const run = await db.payrollRun.create({ data: { month, createdById: user.id } });
-  for (const e of await employeesFor(month)) {
-    const slip = await draftSlip(e, month);
-    if (slip) await db.payslip.create({ data: { runId: run.id, employeeId: e.id, ...slip } });
-  }
+  for (const e of await employeesFor(month)) await createSlip(run.id, month, e);
   revalidatePath("/payroll");
+  revalidatePath("/expenses", "layout");
   redirect(`/payroll/${month}`);
 }
 
@@ -79,28 +95,38 @@ async function draftRun(runId: string) {
   return run;
 }
 
-/** Re-reads salaries, joining/exit dates and LOP leave. Keeps hand-entered extras and deductions. */
+/** Re-reads salaries, joining/exit dates, LOP leave and approved claims. Keeps hand-entered extras and deductions. */
 export async function recalculateRun(runId: string) {
   const run = await draftRun(runId);
   const kept = new Map(run.payslips.map((p) => [p.employeeId, p]));
+  // Deleting the payslips releases their claims, so they are picked up again below.
   await db.payslip.deleteMany({ where: { runId } });
   for (const e of await employeesFor(run.month)) {
     const old = kept.get(e.id);
-    const slip = await draftSlip(e, run.month, {
-      manual: old && {
-        otherEarnings: Number(old.otherEarnings),
-        professionalTax: Number(old.professionalTax),
-        tds: Number(old.tds),
-        otherDeductions: Number(old.otherDeductions),
+    await createSlip(
+      runId,
+      run.month,
+      e,
+      {
+        manual: old && {
+          otherEarnings: Number(old.otherEarnings),
+          professionalTax: Number(old.professionalTax),
+          tds: Number(old.tds),
+          otherDeductions: Number(old.otherDeductions),
+        },
       },
-    });
-    if (slip) await db.payslip.create({ data: { runId, employeeId: e.id, ...slip, note: old?.note } });
+      old?.note,
+    );
   }
   revalidatePath(`/payroll/${run.month}`);
+  revalidatePath("/expenses", "layout");
 }
 
 export async function updateSlip(slipId: string, _: FormState, formData: FormData): Promise<FormState> {
-  const slip = await db.payslip.findUniqueOrThrow({ where: { id: slipId }, include: { employee: true } });
+  const slip = await db.payslip.findUniqueOrThrow({
+    where: { id: slipId },
+    include: { employee: true, expenseClaims: { select: { amount: true, approvedAmount: true } } },
+  });
   const run = await draftRun(slip.runId);
   const parsed = z
     .object({
@@ -117,6 +143,7 @@ export async function updateSlip(slipId: string, _: FormState, formData: FormDat
   const next = await draftSlip(slip.employee, run.month, {
     lopDays,
     manual: { ...manual, professionalTax: manual.professionalTax ?? 0, tds: manual.tds ?? 0 },
+    reimbursements: slip.expenseClaims.reduce((s, c) => s + payableOf(c), 0),
   });
   if (!next) return { error: "This person has no salary for the month." };
   await db.payslip.update({ where: { id: slipId }, data: { ...next, note } });
@@ -127,8 +154,10 @@ export async function updateSlip(slipId: string, _: FormState, formData: FormDat
 export async function removeSlip(slipId: string) {
   const slip = await db.payslip.findUniqueOrThrow({ where: { id: slipId } });
   const run = await draftRun(slip.runId);
+  // Its expense claims go back to waiting for the next payroll.
   await db.payslip.delete({ where: { id: slipId } });
   revalidatePath(`/payroll/${run.month}`);
+  revalidatePath("/expenses", "layout");
 }
 
 export async function finalizeRun(runId: string) {
@@ -152,8 +181,12 @@ export async function markPaid(runId: string, formData: FormData) {
   const run = await db.payrollRun.findUniqueOrThrow({ where: { id: runId } });
   if (run.status !== "FINALIZED") throw new Error("Finalize the payroll first");
   const paidOn = parseDateOnly(String(formData.get("paidOn") ?? ""));
-  await db.payrollRun.update({ where: { id: runId }, data: { status: "PAID", paidOn } });
+  await db.$transaction([
+    db.payrollRun.update({ where: { id: runId }, data: { status: "PAID", paidOn } }),
+    db.expenseClaim.updateMany({ where: { payslip: { runId } }, data: { status: "PAID", paidOn } }),
+  ]);
   revalidatePath(`/payroll/${run.month}`);
+  revalidatePath("/expenses", "layout");
   revalidatePath("/payroll");
 }
 
@@ -161,5 +194,6 @@ export async function deleteRun(runId: string) {
   await draftRun(runId);
   await db.payrollRun.delete({ where: { id: runId } });
   revalidatePath("/payroll");
+  revalidatePath("/expenses", "layout");
   redirect("/payroll");
 }

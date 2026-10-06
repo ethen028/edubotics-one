@@ -25,6 +25,7 @@ export const monthlyGross = (s: Structure) => s.basic + s.hra + s.specialAllowan
  * - Salary is prorated for joining or leaving mid-month (calendar days employed ÷ days in month).
  * - LOP per day = full monthly gross ÷ lopDivisor (30 by default, as in Edubotics HR V1.2).
  * - PF and ESI are worked out only when switched on; PT and TDS are entered by hand when switched on.
+ * - Approved expense claims are paid back on top of net salary; they are not earnings, so no LOP or ESI applies.
  */
 export function calculateSlip(args: {
   structure: Structure;
@@ -33,6 +34,7 @@ export function calculateSlip(args: {
   lopDays: number;
   manual: Manual;
   rules: PayrollRules;
+  reimbursements?: number;
 }) {
   const { structure, daysInMonth, employedDays, rules, manual } = args;
   const lopDays = Math.min(Math.max(0, args.lopDays), employedDays);
@@ -52,6 +54,7 @@ export function calculateSlip(args: {
   const tds = rules.tdsEnabled ? rupees(manual.tds) : 0;
   const otherDeductions = rupees(manual.otherDeductions);
   const totalDeductions = lopDeduction + pf + esi + professionalTax + tds + otherDeductions;
+  const reimbursements = Math.round((args.reimbursements ?? 0) * 100) / 100;
 
   return {
     daysInMonth,
@@ -69,7 +72,8 @@ export function calculateSlip(args: {
     tds,
     otherDeductions,
     totalDeductions,
-    net: Math.max(0, gross - totalDeductions),
+    reimbursements,
+    net: Math.max(0, gross - totalDeductions) + reimbursements,
   };
 }
 

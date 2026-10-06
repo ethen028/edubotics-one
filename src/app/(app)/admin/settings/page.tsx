@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   const s = await getSettings();
   return (
     <>
-      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave and payroll." />
+      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll and expenses." />
       <div className="card max-w-xl">
         <ActionForm action={updateSettings} className="space-y-4">
           <Field label="Working time per day">
@@ -56,6 +56,20 @@ export default async function SettingsPage() {
                   {label}
                 </label>
               ))}
+            </div>
+          </fieldset>
+          <fieldset className="space-y-3 border-t border-slate-100 pt-4">
+            <legend className="pt-4 font-semibold">Expense claims</legend>
+            <p className="text-sm text-slate-500">
+              Travel in your own vehicle is paid per km. Leave a rate at 0 to have people enter the amount themselves.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Field label="Two-wheeler, ₹ per km">
+                <input name="twoWheelerRatePerKm" type="number" min={0} max={100} step="0.25" defaultValue={Number(s.twoWheelerRatePerKm)} className="input w-28" />
+              </Field>
+              <Field label="Car, ₹ per km">
+                <input name="carRatePerKm" type="number" min={0} max={100} step="0.25" defaultValue={Number(s.carRatePerKm)} className="input w-28" />
+              </Field>
             </div>
           </fieldset>
           <SubmitButton>Save settings</SubmitButton>

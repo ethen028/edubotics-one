@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
-import { formatDate, humanize } from "@/lib/format";
+import { formatDate, formatINR, humanize } from "@/lib/format";
+import { payableOf } from "@/lib/expenses";
 import { todayIST } from "@/lib/time";
 import {
   PROJECT_STAGES,
@@ -55,10 +56,14 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
   });
   if (!project) notFound();
 
-  const [canEdit, canApprove, hours, options] = await Promise.all([
+  const [canEdit, canApprove, hours, expenses, options] = await Promise.all([
     canEditProject(user, project),
     canApproveProject(user, project),
     db.timeEntry.aggregate({ where: { projectId: id }, _sum: { hours: true } }),
+    db.expenseClaim.findMany({
+      where: { projectId: id, status: { not: "REJECTED" } },
+      select: { amount: true, approvedAmount: true },
+    }),
     canEditProject(user, project) ? projectFormOptions(project.dealId) : null,
   ]);
   const today = todayIST();
@@ -208,6 +213,11 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
           <div className="text-xs text-slate-500">
             {project.dueDate ? `Due ${formatDate(project.dueDate)}` : "No due date"} · owner {project.owner.name}
           </div>
+          {expenses.length > 0 && (
+            <div className="text-xs text-slate-500">
+              Expenses claimed {formatINR(expenses.reduce((s, c) => s + payableOf(c), 0))}
+            </div>
+          )}
         </div>
       </div>
 

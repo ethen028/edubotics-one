@@ -11,6 +11,7 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 - **Projects and tasks**: every school programme, college workshop, final-year project or internal job runs through the same eight steps (Create → Assign → Plan → Execute → Review → Approval → Handover → Complete), with a team, milestones and tasks. A won CRM deal starts its delivery project in one click, with the institution and programme filled in. Approval is a gate: an admin or the owner's manager approves or sends it back with a note.
 - **My work and timesheets**: each person's tasks ordered by what is overdue and due next; a weekly timesheet logged against tasks or projects, submitted to the manager for approval.
 - **Approvals**: one inbox for managers and admins with projects, timesheets, leave and missed punch-outs.
+- **Expense claims**: staff claim back travel, food, stay, kits and other work spending, with a photo or PDF of the receipt and an optional project or school. Travel in their own two-wheeler or car is paid per km at rates set under **Admin → Settings** (0 = enter the fare by hand). The manager or an admin approves in Approvals, optionally a lower amount. Approved claims are added to the next payroll run on top of net salary and listed on the payslip; an admin can instead mark one paid separately (cash, UPI). Team expenses shows totals by person and category with a CSV download.
 
 Planned next: inventory (kits) and operations.
 
@@ -22,6 +23,7 @@ Planned next: inventory (kits) and operations.
 | My work / Projects | Tasks assigned to you; projects you are on (managers: also their team's; admins: all) |
 | Timesheet | Log hours per day against a task or project, submit the week, see it approved or sent back |
 | Approvals | Managers and admins approve projects, timesheets, leave and attendance fixes in one place |
+| Expenses | Claim travel and other spending with a receipt; see what is waiting, approved and paid. Managers: Team expenses |
 | Leads | Capture enquiries, log calls, then **Convert** one into an institution + contact + deal in one step |
 | Deals | Board by stage (Prospect → Demo → Proposal → Negotiation → Won/Lost) with programme, students covered and value |
 | Institutions / Contacts | Every school, college or company and the people there, with all their deals and activity |

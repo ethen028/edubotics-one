@@ -31,6 +31,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <NavLink href="/work">My work</NavLink>
             <NavLink href="/projects">Projects</NavLink>
             <NavLink href="/timesheets">Timesheet</NavLink>
+            <NavLink href="/expenses" exact>
+              Expenses
+            </NavLink>
+            {isManagerOrAdmin(user) && <NavLink href="/expenses/team">Team expenses</NavLink>}
             {isManagerOrAdmin(user) && (
               <NavLink href="/approvals">
                 <span className="flex items-center justify-between">
