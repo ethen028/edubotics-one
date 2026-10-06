@@ -6,7 +6,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
-import { PROJECT_STAGES, canApproveProject, canEditProject } from "@/lib/projects";
+import { PROJECT_STAGES, canApproveProject, canEditProject, canUpdateTask, projectScope } from "@/lib/projects";
+import { readFiles } from "@/lib/project-files";
+import { nextTaskState, recordTaskUpdate } from "@/lib/task-updates";
 import type { FormState } from "@/components/action-form";
 
 const optional = z
@@ -250,7 +252,11 @@ export async function setTaskStatus(id: string, formData: FormData) {
   const status = z.enum(["TODO", "IN_PROGRESS", "REVIEW", "DONE"]).parse(formData.get("status"));
   await db.projectTask.update({
     where: { id },
-    data: { status, completedAt: status === "DONE" ? (task.completedAt ?? new Date()) : null },
+    data: {
+      status,
+      completedAt: status === "DONE" ? (task.completedAt ?? new Date()) : null,
+      ...(status === "DONE" ? { progress: 100 } : {}),
+    },
   });
   refresh(task.projectId);
 }
@@ -264,3 +270,81 @@ export async function deleteTask(id: string) {
   refresh(task.projectId);
 }
 
+
+// ─── Progress updates and files (from Task Flow) ───────────────────────────
+
+const updateSchema = z.object({
+  note: optional,
+  progress: z.coerce.number().int().min(0).max(100).optional(),
+  status: z.enum(["TODO", "IN_PROGRESS", "REVIEW", "DONE"]).optional().or(z.literal("").transform(() => undefined)),
+});
+
+/**
+ * Report progress on a task: a note, the new percentage, files, or any mix. Reaching 100% marks the task done
+ * and starting it moves it to In progress. Posting clears an open update request.
+ */
+export async function postTaskUpdate(taskId: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const task = await db.projectTask.findUnique({ where: { id: taskId }, include: { project: true } });
+  if (!task) return { error: "Task not found." };
+  if (!canUpdateTask(user, task, task.project)) return { error: "Only the assignee or the project owner can update this task." };
+  const parsed = updateSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: firstError(parsed.error) };
+  const read = await readFiles(formData);
+  if ("error" in read) return { error: read.error };
+
+  const input = { note: parsed.data.note ?? null, progress: parsed.data.progress, status: parsed.data.status, files: read.files };
+  const next = nextTaskState(task, input);
+  if (!input.note && !next.progressChanged && !next.statusChanged && read.files.length === 0)
+    return { error: "Write a note, change the progress or attach a file." };
+
+  await db.$transaction((tx) => recordTaskUpdate(tx, task, user.id, input));
+  refresh(task.projectId);
+  revalidatePath(`/projects/${task.projectId}/tasks/${taskId}`);
+  return { ok: "Update posted." };
+}
+
+/** Anyone on the project posts a general update or shares files. */
+export async function postProjectUpdate(projectId: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const project = await db.project.findFirst({ where: { id: projectId, ...projectScope(user) } });
+  if (!project) return { error: "Project not found." };
+  const note = String(formData.get("note") ?? "").trim() || null;
+  const read = await readFiles(formData);
+  if ("error" in read) return { error: read.error };
+  if (!note && read.files.length === 0) return { error: "Write a note or attach a file." };
+  await db.$transaction(async (tx) => {
+    const update = await tx.projectUpdate.create({ data: { projectId, authorId: user.id, note } });
+    for (const f of read.files) {
+      await tx.projectFile.create({ data: { ...f, projectId, updateId: update.id, uploadedById: user.id } });
+    }
+  });
+  refresh(projectId);
+  return { ok: "Posted." };
+}
+
+/** The owner or an admin asks the assignee for an update. It shows on their My work and Home until they post one. */
+export async function requestTaskUpdate(taskId: string, formData: FormData) {
+  const user = await requireUser();
+  const task = await db.projectTask.findUnique({ where: { id: taskId }, include: { project: true } });
+  if (!task) return;
+  if (!canEditProject(user, task.project)) throw new Error("Only the project owner or an admin can ask for an update");
+  if (!task.assigneeId || task.status === "DONE" || task.assigneeId === user.id) return;
+  const note = String(formData.get("note") ?? "").trim() || null;
+  await db.$transaction([
+    db.projectTask.update({ where: { id: taskId }, data: { updateRequestedAt: new Date() } }),
+    db.projectUpdate.create({ data: { projectId: task.projectId, taskId, authorId: user.id, note, isRequest: true } }),
+  ]);
+  refresh(task.projectId);
+  revalidatePath(`/projects/${task.projectId}/tasks/${taskId}`);
+}
+
+export async function deleteProjectFile(id: string) {
+  const user = await requireUser();
+  const file = await db.projectFile.findUnique({ where: { id }, include: { project: true } });
+  if (!file) return;
+  if (file.uploadedById !== user.id && !canEditProject(user, file.project)) throw new Error("Not allowed");
+  await db.projectFile.delete({ where: { id } });
+  refresh(file.projectId);
+  if (file.taskId) revalidatePath(`/projects/${file.projectId}/tasks/${file.taskId}`);
+}

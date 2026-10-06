@@ -5,7 +5,7 @@ import { Empty, PageHeader } from "@/components/ui";
 import { formatDate, humanize } from "@/lib/format";
 import { daysFromNow, todayIST } from "@/lib/time";
 import { setTaskStatus } from "../projects/actions";
-import { PriorityBadge, WORK_STATUSES } from "../projects/ui";
+import { PriorityBadge, ProgressBar, WORK_STATUSES } from "../projects/ui";
 
 export const metadata = { title: "My work" };
 
@@ -35,10 +35,14 @@ export default async function MyWorkPage() {
   });
 
   const groups = [
-    { title: "Overdue", tasks: open.filter((t) => t.dueDate && t.dueDate < today) },
-    { title: "Due today", tasks: open.filter((t) => t.dueDate && t.dueDate.getTime() === today.getTime()) },
-    { title: "This week", tasks: open.filter((t) => t.dueDate && t.dueDate > today && t.dueDate <= weekAhead) },
-    { title: "Later or no date", tasks: open.filter((t) => !t.dueDate || t.dueDate > weekAhead) },
+    { title: "Update requested", tasks: open.filter((t) => t.updateRequestedAt) },
+    ...[
+      { title: "Overdue", tasks: open.filter((t) => t.dueDate && t.dueDate < today) },
+      { title: "Due today", tasks: open.filter((t) => t.dueDate && t.dueDate.getTime() === today.getTime()) },
+      { title: "This week", tasks: open.filter((t) => t.dueDate && t.dueDate > today && t.dueDate <= weekAhead) },
+      { title: "Later or no date", tasks: open.filter((t) => !t.dueDate || t.dueDate > weekAhead) },
+      // A task with an open request is listed once, under "Update requested".
+    ].map((g) => ({ ...g, tasks: g.tasks.filter((t) => !t.updateRequestedAt) })),
   ];
 
   return (
@@ -60,18 +64,28 @@ export default async function MyWorkPage() {
             .filter((g) => g.tasks.length > 0)
             .map((g) => (
               <section key={g.title} className="card">
-                <h2 className={`mb-2 font-semibold ${g.title === "Overdue" ? "text-red-700" : ""}`}>
+                <h2
+                  className={`mb-2 font-semibold ${g.title === "Overdue" ? "text-red-700" : g.title === "Update requested" ? "text-amber-700" : ""}`}
+                >
                   {g.title} ({g.tasks.length})
                 </h2>
                 <ul className="divide-y divide-slate-100">
                   {g.tasks.map((t) => (
                     <li key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium">{t.title}</div>
-                        <Link href={`/projects/${t.project.id}`} className="text-xs text-slate-500 hover:underline">
-                          {t.project.name}
-                          {t.project.onHold && " (on hold)"}
+                      <div className="min-w-0 flex-1 basis-full sm:basis-0">
+                        <Link href={`/projects/${t.project.id}/tasks/${t.id}`} className="font-medium hover:underline">
+                          {t.title}
                         </Link>
+                        <div>
+                          <Link href={`/projects/${t.project.id}`} className="text-xs text-slate-500 hover:underline">
+                            {t.project.name}
+                            {t.project.onHold && " (on hold)"}
+                          </Link>
+                        </div>
+                      </div>
+                      <div className="flex w-24 items-center gap-1.5" title={`${t.progress}% complete`}>
+                        <ProgressBar value={t.progress} className="flex-1" />
+                        <span className="w-8 text-right text-xs text-slate-500 tabular-nums">{t.progress}%</span>
                       </div>
                       <PriorityBadge priority={t.priority} />
                       <span className="text-xs text-slate-500">{t.dueDate ? formatDate(t.dueDate) : ""}</span>
@@ -85,6 +99,9 @@ export default async function MyWorkPage() {
                         </select>
                         <button className="btn-secondary btn-sm">Set</button>
                       </form>
+                      <Link href={`/projects/${t.project.id}/tasks/${t.id}`} className="btn-primary btn-sm">
+                        Post update
+                      </Link>
                     </li>
                   ))}
                 </ul>

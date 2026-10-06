@@ -9,7 +9,8 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 - **Payroll**: salary per employee (Basic + HRA + special allowance, with history), a monthly payroll run with loss-of-pay from approved unpaid leave and proration for mid-month joiners or leavers, hand-entered bonuses and deductions, finalize and mark paid, printable payslips each employee can see, and a CSV export. PF, ESI, professional tax and TDS are switches under **Admin → Settings**, all off by default.
 
 - **Projects and tasks**: every school programme, college workshop, final-year project or internal job runs through the same eight steps (Create → Assign → Plan → Execute → Review → Approval → Handover → Complete), with a team, milestones and tasks. A won CRM deal starts its delivery project in one click, with the institution and programme filled in. Approval is a gate: an admin or the owner's manager approves or sends it back with a note.
-- **My work and timesheets**: each person's tasks ordered by what is overdue and due next; a weekly timesheet logged against tasks or projects, submitted to the manager for approval.
+- **Progress updates and files** (from Task Flow): each task has its own page with a progress slider, reports, file attachments and history. The project owner can ask the assignee for an update, which waits on their Home and My work until they post one. Project pages have an updates feed and files; the Projects page shows tasks by status, what needs attention and recent activity; Team workload shows who is carrying what.
+- **My work and timesheets**: each person's tasks ordered by update requests, then what is overdue and due next; a daily work log (start and end time with lunch left out, what was done, status, files) that fills the weekly timesheet, submitted to the manager for approval. Managers see everyone's logged work under Team daily work.
 - **Approvals**: one inbox for managers and admins with projects, timesheets, leave and missed punch-outs.
 
 Planned next: inventory (kits) and operations.
@@ -20,7 +21,7 @@ Planned next: inventory (kits) and operations.
 |---|---|
 | Home | Your next priority, open tasks, hours this week, project health, approvals waiting, CRM follow-ups, who is on leave, holidays. Admins also see pipeline and won-this-month |
 | My work / Projects | Tasks assigned to you; projects you are on (managers: also their team's; admins: all) |
-| Timesheet | Log hours per day against a task or project, submit the week, see it approved or sent back |
+| Timesheet | Log each day's work against a task or project (it can also move the task's progress), submit the week, see it approved or sent back. Managers and admins also see Team daily work |
 | Approvals | Managers and admins approve projects, timesheets, leave and attendance fixes in one place |
 | Leads | Capture enquiries, log calls, then **Convert** one into an institution + contact + deal in one step |
 | Deals | Board by stage (Prospect → Demo → Proposal → Negotiation → Won/Lost) with programme, students covered and value |

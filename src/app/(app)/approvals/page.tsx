@@ -65,7 +65,7 @@ export default async function ApprovalsPage() {
                 {p.name}
               </Link>
               <div className="mt-0.5 text-slate-500">
-                Owner {p.owner.name} · {progress(p.tasks)}% of tasks done · asked {formatDateTime(p.updatedAt)}
+                Owner {p.owner.name} · {progress(p.tasks)}% complete · asked {formatDateTime(p.updatedAt)}
               </div>
             </div>
             <Decide action={decideProject.bind(null, p.id)} sendBack />
