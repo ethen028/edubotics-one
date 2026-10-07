@@ -27,6 +27,7 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
       assets: { where: { status: "ASSIGNED" }, orderBy: { assignedAt: "desc" } },
       salaries: { orderBy: { effectiveFrom: "desc" } },
       reviews: { include: { cycle: true, reviewer: { select: { name: true } } }, orderBy: { cycle: { periodEnd: "desc" } } },
+      exits: { where: { stage: { not: "WITHDRAWN" } }, orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
   if (!employee) notFound();
@@ -36,6 +37,7 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
   const isManager = user.employee?.id === employee.managerId;
   const canSeePrivate = admin || isSelf || isManager;
   const name = `${employee.firstName} ${employee.lastName}`;
+  const exit = employee.exits[0];
 
   const canSeeDocuments = admin || isSelf;
   const [balances, departments, managers, documents, modules] = await Promise.all([
@@ -60,11 +62,29 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
           </>
         }
         actions={
-          <Link href="/hr/employees" className="btn-secondary">
-            Back to people
-          </Link>
+          <>
+            {admin && !isSelf && !exit && employee.status !== "EXITED" && (
+              <Link href={`/hr/exits/new?employee=${employee.id}`} className="btn-secondary">
+                Record an exit
+              </Link>
+            )}
+            <Link href="/hr/employees" className="btn-secondary">
+              Back to people
+            </Link>
+          </>
         }
       />
+
+      {exit && (isSelf || admin || isManager) && (
+        <Link href={`/hr/exits/${exit.id}`} className="card mb-6 block border-amber-200 bg-amber-50 text-sm hover:border-amber-400">
+          {exit.stage === "REQUESTED"
+            ? `${isSelf ? "You" : employee.firstName} resigned on ${formatDate(exit.noticeGivenOn)}. Waiting for it to be accepted.`
+            : exit.stage === "ON_NOTICE"
+              ? `${isSelf ? "Your" : `${employee.firstName}'s`} last working day is ${formatDate(exit.lastWorkingDay)}.`
+              : `Left on ${formatDate(exit.lastWorkingDay)}.`}{" "}
+          <span className="link">Open the exit</span>
+        </Link>
+      )}
 
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <div className="card text-sm">
@@ -174,6 +194,15 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
             </div>
           )}
         </div>
+      )}
+
+      {isSelf && !exit && employee.status !== "EXITED" && (
+        <p className="mb-6 text-xs text-slate-500">
+          Leaving the company?{" "}
+          <Link href="/hr/exits/resign" className="link">
+            Hand in your resignation
+          </Link>
+        </p>
       )}
 
       {admin && (

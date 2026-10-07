@@ -150,6 +150,19 @@ export function certificateEmail(c: CertificateFacts, sender: string, s: Setting
   };
 }
 
+/** The relieving and experience letter, sent after someone leaves. */
+export function exitLetterEmail(p: { firstName: string }, sender: string, s: Settings): Draft {
+  return {
+    subject: `Your relieving and experience letter from ${s.companyName}`,
+    message: paragraphs(
+      `Dear ${p.firstName},`,
+      "Your relieving and experience letter is attached. Your final settlement is paid with your last salary, and your last payslip shows it.",
+      "Thank you for your time with us, and all the best for what comes next. If you need anything else, such as a salary certificate, just reply to this email.",
+      signOff(sender, s),
+    ),
+  };
+}
+
 /** "Thu, 15 Oct 2026, 10:30 am" in India time. */
 export function interviewTime(d: Date) {
   const part = (o: Intl.DateTimeFormatOptions) => d.toLocaleString("en-IN", { ...o, timeZone: "Asia/Kolkata" });

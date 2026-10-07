@@ -13,13 +13,13 @@ export async function GET(_: Request, { params }: RouteContext<"/payroll/[month]
   });
   if (!run) return new Response("Not found", { status: 404 });
   const rows = [
-    ["Code", "Name", "Paid days", "LOP days", "Basic", "HRA", "Special allowance", "Other earnings", "Gross", "LOP deduction", "PF", "ESI", "PT", "TDS", "Other deductions", "Expense claims", "Net pay"],
+    ["Code", "Name", "Paid days", "LOP days", "Basic", "HRA", "Special allowance", "Other earnings", "Gross", "LOP deduction", "PF", "ESI", "PT", "TDS", "Other deductions", "Leave encashment", "Notice pay", "Gratuity", "Notice recovery", "Recoveries on leaving", "Expense claims", "Net pay"],
     ...run.payslips.map((p) => [
       p.employee.code,
       `${p.employee.firstName} ${p.employee.lastName}`.trim(),
       Number(p.paidDays),
       Number(p.lopDays),
-      ...[p.basic, p.hra, p.specialAllowance, p.otherEarnings, p.gross, p.lopDeduction, p.pf, p.esi, p.professionalTax, p.tds, p.otherDeductions, p.reimbursements, p.net].map(Number),
+      ...[p.basic, p.hra, p.specialAllowance, p.otherEarnings, p.gross, p.lopDeduction, p.pf, p.esi, p.professionalTax, p.tds, p.otherDeductions, p.leaveEncashment, p.noticePay, p.gratuity, p.noticeRecovery, p.exitRecovery, p.reimbursements, p.net].map(Number),
     ]),
   ];
   return new Response(rows.map((r) => r.map(csv).join(",")).join("\r\n"), {

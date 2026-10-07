@@ -59,6 +59,7 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
       overtimeAfterMins: z.coerce.number().int().min(0).max(600),
       weeklyOffDays: z.array(z.coerce.number().int().min(0).max(6)).max(6),
       lopDivisor: z.coerce.number().int().min(20).max(31),
+      noticePeriodDays: z.coerce.number().int().min(0).max(180),
       twoWheelerRatePerKm: z.coerce.number().min(0).max(100),
       carRatePerKm: z.coerce.number().min(0).max(100),
     })
@@ -68,11 +69,12 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
       overtimeAfterMins: formData.get("overtimeAfterMins"),
       weeklyOffDays: formData.getAll("weeklyOffDays"),
       lopDivisor: formData.get("lopDivisor"),
+      noticePeriodDays: formData.get("noticePeriodDays") ?? 30,
       twoWheelerRatePerKm: formData.get("twoWheelerRatePerKm") || 0,
       carRatePerKm: formData.get("carRatePerKm") || 0,
     });
-  if (!parsed.success) return { error: "Check the hours, overtime minutes, weekly offs, LOP divisor and per-km rates." };
-  const { hours, minutes, overtimeAfterMins, weeklyOffDays, lopDivisor, twoWheelerRatePerKm, carRatePerKm } = parsed.data;
+  if (!parsed.success) return { error: "Check the hours, overtime minutes, weekly offs, LOP divisor, notice period and per-km rates." };
+  const { hours, minutes, overtimeAfterMins, weeklyOffDays, lopDivisor, noticePeriodDays, twoWheelerRatePerKm, carRatePerKm } = parsed.data;
   const on = (k: string) => formData.get(k) === "on";
   const invoicing = invoiceSettings.safeParse(Object.fromEntries(formData));
   if (!invoicing.success) return { error: invoicing.error.issues[0].message };
@@ -81,6 +83,7 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
     overtimeAfterMins,
     weeklyOffDays,
     lopDivisor,
+    noticePeriodDays,
     pfEnabled: on("pfEnabled"),
     esiEnabled: on("esiEnabled"),
     ptEnabled: on("ptEnabled"),

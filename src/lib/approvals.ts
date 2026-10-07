@@ -2,18 +2,19 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 import { isAdmin, isManagerOrAdmin, type CurrentUser } from "./auth";
+import { resignationsToAccept } from "./exits";
 
 /**
  * Everything waiting on this user's decision, in one place: leave, missed punch-outs,
- * timesheets, expense claims, project approvals, kit/part requests and purchase orders. Admins see everyone's; managers their direct reports'.
+ * timesheets, expense claims, project approvals, kit/part requests, purchase orders and resignations. Admins see everyone's; managers their direct reports'.
  */
 export async function pendingApprovals(user: CurrentUser) {
   if (!isManagerOrAdmin(user))
-    return { leave: [], corrections: [], timesheets: [], claims: [], projects: [], stock: [], purchases: [], total: 0 };
+    return { leave: [], corrections: [], timesheets: [], claims: [], projects: [], stock: [], purchases: [], resignations: [], total: 0 };
   const me = user.employee?.id ?? "__none__";
   const team: Prisma.EmployeeWhereInput = isAdmin(user) ? {} : { managerId: me };
 
-  const [leave, corrections, timesheets, claims, projects, stock, purchases] = await Promise.all([
+  const [leave, corrections, timesheets, claims, projects, stock, purchases, resignations] = await Promise.all([
     db.leaveRequest.findMany({
       where: { status: "PENDING", employeeId: { not: me }, employee: team },
       include: { employee: true, leaveType: true },
@@ -78,6 +79,7 @@ export async function pendingApprovals(user: CurrentUser) {
       },
       orderBy: { createdAt: "asc" },
     }),
+    resignationsToAccept(user),
   ]);
   return {
     leave,
@@ -87,7 +89,15 @@ export async function pendingApprovals(user: CurrentUser) {
     projects,
     stock,
     purchases,
+    resignations,
     total:
-      leave.length + corrections.length + timesheets.length + claims.length + projects.length + stock.length + purchases.length,
+      leave.length +
+      corrections.length +
+      timesheets.length +
+      claims.length +
+      projects.length +
+      stock.length +
+      purchases.length +
+      resignations.length,
   };
 }

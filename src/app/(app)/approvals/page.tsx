@@ -5,7 +5,7 @@ import { pendingApprovals } from "@/lib/approvals";
 import { formatTime } from "@/lib/attendance";
 import { progress } from "@/lib/projects";
 import { Badge, Empty, PageHeader } from "@/components/ui";
-import { formatDate, formatDateTime, formatINR } from "@/lib/format";
+import { formatDate, formatDateTime, formatINR, toDateInput } from "@/lib/format";
 import { addDays } from "@/lib/week";
 import { decideLeave } from "../hr/actions";
 import { decideCorrection } from "../hr/attendance/actions";
@@ -18,6 +18,7 @@ import { CATEGORY_LABEL, VEHICLE_LABEL } from "@/lib/expenses";
 import { decidePurchaseOrder } from "../purchases/actions";
 import { poNo } from "@/lib/purchase-math";
 import { formatINR2 } from "../purchases/ui";
+import { acceptResignation } from "../hr/exits/actions";
 
 export const metadata = { title: "Approvals" };
 
@@ -49,7 +50,7 @@ function Decide({ action, sendBack }: { action: (formData: FormData) => Promise<
 
 export default async function ApprovalsPage() {
   const user = await requireUser(["ADMIN", "MANAGER"]);
-  const { leave, corrections, timesheets, claims, projects, stock, purchases, total } = await pendingApprovals(user);
+  const { leave, corrections, timesheets, claims, projects, stock, purchases, resignations, total } = await pendingApprovals(user);
 
   return (
     <>
@@ -63,6 +64,30 @@ export default async function ApprovalsPage() {
         }
       />
       {total === 0 && <Empty>Nothing waiting. You&apos;re all caught up.</Empty>}
+
+      <Section title="Resignations" count={resignations.length}>
+        {resignations.map((r) => (
+          <div key={r.id} className="card flex flex-wrap items-start justify-between gap-4">
+            <div className="text-sm">
+              <Link href={`/hr/exits/${r.id}`} className="link">
+                {r.employee.firstName} {r.employee.lastName}
+              </Link>{" "}
+              · {r.employee.designation}
+              <div className="mt-0.5 text-slate-500">
+                Resigned {formatDate(r.noticeGivenOn)} · asked to leave on {formatDate(r.proposedLastDay)} · notice period {r.noticeDays} days
+              </div>
+              {r.reason && <div className="mt-1 line-clamp-2 max-w-xl text-slate-600">{r.reason}</div>}
+            </div>
+            <form action={acceptResignation.bind(null, r.id)} className="flex flex-wrap items-center gap-2">
+              <label className="text-xs text-slate-500">
+                Last working day
+                <input type="date" name="lastWorkingDay" required defaultValue={toDateInput(r.proposedLastDay)} className="input w-auto" />
+              </label>
+              <button className="btn-primary btn-sm self-end">Accept</button>
+            </form>
+          </div>
+        ))}
+      </Section>
 
       <Section title="Projects" count={projects.length}>
         {projects.map((p) => (

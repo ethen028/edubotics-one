@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { mailSetup, MAIL_NOT_READY, parseAddresses, sendEmail, type Attachment } from "@/lib/mail";
-import { certificatePdf, creditNotePdf, invoicePdf, payslipPdf, quotePdf } from "@/lib/pdf";
+import { certificatePdf, creditNotePdf, exitLetterPdf, invoicePdf, payslipPdf, quotePdf } from "@/lib/pdf";
 import { markQuoteSent } from "@/lib/quote-send";
 import { calendarInvite } from "@/lib/ics";
 import { canRecruit } from "@/lib/recruitment";
@@ -320,4 +320,24 @@ export async function emailWorkshopCertificates(workshopId: string): Promise<For
   const missing = noEmail ? ` ${noEmail} without an email address were skipped.` : "";
   if (failed.length) return { error: `Sent ${sent} of ${withEmail.length}. Not sent to ${failed.join(", ")}.${missing}` };
   return { ok: `Certificates sent to ${sent} ${sent === 1 ? "person" : "people"}.${missing}` };
+}
+
+// ─── Relieving letters ─────────────────────────────────────────────────────
+
+/** Email the relieving and experience letter to someone who has left. */
+export async function emailExitLetter(exitId: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser(["ADMIN"]);
+  const exit = await db.employeeExit.findUnique({ where: { id: exitId }, select: { stage: true, employeeId: true } });
+  if (!exit || exit.stage !== "LEFT") return { error: "Mark them as left before sending the letter." };
+  if (exit.employeeId === user.employee?.id) return { error: "Ask another admin to send your own letter." };
+  const ready = await readySettings();
+  if ("error" in ready) return { error: ready.error };
+  const form = readComposer(formData);
+  if ("error" in form) return { error: form.error };
+  const pdf = (await exitLetterPdf(exitId))!;
+  const result = await sendEmail({ kind: "EXIT_LETTER", ...form, attachments: [pdf], links: { exitId } }, ready.settings, user.id);
+  if (!("error" in result))
+    await db.exitTask.updateMany({ where: { exitId, title: "Relieving and experience letter given", doneAt: null }, data: { doneAt: new Date(), doneById: user.id } });
+  revalidatePath(`/hr/exits/${exitId}`);
+  return "error" in result ? { error: result.error } : { ok: sentTo(form.to) };
 }

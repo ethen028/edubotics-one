@@ -16,13 +16,13 @@ import { mailSetup } from "@/lib/mail";
 export default async function PayrollRunPage({ params }: PageProps<"/payroll/[month]">) {
   await requireUser(["ADMIN"]);
   const { month } = await params;
-  let monthEnd: Date;
+  let monthEnd: Date, monthStart: Date;
   try {
-    monthEnd = monthRange(month).end;
+    ({ start: monthStart, end: monthEnd } = monthRange(month));
   } catch {
     notFound();
   }
-  const [run, settings, waitingClaims] = await Promise.all([
+  const [run, settings, waitingClaims, settlements] = await Promise.all([
     db.payrollRun.findUnique({
       where: { month },
       include: {
@@ -39,9 +39,17 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
     getSettings(),
     // Approved since this draft was built; Recalculate adds them.
     db.expenseClaim.count({ where: { status: "APPROVED", payslipId: null, date: { lte: monthEnd } } }),
+    // Final settlements agreed for people leaving this month.
+    db.employeeExit.findMany({
+      where: { stage: { in: ["ON_NOTICE", "LEFT"] }, settlementAgreedAt: { not: null }, lastWorkingDay: { gte: monthStart, lte: monthEnd } },
+      select: { id: true, employeeId: true },
+    }),
   ]);
   if (!run) notFound();
   const draft = run.status === "DRAFT";
+  const settledIds = new Set(settlements.map((x) => x.employeeId));
+  const settlementsMissing = run.payslips.filter((p) => settledIds.has(p.employeeId) && !p.finalSettlement).length;
+  const exitOf = new Map(settlements.map((x) => [x.employeeId, x.id]));
   const sum = (k: "gross" | "totalDeductions" | "reimbursements" | "net") => run.payslips.reduce((s, p) => s + Number(p[k]), 0);
   const setup = mailSetup(settings);
   const notEmailed = run.payslips.filter((p) => p.emails[0]?.status !== "SENT").length;
@@ -93,6 +101,13 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           {waitingClaims} approved expense claim{waitingClaims > 1 ? "s are" : " is"} not on this payroll yet. Recalculate to add{" "}
           {waitingClaims > 1 ? "them" : "it"}.
+        </div>
+      )}
+
+      {draft && settlementsMissing > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {settlementsMissing} final settlement{settlementsMissing > 1 ? "s were" : " was"} agreed after this draft was made. Recalculate to add{" "}
+          {settlementsMissing > 1 ? "them" : "it"}.
         </div>
       )}
 
@@ -163,6 +178,11 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
                     {p.employee.firstName} {p.employee.lastName}
                   </Link>
                   <div className="text-xs text-slate-500">{p.employee.code}</div>
+                  {p.finalSettlement && (
+                    <Link href={`/hr/exits/${exitOf.get(p.employeeId) ?? ""}#settlement`} className="text-xs text-amber-700 hover:underline">
+                      Final settlement
+                    </Link>
+                  )}
                   {p.note && <div className="text-xs text-slate-500">{p.note}</div>}
                   {draft && (
                     <details className="mt-2 text-sm">

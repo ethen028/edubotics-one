@@ -12,6 +12,7 @@ import { PayslipPdf } from "./payslip";
 import { CertificatePdf, type CertificateFacts } from "./certificate";
 import { certificateWording } from "../workshops";
 import { fileSafe } from "./layout";
+import { ExitLetterPdf } from "./exit-letter";
 
 // PDF copies of invoices, quotes, payslips and certificates: attached to emails and offered as downloads.
 
@@ -188,6 +189,37 @@ export async function workshopCertificatesPdf(workshopId: string, title: string)
   if (facts.length === 0) return null;
   const content = await renderToBuffer(<CertificatePdf certificates={facts} settings={settings} signatureImage={signature} />);
   return { filename: `Certificates ${fileSafe(title)}.pdf`, content, contentType: "application/pdf" };
+}
+
+/** Relieving and experience letter for someone leaving. Marked draft until they are marked as left. */
+export async function exitLetterPdf(exitId: string): Promise<Attachment | null> {
+  const [exit, settings, signature] = await Promise.all([
+    db.employeeExit.findUnique({ where: { id: exitId }, include: { employee: { include: { department: true } } } }),
+    getSettings(),
+    certificateSignature(),
+  ]);
+  if (!exit?.lastWorkingDay || (exit.stage !== "ON_NOTICE" && exit.stage !== "LEFT")) return null;
+  const e = exit.employee;
+  const name = `${e.firstName} ${e.lastName}`.trim();
+  const content = await renderToBuffer(
+    <ExitLetterPdf
+      settings={settings}
+      signatureImage={signature}
+      f={{
+        name,
+        firstName: e.firstName,
+        code: e.code,
+        designation: e.designation,
+        department: e.department?.name ?? null,
+        joined: e.dateOfJoining,
+        lastDay: exit.lastWorkingDay,
+        resigned: exit.kind === "RESIGNATION",
+        issuedOn: exit.leftAt ?? new Date(),
+        draft: exit.stage !== "LEFT",
+      }}
+    />,
+  );
+  return { filename: `Relieving letter ${fileSafe(name)}.pdf`, content, contentType: "application/pdf" };
 }
 
 /** Serves a PDF in the browser, for the "Download PDF" buttons. */

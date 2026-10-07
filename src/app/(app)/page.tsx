@@ -22,6 +22,7 @@ import { PendingAcks } from "./notices/ui";
 import { HelpdeskHomeCard } from "./helpdesk/home-card";
 import { ReviewTodos } from "./hr/reviews/ui";
 import { myReviewTodos } from "@/lib/reviews";
+import { openExitOf } from "@/lib/exits";
 
 export const metadata = { title: "Home" };
 
@@ -130,6 +131,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       }),
       myReviewTodos(user),
     ]);
+  const myExit = user.employee ? await openExitOf(user.employee.id) : null;
   const [onOrder, billSettled] = await Promise.all([
     lowStock.length ? onOrderByItem(lowStock.map((i) => i.id)) : new Map<string, number>(),
     billsDue.length ? settledByBill(billsDue.map((b) => b.id)) : new Map<string, number>(),
@@ -171,6 +173,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
       <PendingAcks notices={toAcknowledge} />
       <ReviewTodos todos={reviewTodos} today={today} />
+      {myExit && (
+        <Link href={`/hr/exits/${myExit.id}`} className="card mb-4 block border-brand-100 bg-brand-50 text-sm hover:border-brand-500">
+          {myExit.stage === "REQUESTED"
+            ? "Your resignation is waiting for your manager to accept it."
+            : `Your last working day is ${formatDate(myExit.lastWorkingDay)}. See your leaving checklist and the exit interview.`}
+        </Link>
+      )}
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -453,6 +462,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 <p className="text-sm text-slate-500">Nothing waiting.</p>
               ) : (
                 <ul className="space-y-1.5 text-sm">
+                  {approvals.resignations.length > 0 && <li>Resignations · {approvals.resignations.length}</li>}
                   {approvals.projects.length > 0 && <li>Projects · {approvals.projects.length}</li>}
                   {approvals.timesheets.length > 0 && <li>Timesheets · {approvals.timesheets.length}</li>}
                   {approvals.claims.length > 0 && <li>Expense claims · {approvals.claims.length}</li>}
