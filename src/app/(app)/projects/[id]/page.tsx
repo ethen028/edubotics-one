@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { isAdmin, requireUser } from "@/lib/auth";
+import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
 import { formatDate, humanize } from "@/lib/format";
@@ -35,6 +35,7 @@ import { RequestBadge } from "../../inventory/ui";
 import { ProjectForm } from "../forms";
 import { projectFormOptions } from "../data";
 import { PriorityBadge, ProgressBar, StageBadge, StageRail, WORK_STATUSES, WorkBadge } from "../ui";
+import { ProgrammeBadge } from "../../operations/ui";
 
 export default async function ProjectPage({ params }: PageProps<"/projects/[id]">) {
   const user = await requireUser();
@@ -46,6 +47,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
       department: true,
       organization: { select: { id: true, name: true } },
       deal: { select: { id: true, title: true } },
+      programmes: { select: { id: true, name: true, status: true, organization: { select: { name: true } } } },
       decidedBy: { select: { name: true } },
       members: { include: { user: { select: { id: true, name: true } } }, orderBy: { createdAt: "asc" } },
       milestones: { orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }] },
@@ -348,6 +350,31 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
               </ActionForm>
             )}
           </section>
+
+          {(project.programmes.length > 0 || (project.kind === "SCHOOL_PROGRAMME" && isManagerOrAdmin(user))) && (
+            <section className="card">
+              <h2 className="mb-3 font-semibold">School sessions</h2>
+              {project.programmes.length === 0 ? (
+                <p className="text-sm text-slate-500">Set up the school&apos;s timetable and trainers under Operations.</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {project.programmes.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-2">
+                      <Link href={`/operations/programmes/${p.id}`} className="link">
+                        {p.organization.name} · {p.name}
+                      </Link>
+                      <ProgrammeBadge status={p.status} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {isManagerOrAdmin(user) && (
+                <Link href={`/operations/programmes/new?project=${project.id}`} className="btn-secondary btn-sm mt-3">
+                  {project.programmes.length ? "Add another school" : "Set up school sessions"}
+                </Link>
+              )}
+            </section>
+          )}
 
           <section className="card">
             <div className="mb-3 flex items-center justify-between">

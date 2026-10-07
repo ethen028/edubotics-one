@@ -26,24 +26,28 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  ownedLeads         Lead[]         @relation("LeadOwner")
-  ownedOrganizations Organization[] @relation("OrgOwner")
-  ownedContacts      Contact[]      @relation("ContactOwner")
-  ownedDeals         Deal[]         @relation("DealOwner")
-  activities         Activity[]     @relation("ActivityAssignee")
-  createdActivities  Activity[]     @relation("ActivityCreator")
-  uploadedDocuments  EmployeeDocument[] @relation("DocUploader")
-  reviewedDocuments  EmployeeDocument[] @relation("DocReviewer")
-  payrollRuns        PayrollRun[]
-  ownedProjects      Project[]      @relation("ProjectOwner")
-  projectMembers     ProjectMember[]
-  assignedTasks      ProjectTask[]  @relation("TaskAssignee")
-  createdTasks       ProjectTask[]  @relation("TaskCreator")
-  decidedProjects    Project[]      @relation("ProjectApprover")
-  decidedTimesheets  Timesheet[]    @relation("TimesheetApprover")
-  stockRequests      StockRequest[] @relation("StockRequester")
-  decidedStockReqs   StockRequest[] @relation("StockApprover")
-  stockMovements     StockMovement[]
+  ownedLeads            Lead[]             @relation("LeadOwner")
+  ownedOrganizations    Organization[]     @relation("OrgOwner")
+  ownedContacts         Contact[]          @relation("ContactOwner")
+  ownedDeals            Deal[]             @relation("DealOwner")
+  activities            Activity[]         @relation("ActivityAssignee")
+  createdActivities     Activity[]         @relation("ActivityCreator")
+  uploadedDocuments     EmployeeDocument[] @relation("DocUploader")
+  reviewedDocuments     EmployeeDocument[] @relation("DocReviewer")
+  payrollRuns           PayrollRun[]
+  ownedProjects         Project[]          @relation("ProjectOwner")
+  projectMembers        ProjectMember[]
+  assignedTasks         ProjectTask[]      @relation("TaskAssignee")
+  createdTasks          ProjectTask[]      @relation("TaskCreator")
+  decidedProjects       Project[]          @relation("ProjectApprover")
+  decidedTimesheets     Timesheet[]        @relation("TimesheetApprover")
+  stockRequests         StockRequest[]     @relation("StockRequester")
+  decidedStockReqs      StockRequest[]     @relation("StockApprover")
+  stockMovements        StockMovement[]
+  coordinatedProgrammes Programme[]        @relation("ProgrammeCoordinator")
+  programmeTrainers     ProgrammeTrainer[]
+  trainerSessions       ProgrammeSession[] @relation("SessionTrainer")
+  loggedSessions        ProgrammeSession[] @relation("SessionLogger")
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -71,35 +75,35 @@ enum EmployeeStatus {
 }
 
 model Employee {
-  id               String         @id @default(cuid())
-  code             String         @unique // e.g. EBG-001
+  id               String                 @id @default(cuid())
+  code             String                 @unique // e.g. EBG-001
   firstName        String
   lastName         String
-  workEmail        String         @unique
+  workEmail        String                 @unique
   personalEmail    String?
   phone            String?
   designation      String
   departmentId     String?
-  department       Department?    @relation(fields: [departmentId], references: [id])
+  department       Department?            @relation(fields: [departmentId], references: [id])
   managerId        String?
-  manager          Employee?      @relation("Reports", fields: [managerId], references: [id])
-  reports          Employee[]     @relation("Reports")
-  employmentType   EmploymentType @default(FULL_TIME)
-  status           EmployeeStatus @default(ACTIVE)
-  dateOfJoining    DateTime       @db.Date
-  dateOfExit       DateTime?      @db.Date
-  dateOfBirth      DateTime?      @db.Date
+  manager          Employee?              @relation("Reports", fields: [managerId], references: [id])
+  reports          Employee[]             @relation("Reports")
+  employmentType   EmploymentType         @default(FULL_TIME)
+  status           EmployeeStatus         @default(ACTIVE)
+  dateOfJoining    DateTime               @db.Date
+  dateOfExit       DateTime?              @db.Date
+  dateOfBirth      DateTime?              @db.Date
   gender           String?
   bloodGroup       String?
   address          String?
   city             String?
-  state            String?        @default("Kerala")
+  state            String?                @default("Kerala")
   emergencyName    String?
   emergencyPhone   String?
-  userId           String?        @unique
-  user             User?          @relation(fields: [userId], references: [id])
-  leaveRequests    LeaveRequest[] @relation("LeaveApplicant")
-  approvedRequests LeaveRequest[] @relation("LeaveApprover")
+  userId           String?                @unique
+  user             User?                  @relation(fields: [userId], references: [id])
+  leaveRequests    LeaveRequest[]         @relation("LeaveApplicant")
+  approvedRequests LeaveRequest[]         @relation("LeaveApprover")
   attendance       AttendanceSession[]
   attendanceMarks  AttendanceMark[]
   corrections      AttendanceCorrection[]
@@ -110,8 +114,8 @@ model Employee {
   salaries         SalaryStructure[]
   payslips         Payslip[]
   timesheets       Timesheet[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 }
 
 model LeaveType {
@@ -153,9 +157,9 @@ model LeaveRequest {
 }
 
 model Holiday {
-  id       String   @id @default(cuid())
-  date     DateTime @unique @db.Date
-  name     String
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  name      String
   optional  Boolean  @default(false) // restricted holiday
   tentative Boolean  @default(false) // date depends on the moon or isn't notified yet
 }
@@ -163,17 +167,17 @@ model Holiday {
 // ─── Company settings (single row, id = 1) ─────────────────────────────────
 
 model CompanySettings {
-  id                 Int   @id @default(1)
-  workMinutesPerDay  Int   @default(540) // 9 hours, as in Edubotics HR V1.2
-  overtimeAfterMins  Int   @default(30) // OD once a day runs this far past the target
-  weeklyOffDays      Int[] @default([0, 6]) // 0 = Sunday … 6 = Saturday
+  id                Int   @id @default(1)
+  workMinutesPerDay Int   @default(540) // 9 hours, as in Edubotics HR V1.2
+  overtimeAfterMins Int   @default(30) // OD once a day runs this far past the target
+  weeklyOffDays     Int[] @default([0, 6]) // 0 = Sunday … 6 = Saturday
 
   // Payroll. Deductions start switched off (Edubotics deducts none today).
-  lopDivisor   Int     @default(30) // LOP per day = monthly gross ÷ this, as in HR V1.2
-  pfEnabled    Boolean @default(false)
-  esiEnabled   Boolean @default(false)
-  ptEnabled    Boolean @default(false)
-  tdsEnabled   Boolean @default(false)
+  lopDivisor Int     @default(30) // LOP per day = monthly gross ÷ this, as in HR V1.2
+  pfEnabled  Boolean @default(false)
+  esiEnabled Boolean @default(false)
+  ptEnabled  Boolean @default(false)
+  tdsEnabled Boolean @default(false)
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -424,9 +428,9 @@ enum OrgType {
 }
 
 model Organization {
-  id         String     @id @default(cuid())
+  id         String      @id @default(cuid())
   name       String
-  type       OrgType    @default(SCHOOL)
+  type       OrgType     @default(SCHOOL)
   board      String? // CBSE, ICSE, State, IB… for schools
   phone      String?
   email      String?
@@ -434,16 +438,17 @@ model Organization {
   address    String?
   city       String?
   district   String?
-  state      String?    @default("Kerala")
+  state      String?     @default("Kerala")
   notes      String?
   ownerId    String?
-  owner      User?      @relation("OrgOwner", fields: [ownerId], references: [id])
+  owner      User?       @relation("OrgOwner", fields: [ownerId], references: [id])
   contacts   Contact[]
   deals      Deal[]
   activities Activity[]
   projects   Project[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  programmes Programme[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
   @@index([name])
 }
@@ -461,6 +466,7 @@ model Contact {
   notes          String?
   deals          Deal[]
   activities     Activity[]
+  programmes     Programme[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 }
@@ -597,26 +603,26 @@ enum ProjectKind {
 }
 
 model Project {
-  id             String        @id @default(cuid())
+  id             String          @id @default(cuid())
   name           String
-  kind           ProjectKind   @default(CLIENT_PROJECT)
+  kind           ProjectKind     @default(CLIENT_PROJECT)
   description    String?
-  stage          ProjectStage  @default(CREATE)
-  onHold         Boolean       @default(false)
-  startDate      DateTime?     @db.Date
-  dueDate        DateTime?     @db.Date
+  stage          ProjectStage    @default(CREATE)
+  onHold         Boolean         @default(false)
+  startDate      DateTime?       @db.Date
+  dueDate        DateTime?       @db.Date
   completedAt    DateTime?
   ownerId        String
-  owner          User          @relation("ProjectOwner", fields: [ownerId], references: [id])
+  owner          User            @relation("ProjectOwner", fields: [ownerId], references: [id])
   departmentId   String?
-  department     Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  department     Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   dealId         String?
-  deal           Deal?         @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  deal           Deal?           @relation(fields: [dealId], references: [id], onDelete: SetNull)
   approvalNote   String? // the approver's note, or why it was sent back
   decidedById    String?
-  decidedBy      User?         @relation("ProjectApprover", fields: [decidedById], references: [id])
+  decidedBy      User?           @relation("ProjectApprover", fields: [decidedById], references: [id])
   decidedAt      DateTime?
   members        ProjectMember[]
   milestones     Milestone[]
@@ -624,8 +630,9 @@ model Project {
   timeEntries    TimeEntry[]
   stockRequests  StockRequest[]
   stockMovements StockMovement[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  programmes     Programme[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([stage])
 }
@@ -836,4 +843,90 @@ model StockRequestLine {
   writtenOff Int          @default(0) // lost, damaged or used up
 
   @@unique([requestId, itemId])
+}
+
+// ─── Operations: school programme delivery ─────────────────────────────────
+
+enum ProgrammeStatus {
+  PLANNED
+  RUNNING
+  PAUSED
+  COMPLETED
+}
+
+/// One school's programme for an academic year: the classes taught, who teaches them, and how many sessions.
+model Programme {
+  id              String             @id @default(cuid())
+  name            String // "Robotics & Coding"
+  organizationId  String
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  contactId       String? // the school's coordinator
+  contact         Contact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  projectId       String? // the delivery project, when one was started from a won deal
+  project         Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  academicYear    String? // "2026-27"
+  grades          String? // "Grades 3 to 8"
+  students        Int?
+  sessionsPlanned Int? // contracted sessions for the year, for progress
+  startDate       DateTime?          @db.Date
+  endDate         DateTime?          @db.Date
+  status          ProgrammeStatus    @default(PLANNED)
+  coordinatorId   String // Edubotics person responsible for this school
+  coordinator     User               @relation("ProgrammeCoordinator", fields: [coordinatorId], references: [id])
+  notes           String?
+  trainers        ProgrammeTrainer[]
+  sessions        ProgrammeSession[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([organizationId])
+}
+
+/// A trainer assigned to a school, and which classes they take there.
+model ProgrammeTrainer {
+  id          String    @id @default(cuid())
+  programmeId String
+  programme   Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classes     String? // "Grades 3 to 5"
+  createdAt   DateTime  @default(now())
+
+  @@unique([programmeId, userId])
+}
+
+enum SessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED // called off in advance (school event, exam, holiday)
+  MISSED // should have happened and didn't
+}
+
+/// One class period at a school. The trainer logs it afterwards.
+model ProgrammeSession {
+  id              String        @id @default(cuid())
+  programmeId     String
+  programme       Programme     @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  date            DateTime      @db.Date
+  startTime       String // "10:30", India time
+  durationMins    Int           @default(60)
+  classGroup      String? // "Grade 5 A"
+  topic           String? // planned lesson
+  trainerId       String?
+  trainer         User?         @relation("SessionTrainer", fields: [trainerId], references: [id], onDelete: SetNull)
+  status          SessionStatus @default(SCHEDULED)
+  // Session log, filled in by the trainer afterwards.
+  studentsPresent Int?
+  covered         String? // what was actually taught
+  notes           String?
+  issues          String? // kit problems, behaviour, anything the coordinator should follow up
+  loggedById      String?
+  loggedBy        User?         @relation("SessionLogger", fields: [loggedById], references: [id], onDelete: SetNull)
+  loggedAt        DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([programmeId, date])
+  @@index([trainerId, date])
+  @@index([date])
 }

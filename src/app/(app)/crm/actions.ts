@@ -175,6 +175,9 @@ export async function updateOrganization(id: string, _: FormState, formData: For
 
 export async function deleteOrganization(id: string) {
   await requireAdminToDelete();
+  // School programmes keep their session history, so they block deleting the school.
+  if (await db.programme.count({ where: { organizationId: id } }))
+    throw new Error("This institution has school programmes. Delete those first under Operations.");
   await db.organization.delete({ where: { id } });
   refresh();
   redirect("/crm/organizations");

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { isAdmin, requireUser } from "@/lib/auth";
+import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { Badge, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
 import { ContactForm, OrganizationForm } from "../../forms";
@@ -9,6 +9,7 @@ import { createContact, deleteOrganization, updateOrganization } from "../../act
 import { activeUsers, orgOptions } from "../../data";
 import { ActivityPanel, activityInclude } from "../../activity-panel";
 import { dealStageColor } from "../../constants";
+import { ProgrammeBadge } from "../../../operations/ui";
 
 export default async function OrganizationPage({ params }: PageProps<"/crm/organizations/[id]">) {
   const user = await requireUser();
@@ -18,6 +19,7 @@ export default async function OrganizationPage({ params }: PageProps<"/crm/organ
     include: {
       contacts: { orderBy: { name: "asc" } },
       deals: { orderBy: { createdAt: "desc" } },
+      programmes: { orderBy: { createdAt: "desc" } },
       activities: { include: activityInclude, orderBy: { createdAt: "desc" }, take: 50 },
     },
   });
@@ -75,6 +77,39 @@ export default async function OrganizationPage({ params }: PageProps<"/crm/organ
               </table>
             )}
           </div>
+          {(org.programmes.length > 0 || isManagerOrAdmin(user)) && (
+            <div className="card p-0">
+              <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                <h2 className="font-semibold">School programmes</h2>
+                {isManagerOrAdmin(user) && (
+                  <Link href={`/operations/programmes/new?school=${org.id}`} className="link text-sm">
+                    New programme
+                  </Link>
+                )}
+              </div>
+              {org.programmes.length === 0 ? (
+                <p className="px-5 pb-4 text-sm text-slate-500">No programmes running here.</p>
+              ) : (
+                <table className="table">
+                  <tbody>
+                    {org.programmes.map((p) => (
+                      <tr key={p.id}>
+                        <td>
+                          <Link href={`/operations/programmes/${p.id}`} className="link">
+                            {p.name}
+                          </Link>
+                          <div className="text-xs text-slate-500">{[p.grades, p.academicYear].filter(Boolean).join(" · ")}</div>
+                        </td>
+                        <td>
+                          <ProgrammeBadge status={p.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
           <div className="card p-0">
             <h2 className="px-5 pt-4 pb-2 font-semibold">People</h2>
             {org.contacts.length === 0 ? (
