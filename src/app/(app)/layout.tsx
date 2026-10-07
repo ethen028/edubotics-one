@@ -3,11 +3,12 @@ import { NavLink } from "@/components/nav-link";
 import { Sidebar } from "@/components/sidebar";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
+import { myPendingAcks } from "@/lib/notices";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const approvals = await pendingApprovals(user);
+  const [approvals, toAcknowledge] = await Promise.all([pendingApprovals(user), myPendingAcks(user)]);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -25,6 +26,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <nav className="flex-1 space-y-4 overflow-y-auto">
           <div className="space-y-0.5">
             <NavLink href="/">Home</NavLink>
+            <NavLink href="/notices">
+              <span className="flex items-center justify-between">
+                Notice board
+                {toAcknowledge.length > 0 && (
+                  <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950">
+                    {toAcknowledge.length}
+                  </span>
+                )}
+              </span>
+            </NavLink>
           </div>
           <div className="space-y-0.5">
             <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Work</div>
