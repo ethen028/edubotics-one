@@ -42,6 +42,8 @@ const invoiceSettings = z.object({
   bankIfsc: text(11).transform((v) => v?.toUpperCase() ?? null),
   upiId: text(80),
   invoiceNote: text(500),
+  quoteValidDays: z.coerce.number().int().min(1, "A quote must be valid for at least a day.").max(365),
+  quoteTerms: text(1000),
 });
 
 export async function updateSettings(_: FormState, formData: FormData): Promise<FormState> {

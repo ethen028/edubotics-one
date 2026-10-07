@@ -19,10 +19,36 @@ export type InvoiceDefaults = {
   billToAddress?: string | null;
   billToGstin?: string | null;
   placeOfSupply?: string;
+  quoteId?: string | null;
   issueDate: string;
   dueDate: string;
+  terms?: string | null;
   notes?: string | null;
   lines: LineDraft[];
+};
+
+/** Labels that differ between an invoice and a quote. The form fields keep the invoice names. */
+const WORDS = {
+  invoice: {
+    party: "Bill to",
+    name: "Name on invoice *",
+    date: "Invoice date *",
+    until: "Due date *",
+    deal: "Won deal",
+    lines: "What you're billing",
+    note: "Note on the invoice",
+    notePlaceholder: "e.g. Instalment 1 of 3 as per the agreement dated 12 June 2026",
+  },
+  quote: {
+    party: "Quote for",
+    name: "Name on quote *",
+    date: "Quote date *",
+    until: "Valid until *",
+    deal: "Deal",
+    lines: "What you're quoting",
+    note: "Note on the quote",
+    notePlaceholder: "e.g. Kits stay with the school after the programme",
+  },
 };
 
 export function InvoiceForm({
@@ -34,6 +60,7 @@ export function InvoiceForm({
   defaults,
   settings,
   submitLabel,
+  kind = "invoice",
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   orgs: Org[];
@@ -43,7 +70,9 @@ export function InvoiceForm({
   defaults: InvoiceDefaults;
   settings: { companyState: string; gstEnabled: boolean; defaultGstRate: number; defaultSac: string | null };
   submitLabel: string;
+  kind?: "invoice" | "quote";
 }) {
+  const w = WORDS[kind];
   const [orgId, setOrgId] = useState(defaults.organizationId ?? "");
   const [billTo, setBillTo] = useState({
     name: defaults.billToName ?? "",
@@ -82,12 +111,13 @@ export function InvoiceForm({
     })),
     { interState, gstEnabled: settings.gstEnabled },
   );
-  const forOrg = (xs: Linked[]) => xs.filter((x) => !orgId || x.organizationId === orgId);
+  const forOrg = (xs: Linked[]) => xs.filter((x) => !orgId || !x.organizationId || x.organizationId === orgId);
 
   return (
     <ActionForm action={action} className="space-y-6">
       <section className="card space-y-4">
-        <h2 className="font-semibold">Bill to</h2>
+        <h2 className="font-semibold">{w.party}</h2>
+        {defaults.quoteId && <input type="hidden" name="quoteId" value={defaults.quoteId} />}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="School / institution *">
             <select name="organizationId" required value={orgId} onChange={(e) => pickOrg(e.target.value)} className="input">
@@ -109,7 +139,7 @@ export function InvoiceForm({
               ))}
             </select>
           </Field>
-          <Field label="Name on invoice *">
+          <Field label={w.name}>
             <input
               name="billToName"
               required
@@ -148,14 +178,14 @@ export function InvoiceForm({
             )}
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Invoice date *">
+            <Field label={w.date}>
               <input type="date" name="issueDate" required defaultValue={defaults.issueDate} className="input" />
             </Field>
-            <Field label="Due date *">
+            <Field label={w.until}>
               <input type="date" name="dueDate" required defaultValue={defaults.dueDate} className="input" />
             </Field>
           </div>
-          <Field label="Won deal">
+          <Field label={w.deal}>
             <select name="dealId" defaultValue={defaults.dealId ?? ""} className="input" key={`d${orgId}`}>
               <option value="">—</option>
               {forOrg(deals).map((d) => (
@@ -165,21 +195,23 @@ export function InvoiceForm({
               ))}
             </select>
           </Field>
-          <Field label="Delivery project">
-            <select name="projectId" defaultValue={defaults.projectId ?? ""} className="input" key={`p${orgId}`}>
-              <option value="">—</option>
-              {forOrg(projects).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {kind === "invoice" && (
+            <Field label="Delivery project">
+              <select name="projectId" defaultValue={defaults.projectId ?? ""} className="input" key={`p${orgId}`}>
+                <option value="">—</option>
+                {forOrg(projects).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
         </div>
       </section>
 
       <section className="card space-y-3">
-        <h2 className="font-semibold">What you&apos;re billing</h2>
+        <h2 className="font-semibold">{w.lines}</h2>
         <input type="hidden" name="lines" value={JSON.stringify(lines)} />
         <div className="hidden gap-2 text-xs font-medium text-slate-500 md:grid md:grid-cols-[1fr_6rem_5rem_8rem_5.5rem_7rem_2rem]">
           <span>Description</span>
@@ -278,15 +310,20 @@ export function InvoiceForm({
         </dl>
       </section>
 
-      <section className="card">
-        <Field label="Note on the invoice">
-          <textarea
-            name="notes"
-            rows={2}
-            defaultValue={defaults.notes ?? ""}
-            className="input"
-            placeholder="e.g. Instalment 1 of 3 as per the agreement dated 12 June 2026"
-          />
+      <section className="card space-y-4">
+        {kind === "quote" && (
+          <Field label="Terms">
+            <textarea
+              name="terms"
+              rows={3}
+              defaultValue={defaults.terms ?? ""}
+              className="input"
+              placeholder="e.g. 50% advance on confirmation, balance on completion. Prices include kits and trainer travel."
+            />
+          </Field>
+        )}
+        <Field label={w.note}>
+          <textarea name="notes" rows={2} defaultValue={defaults.notes ?? ""} className="input" placeholder={w.notePlaceholder} />
         </Field>
       </section>
 

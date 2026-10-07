@@ -52,6 +52,7 @@ model User {
   projectFiles          ProjectFile[]
   decidedClaims         ExpenseClaim[]       @relation("ClaimApprover")
   createdInvoices       Invoice[]            @relation("InvoiceCreator")
+  createdQuotes         Quote[]              @relation("QuoteCreator")
   recordedPayments      InvoicePayment[]
   purchaseOrders        PurchaseOrder[]      @relation("PORequester")
   decidedPurchases      PurchaseOrder[]      @relation("POApprover")
@@ -222,7 +223,7 @@ model CompanySettings {
   gstEnabled       Boolean @default(true) // off = plain invoices with no tax
   defaultGstRate   Int     @default(18)
   defaultSac       String? @default("999293") // commercial training and coaching services
-  invoicePrefix    String  @default("EBG") // EBG/26-27/001
+  invoicePrefix    String  @default("EBG") // EBG/26-27/001; quotes are EBG/Q/26-27/001
   paymentTermsDays Int     @default(15)
   bankName         String?
   bankAccountName  String?
@@ -230,6 +231,8 @@ model CompanySettings {
   bankIfsc         String?
   upiId            String?
   invoiceNote      String? // printed at the bottom, e.g. "Please quote the invoice number when paying."
+  quoteValidDays   Int     @default(30) // a new quote is valid this many days
+  quoteTerms       String? // starting terms on every new quote, e.g. "50% advance, balance on completion"
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -507,6 +510,7 @@ model Organization {
   expenseClaims ExpenseClaim[]
   gstin         String? // printed on invoices; schools usually have none
   invoices      Invoice[]
+  quotes        Quote[]
 
   @@index([name])
 }
@@ -528,6 +532,7 @@ model Contact {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   invoices       Invoice[]
+  quotes         Quote[]
 }
 
 enum LeadStatus {
@@ -602,6 +607,7 @@ model Deal {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   invoices       Invoice[]
+  quotes         Quote[]
 
   @@index([stage])
 }
@@ -1173,6 +1179,8 @@ model Invoice {
   cancelledAt    DateTime?
   cancelReason   String?
   createdById    String
+  quoteId        String? // the accepted quote this invoice bills
+  quote          Quote?           @relation(fields: [quoteId], references: [id], onDelete: SetNull)
   createdBy      User             @relation("InvoiceCreator", fields: [createdById], references: [id])
   lines          InvoiceLine[]
   payments       InvoicePayment[]
@@ -1215,6 +1223,77 @@ model InvoicePayment {
   createdAt    DateTime      @default(now())
 
   @@index([invoiceId])
+}
+
+// ─── Quotations ────────────────────────────────────────────────────────────
+// Price quotes to schools, usually from a CRM deal. Same GST maths as invoices.
+// An accepted quote wins the deal and is billed through one or more invoices.
+
+enum QuoteStatus {
+  DRAFT // being prepared, no number yet
+  SENT // numbered and given to the school, waiting for an answer (expired once past validUntil)
+  ACCEPTED
+  DECLINED
+  REVISED // replaced by a newer quote that was sent
+}
+
+model Quote {
+  id             String       @id @default(cuid())
+  fy             String? // financial year of the quote date, "26-27"
+  seq            Int?
+  number         String?      @unique // EBG/Q/26-27/001, given when sent
+  status         QuoteStatus  @default(DRAFT)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  contactId      String?
+  contact        Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  dealId         String?
+  deal           Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  revisionOfId   String? // the earlier quote this one replaces
+  revisionOf     Quote?       @relation("QuoteRevision", fields: [revisionOfId], references: [id], onDelete: SetNull)
+  revisions      Quote[]      @relation("QuoteRevision")
+  billToName     String
+  billToAddress  String?
+  billToGstin    String?
+  placeOfSupply  String
+  quoteDate      DateTime     @db.Date
+  validUntil     DateTime     @db.Date
+  subtotal       Decimal      @db.Decimal(14, 2) // before GST; becomes the deal value when accepted
+  cgst           Decimal      @default(0) @db.Decimal(14, 2)
+  sgst           Decimal      @default(0) @db.Decimal(14, 2)
+  igst           Decimal      @default(0) @db.Decimal(14, 2)
+  total          Decimal      @db.Decimal(14, 2)
+  terms          String? // payment and delivery terms printed on the quote
+  notes          String?
+  sentAt         DateTime?
+  decidedOn      DateTime?    @db.Date // when the school accepted or declined
+  declineReason  String?
+  createdById    String
+  createdBy      User         @relation("QuoteCreator", fields: [createdById], references: [id])
+  lines          QuoteLine[]
+  invoices       Invoice[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([fy, seq])
+  @@index([organizationId])
+  @@index([dealId])
+  @@index([status, validUntil])
+}
+
+model QuoteLine {
+  id          String  @id @default(cuid())
+  quoteId     String
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  position    Int
+  description String
+  sac         String?
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  gstRate     Decimal @default(0) @db.Decimal(5, 2)
+  amount      Decimal @db.Decimal(14, 2) // quantity × unit price, before tax
+
+  @@index([quoteId])
 }
 
 // ─── Purchases ─────────────────────────────────────────────────────────────
