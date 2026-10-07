@@ -7,6 +7,7 @@ import { Empty, Field, Options, PageHeader, Stat } from "@/components/ui";
 import { INVENTORY_CATEGORIES, STOCK_UNITS, isLowStock, lowStockItems, outstanding, reservedByItem } from "@/lib/inventory";
 import { createItem } from "./actions";
 import { StockLevel } from "./ui";
+import { onOrderByItem } from "@/lib/purchases";
 
 export const metadata = { title: "Inventory" };
 
@@ -25,7 +26,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
       ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { sku: { contains: q, mode: "insensitive" } }, { location: { contains: q, mode: "insensitive" } }] }
       : {}),
   };
-  const [allItems, low, reserved, outLines, openRequests] = await Promise.all([
+  const [allItems, low, reserved, outLines, openRequests, onOrder] = await Promise.all([
     db.stockItem.findMany({ where, orderBy: [{ category: "asc" }, { name: "asc" }] }),
     lowStockItems(),
     reservedByItem(),
@@ -34,6 +35,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
       select: { itemId: true, issued: true, returned: true, writtenOff: true, item: { select: { returnable: true } } },
     }),
     db.stockRequest.count({ where: { status: { in: ["PENDING", "APPROVED"] } } }),
+    onOrderByItem(),
   ]);
   const items = view === "low" ? allItems.filter(isLowStock) : allItems;
   const outByItem = new Map<string, number>();
@@ -107,6 +109,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                 <th>In stock</th>
                 <th>Reserved</th>
                 <th>Out</th>
+                <th>On order</th>
                 <th>Reorder at</th>
               </tr>
             </thead>
@@ -129,6 +132,13 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                   </td>
                   <td className="text-sm">{reserved.get(i.id) || "—"}</td>
                   <td className="text-sm">{outByItem.get(i.id) || "—"}</td>
+                  <td className="text-sm">
+                    {onOrder.get(i.id) || (admin && isLowStock(i) ? (
+                      <Link href={`/purchases/new?item=${i.id}&qty=${Math.max(1, i.reorderLevel * 2 - i.onHand)}`} className="link">
+                        Order
+                      </Link>
+                    ) : "—")}
+                  </td>
                   <td className="text-sm text-slate-600">{i.reorderLevel || "—"}</td>
                 </tr>
               ))}

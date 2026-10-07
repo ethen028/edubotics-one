@@ -53,6 +53,11 @@ model User {
   decidedClaims         ExpenseClaim[]     @relation("ClaimApprover")
   createdInvoices       Invoice[]          @relation("InvoiceCreator")
   recordedPayments      InvoicePayment[]
+  purchaseOrders        PurchaseOrder[]    @relation("PORequester")
+  decidedPurchases      PurchaseOrder[]    @relation("POApprover")
+  purchaseReceipts      PurchaseReceipt[]
+  vendorBills           VendorBill[]
+  vendorPayments        VendorPayment[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -674,6 +679,7 @@ model Project {
   files          ProjectFile[]
   expenseClaims  ExpenseClaim[]
   invoices       Invoice[]
+  purchaseOrders PurchaseOrder[]
 
   @@index([stage])
 }
@@ -853,22 +859,23 @@ model TimeEntry {
 
 /// One stocked thing: a robotics kit, a sensor, a pack of jumper wires.
 model StockItem {
-  id           String             @id @default(cuid())
-  sku          String             @unique // EB-KIT-ARD-01
+  id           String              @id @default(cuid())
+  sku          String              @unique // EB-KIT-ARD-01
   name         String
   category     String // see INVENTORY_CATEGORIES
-  unit         String             @default("pcs") // pcs, kit, set, pack, m
+  unit         String              @default("pcs") // pcs, kit, set, pack, m
   location     String? // shelf, cupboard, branch
-  returnable   Boolean            @default(true) // kits come back after a programme; consumables don't
-  onHand       Int                @default(0) // kept in step with StockMovement
-  reorderLevel Int                @default(0) // low-stock alert at or below this
-  unitCost     Decimal?           @db.Decimal(10, 2)
+  returnable   Boolean             @default(true) // kits come back after a programme; consumables don't
+  onHand       Int                 @default(0) // kept in step with StockMovement
+  reorderLevel Int                 @default(0) // low-stock alert at or below this
+  unitCost     Decimal?            @db.Decimal(10, 2)
   notes        String?
-  active       Boolean            @default(true)
+  active       Boolean             @default(true)
   movements    StockMovement[]
   requestLines StockRequestLine[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  poLines      PurchaseOrderLine[]
 
   @@index([category])
 }
@@ -896,6 +903,8 @@ model StockMovement {
   byId      String
   by        User              @relation(fields: [byId], references: [id])
   createdAt DateTime          @default(now())
+  receiptId String? // received against a purchase order
+  receipt   PurchaseReceipt?  @relation(fields: [receiptId], references: [id], onDelete: SetNull)
 
   @@index([itemId, createdAt])
 }
@@ -1188,4 +1197,169 @@ model InvoicePayment {
   createdAt    DateTime      @default(now())
 
   @@index([invoiceId])
+}
+
+// ─── Purchases ─────────────────────────────────────────────────────────────
+// Buying from suppliers: vendors, purchase orders approved in the Approvals inbox,
+// goods received into stock, the vendor's bill and what has been paid on it.
+
+model Vendor {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  state       String          @default("Kerala") // decides CGST + SGST or IGST
+  gstin       String?
+  pan         String?
+  paymentDays Int             @default(30) // bill due this many days after the bill date
+  bankDetails String? // account, IFSC or UPI ID, for paying them
+  notes       String?
+  active      Boolean         @default(true)
+  orders      PurchaseOrder[]
+  bills       VendorBill[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+enum PurchaseOrderStatus {
+  PENDING // waiting for approval
+  APPROVED // approved, not yet sent to the vendor
+  ORDERED // sent to the vendor, waiting for delivery
+  PART_RECEIVED
+  RECEIVED // everything arrived
+  CLOSED // closed with some lines short
+  REJECTED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id           String              @id @default(cuid())
+  number       Int                 @unique @default(autoincrement()) // shown as PO-0001
+  vendorId     String
+  vendor       Vendor              @relation(fields: [vendorId], references: [id])
+  requesterId  String
+  requester    User                @relation("PORequester", fields: [requesterId], references: [id])
+  projectId    String?
+  project      Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  purpose      String
+  expectedBy   DateTime?           @db.Date
+  interState   Boolean             @default(false) // vendor outside Kerala: IGST instead of CGST + SGST
+  subtotal     Decimal             @db.Decimal(12, 2) // before GST
+  tax          Decimal             @db.Decimal(12, 2)
+  total        Decimal             @db.Decimal(12, 2)
+  status       PurchaseOrderStatus @default(PENDING)
+  decidedById  String?
+  decidedBy    User?               @relation("POApprover", fields: [decidedById], references: [id])
+  decidedAt    DateTime?
+  decisionNote String?
+  orderedAt    DateTime?
+  closedAt     DateTime?
+  lines        PurchaseOrderLine[]
+  receipts     PurchaseReceipt[]
+  bills        VendorBill[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([status])
+  @@index([vendorId])
+}
+
+/// One thing bought. Linked to a stock item when it goes into inventory; free text for anything else.
+model PurchaseOrderLine {
+  id          String                @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        StockItem?            @relation(fields: [itemId], references: [id])
+  description String
+  quantity    Int
+  unit        String                @default("pcs")
+  unitPrice   Decimal               @db.Decimal(12, 2) // before GST
+  gstRate     Int                   @default(18)
+  received    Int                   @default(0)
+  receipts    PurchaseReceiptLine[]
+}
+
+/// A delivery from the vendor (goods received note). Stock items go into inventory.
+model PurchaseReceipt {
+  id         String                @id @default(cuid())
+  orderId    String
+  order      PurchaseOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  receivedOn DateTime              @db.Date
+  note       String?
+  byId       String
+  by         User                  @relation(fields: [byId], references: [id])
+  lines      PurchaseReceiptLine[]
+  movements  StockMovement[]
+  createdAt  DateTime              @default(now())
+}
+
+model PurchaseReceiptLine {
+  id        String            @id @default(cuid())
+  receiptId String
+  receipt   PurchaseReceipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  lineId    String
+  line      PurchaseOrderLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  quantity  Int
+}
+
+enum VendorBillStatus {
+  OPEN
+  CANCELLED
+}
+
+/// The vendor's invoice to us. Paid in one or more payments; what's left shows under Payables.
+model VendorBill {
+  id        String           @id @default(cuid())
+  vendorId  String
+  vendor    Vendor           @relation(fields: [vendorId], references: [id])
+  orderId   String?
+  order     PurchaseOrder?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  billNo    String // the vendor's invoice number
+  billDate  DateTime         @db.Date
+  dueDate   DateTime         @db.Date
+  subtotal  Decimal          @db.Decimal(12, 2)
+  tax       Decimal          @db.Decimal(12, 2) // GST on the bill (input credit)
+  total     Decimal          @db.Decimal(12, 2)
+  notes     String?
+  status    VendorBillStatus @default(OPEN)
+  byId      String
+  by        User             @relation(fields: [byId], references: [id])
+  file      VendorBillFile?
+  payments  VendorPayment[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([vendorId, billNo])
+  @@index([dueDate])
+}
+
+/// Photo or PDF of the vendor's bill, kept apart so lists don't load the bytes.
+model VendorBillFile {
+  id       String     @id @default(cuid())
+  billId   String     @unique
+  bill     VendorBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  fileName String
+  mimeType String
+  size     Int
+  data     Bytes
+}
+
+model VendorPayment {
+  id        String     @id @default(cuid())
+  billId    String
+  bill      VendorBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  paidOn    DateTime   @db.Date
+  amount    Decimal    @db.Decimal(12, 2) // money sent
+  tds       Decimal    @default(0) @db.Decimal(12, 2) // income tax held back and paid to the government
+  method    String // BANK_TRANSFER, UPI, CHEQUE, CASH, OTHER
+  reference String? // UTR, cheque number
+  note      String?
+  byId      String
+  by        User       @relation(fields: [byId], references: [id])
+  createdAt DateTime   @default(now())
+
+  @@index([billId])
 }

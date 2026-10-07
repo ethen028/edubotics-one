@@ -7,6 +7,7 @@ import { Badge, Empty, Field, Options, PageHeader, Stat } from "@/components/ui"
 import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
 import { todayIST } from "@/lib/time";
 import { INVENTORY_CATEGORIES, STOCK_UNITS, outstanding, requestNo, reservedByItem } from "@/lib/inventory";
+import { onOrderByItem } from "@/lib/purchases";
 import { recordMovement, toggleItemActive, updateItem } from "../actions";
 import { StockLevel } from "../ui";
 
@@ -34,7 +35,9 @@ export default async function ItemPage({ params }: PageProps<"/inventory/[id]">)
     },
   });
   if (!item) notFound();
-  const reserved = (await reservedByItem([id])).get(id) ?? 0;
+  const [reservedMap, onOrderMap] = await Promise.all([reservedByItem([id]), onOrderByItem([id])]);
+  const reserved = reservedMap.get(id) ?? 0;
+  const onOrder = onOrderMap.get(id) ?? 0;
   const out = item.requestLines.filter((l) => outstanding(l) > 0);
   const today = todayIST();
 
@@ -59,6 +62,11 @@ export default async function ItemPage({ params }: PageProps<"/inventory/[id]">)
             <Link href="/inventory" className="btn-secondary">
               All stock
             </Link>
+            {item.active && admin && (
+              <Link href={`/purchases/new?item=${item.id}`} className="btn-secondary">
+                Buy more
+              </Link>
+            )}
             {item.active && (
               <Link href={`/inventory/requests/new?item=${item.id}`} className="btn-primary">
                 Request this
@@ -72,7 +80,7 @@ export default async function ItemPage({ params }: PageProps<"/inventory/[id]">)
         <Stat label="In stock" value={<StockLevel onHand={item.onHand} reorderLevel={item.reorderLevel} unit={item.unit} />} />
         <Stat label="Reserved for approved requests" value={reserved} />
         <Stat label="Out with people" value={out.reduce((n, l) => n + outstanding(l), 0)} />
-        <Stat label="Low-stock alert at" value={item.reorderLevel || "Off"} />
+        <Stat label="On order from vendors" value={onOrder} href={onOrder ? "/purchases?view=incoming" : undefined} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
