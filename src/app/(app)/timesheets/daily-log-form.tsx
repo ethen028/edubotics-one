@@ -7,8 +7,20 @@ import { DAILY_STATUS_LABEL, LUNCH, formatDuration, workedMinutes } from "@/lib/
 
 type Task = { id: string; title: string; project: string; progress: number };
 type Project = { id: string; name: string };
+/** An entry being corrected (WorkPulse's edit): its current values fill the form. */
+export type EditedEntry = {
+  date: string;
+  target: string;
+  title: string;
+  note: string;
+  workStatus: string;
+  startTime: string;
+  endTime: string;
+  hours: number;
+  remarks: string;
+};
 
-/** Task Flow's "Add today's work" form, logging into the week's timesheet. */
+/** Task Flow's "Add today's work" form, logging into the week's timesheet. With `entry` it edits that entry instead. */
 export function DailyLogForm({
   action,
   tasks,
@@ -16,6 +28,7 @@ export function DailyLogForm({
   defaultDate,
   minDate,
   maxDate,
+  entry,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   tasks: Task[];
@@ -23,12 +36,14 @@ export function DailyLogForm({
   defaultDate: string;
   minDate: string;
   maxDate: string;
+  entry?: EditedEntry;
 }) {
-  const [target, setTarget] = useState("");
-  const [start, setStart] = useState("09:30");
-  const [end, setEnd] = useState("18:30");
+  const [target, setTarget] = useState(entry?.target ?? "");
+  const [start, setStart] = useState(entry ? entry.startTime : "09:30");
+  const [end, setEnd] = useState(entry ? entry.endTime : "18:30");
   const minutes = start && end ? workedMinutes(start, end) : null;
-  const task = target.startsWith("task:") ? tasks.find((t) => t.id === target.slice(5)) : undefined;
+  // Progress and files are reported when work is logged; an edit only corrects the entry itself.
+  const task = !entry && target.startsWith("task:") ? tasks.find((t) => t.id === target.slice(5)) : undefined;
   const [progress, setProgress] = useState<number | null>(null);
   const shown = progress ?? task?.progress ?? 0;
 
@@ -38,10 +53,10 @@ export function DailyLogForm({
         <legend className="mb-2 text-xs font-semibold tracking-wider text-brand-700 uppercase">01 · Work</legend>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Date">
-            <input type="date" name="date" required defaultValue={defaultDate} min={minDate} max={maxDate} className="input" />
+            <input type="date" name="date" required defaultValue={entry?.date ?? defaultDate} min={minDate} max={maxDate} className="input" />
           </Field>
           <Field label="Work status">
-            <select name="workStatus" defaultValue="" className="input">
+            <select name="workStatus" defaultValue={entry?.workStatus ?? ""} className="input">
               <option value="">—</option>
               {Object.entries(DAILY_STATUS_LABEL).map(([k, label]) => (
                 <option key={k} value={k}>
@@ -83,10 +98,10 @@ export function DailyLogForm({
           </select>
         </Field>
         <Field label="Work title">
-          <input name="title" className="input" placeholder="e.g. Completed motor testing" />
+          <input name="title" defaultValue={entry?.title} className="input" placeholder="e.g. Completed motor testing" />
         </Field>
         <Field label="What you did">
-          <textarea name="note" rows={2} className="input" placeholder="What you worked on, finished, problems faced" />
+          <textarea name="note" rows={2} defaultValue={entry?.note} className="input" placeholder="What you worked on, finished, problems faced" />
         </Field>
       </fieldset>
 
@@ -122,7 +137,7 @@ export function DailyLogForm({
           </p>
         ) : (
           <Field label="Hours">
-            <input type="number" name="hours" required min="0.25" max="16" step="0.25" className="input" />
+            <input type="number" name="hours" required defaultValue={entry?.hours} min="0.25" max="16" step="0.25" className="input" />
           </Field>
         )}
         {task && (
@@ -145,16 +160,20 @@ export function DailyLogForm({
       </fieldset>
 
       <fieldset className="space-y-3 [&>label]:block">
-        <legend className="mb-2 text-xs font-semibold tracking-wider text-brand-700 uppercase">03 · Files and remarks</legend>
-        <Field label={target ? "Files (photos, documents; up to 5, 10 MB each)" : "Files (pick a task or project first)"}>
-          <input type="file" name="files" multiple disabled={!target} className="input py-1.5 text-xs" />
-        </Field>
+        <legend className="mb-2 text-xs font-semibold tracking-wider text-brand-700 uppercase">
+          {entry ? "03 · Remarks" : "03 · Files and remarks"}
+        </legend>
+        {!entry && (
+          <Field label={target ? "Files (photos, documents; up to 5, 10 MB each)" : "Files (pick a task or project first)"}>
+            <input type="file" name="files" multiple disabled={!target} className="input py-1.5 text-xs" />
+          </Field>
+        )}
         <Field label="Remarks">
-          <input name="remarks" className="input" placeholder="Anything else" />
+          <input name="remarks" defaultValue={entry?.remarks} className="input" placeholder="Anything else" />
         </Field>
       </fieldset>
 
-      <SubmitButton>Add to timesheet</SubmitButton>
+      <SubmitButton>{entry ? "Save changes" : "Add to timesheet"}</SubmitButton>
     </ActionForm>
   );
 }

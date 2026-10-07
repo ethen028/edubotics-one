@@ -8,7 +8,7 @@ import { parseDateOnly } from "@/lib/leave";
 import { todayIST } from "@/lib/time";
 import { mondayOf } from "@/lib/week";
 import { DAILY_STATUS_LABEL } from "@/lib/daily-log";
-import { DailyStatusBadge } from "../badge";
+import { DailyStatusBadge, EditedNote } from "../badge";
 
 export const metadata = { title: "Team daily work" };
 
@@ -56,6 +56,23 @@ export default async function TeamDailyWorkPage({ searchParams }: PageProps<"/ti
   const hours = entries.reduce((s, e) => s + Number(e.hours), 0);
   const blocked = entries.filter((e) => e.workStatus === "BLOCKED").length;
   const loggedToday = new Set(entries.filter((e) => e.date.getTime() === today.getTime()).map((e) => e.timesheet.employee.id)).size;
+
+  // WorkPulse's admin Reports: one line per person for the same dates and filters.
+  const byPerson = people
+    .filter((p) => !person || p.id === person)
+    .map((p) => {
+      const mine = entries.filter((e) => e.timesheet.employee.id === p.id);
+      return {
+        ...p,
+        entries: mine.length,
+        hours: mine.reduce((s, e) => s + Number(e.hours), 0),
+        days: new Set(mine.map((e) => e.date.getTime())).size,
+        completed: mine.filter((e) => e.workStatus === "COMPLETED").length,
+        blocked: mine.filter((e) => e.workStatus === "BLOCKED").length,
+        last: mine[0]?.date ?? null,
+      };
+    })
+    .sort((a, b) => b.hours - a.hours || a.firstName.localeCompare(b.firstName));
 
   return (
     <>
@@ -110,6 +127,42 @@ export default async function TeamDailyWorkPage({ searchParams }: PageProps<"/ti
         <Stat label={`Logged today (of ${people.length})`} value={loggedToday} />
       </div>
 
+      {byPerson.length > 0 && (
+        <section className="card mb-6 overflow-x-auto p-0">
+          <h2 className="px-4 pt-4 pb-2 font-semibold">By person</h2>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th className="text-right">Days logged</th>
+                <th className="text-right">Entries</th>
+                <th className="text-right">Hours</th>
+                <th className="text-right">Completed</th>
+                <th className="text-right">Blocked</th>
+                <th>Last logged</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byPerson.map((p) => (
+                <tr key={p.id}>
+                  <td className="font-medium">
+                    <Link href={`?from=${toDateInput(from)}&to=${toDateInput(to)}&person=${p.id}${status ? `&status=${status}` : ""}`} className="link">
+                      {p.firstName} {p.lastName}
+                    </Link>
+                  </td>
+                  <td className="text-right tabular-nums">{p.days}</td>
+                  <td className="text-right tabular-nums">{p.entries}</td>
+                  <td className="text-right font-semibold tabular-nums">{p.hours}</td>
+                  <td className="text-right tabular-nums">{p.completed}</td>
+                  <td className={`text-right tabular-nums ${p.blocked ? "font-semibold text-red-700" : ""}`}>{p.blocked}</td>
+                  <td className={p.last ? "whitespace-nowrap" : "text-slate-400"}>{p.last ? formatDate(p.last) : "Nothing logged"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {entries.length === 0 ? (
         <Empty>No work logged for these dates.</Empty>
       ) : (
@@ -147,6 +200,7 @@ export default async function TeamDailyWorkPage({ searchParams }: PageProps<"/ti
                     {e.title && <div className="font-medium">{e.title}</div>}
                     {e.note && <div className="text-slate-600">{e.note}</div>}
                     {e.remarks && <div className="text-xs text-slate-400">Remarks: {e.remarks}</div>}
+                    {e.editCount > 0 && <EditedNote count={e.editCount} at={e.editedAt} />}
                   </td>
                   <td className="whitespace-nowrap text-slate-600">{e.startTime && e.endTime ? `${e.startTime}–${e.endTime}` : "—"}</td>
                   <td className="text-right tabular-nums">{Number(e.hours)}</td>

@@ -7,8 +7,8 @@ import { parseDateOnly } from "@/lib/leave";
 import { todayIST } from "@/lib/time";
 import { addDays, mondayOf, weekDays } from "@/lib/week";
 import { projectScope } from "@/lib/projects";
-import { addEntry, deleteEntry, submitWeek } from "./actions";
-import { DailyStatusBadge, TimesheetBadge } from "./badge";
+import { addEntry, deleteEntry, submitWeek, updateEntry } from "./actions";
+import { DailyStatusBadge, EditedNote, TimesheetBadge } from "./badge";
 import { DailyLogForm } from "./daily-log-form";
 
 export const metadata = { title: "Timesheet" };
@@ -66,6 +66,14 @@ export default async function TimesheetPage({ searchParams }: PageProps<"/timesh
 
   const entries = sheet?.entries ?? [];
   const locked = sheet?.status === "SUBMITTED" || sheet?.status === "APPROVED";
+  // WorkPulse's edit: ?edit=<entry id> loads that entry into the form while the week is open.
+  const editing = !locked ? entries.find((e) => e.id === sp.edit) : undefined;
+  const taskOptions = tasks.map((t) => ({ id: t.id, title: t.title, project: t.project.name, progress: t.status === "DONE" ? 100 : t.progress }));
+  const projectOptions = [...projects];
+  // Keep the entry's own task or project pickable even if it has since closed.
+  if (editing?.task && editing.taskId && !taskOptions.some((t) => t.id === editing.taskId))
+    taskOptions.push({ id: editing.taskId, title: editing.task.title, project: editing.project?.name ?? "", progress: 0 });
+  if (editing?.project && !projectOptions.some((p) => p.id === editing.project!.id)) projectOptions.push(editing.project);
   const total = entries.reduce((s, e) => s + Number(e.hours), 0);
   const perDay = days.map((d) => entries.filter((e) => e.date.getTime() === d.getTime()).reduce((s, e) => s + Number(e.hours), 0));
   // One row per project (or "Other" for time with only a note).
@@ -87,6 +95,9 @@ export default async function TimesheetPage({ searchParams }: PageProps<"/timesh
             </Link>
             <Link href="/timesheets" className="btn-secondary">
               This week
+            </Link>
+            <Link href="/timesheets/log" className="btn-secondary">
+              My work log
             </Link>
             {isManagerOrAdmin(user) && (
               <Link href="/timesheets/team" className="btn-secondary">
@@ -203,11 +214,17 @@ export default async function TimesheetPage({ searchParams }: PageProps<"/timesh
                     {e.title && <div className="font-medium text-slate-700">{e.title}</div>}
                     {e.note && <div className="text-slate-500">{e.note}</div>}
                     {e.remarks && <div className="text-xs text-slate-400">Remarks: {e.remarks}</div>}
+                    {e.editCount > 0 && <EditedNote count={e.editCount} at={e.editedAt} />}
                   </div>
                   {!locked && (
-                    <form action={deleteEntry.bind(null, e.id)}>
-                      <button className="text-xs text-slate-400 hover:text-red-600">Remove</button>
-                    </form>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <Link href={`?week=${toDateInput(weekStart)}&edit=${e.id}`} className="text-xs text-slate-500 hover:text-brand-700">
+                        Edit
+                      </Link>
+                      <form action={deleteEntry.bind(null, e.id)}>
+                        <button className="text-xs text-slate-400 hover:text-red-600">Remove</button>
+                      </form>
+                    </div>
                   )}
                 </li>
               ))}
@@ -216,14 +233,45 @@ export default async function TimesheetPage({ searchParams }: PageProps<"/timesh
         </section>
 
         <div className="space-y-6">
-          {!locked && !futureWeek && (
+          {editing && (
+            <section className="card ring-2 ring-brand-200">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h2 className="font-semibold">Edit entry</h2>
+                <Link href={`?week=${toDateInput(weekStart)}`} className="text-xs text-slate-500 hover:text-slate-800">
+                  Cancel
+                </Link>
+              </div>
+              <p className="mb-4 text-xs text-slate-500">Changes are saved to this entry. Your manager sees that it was edited.</p>
+              <DailyLogForm
+                key={editing.id}
+                action={updateEntry.bind(null, editing.id)}
+                tasks={taskOptions}
+                projects={projectOptions}
+                defaultDate={toDateInput(editing.date)}
+                minDate={toDateInput(weekStart)}
+                maxDate={toDateInput(lastDay)}
+                entry={{
+                  date: toDateInput(editing.date),
+                  target: editing.taskId ? `task:${editing.taskId}` : editing.project ? `project:${editing.project.id}` : "",
+                  title: editing.title ?? "",
+                  note: editing.note ?? "",
+                  workStatus: editing.workStatus ?? "",
+                  startTime: editing.startTime ?? "",
+                  endTime: editing.endTime ?? "",
+                  hours: Number(editing.hours),
+                  remarks: editing.remarks ?? "",
+                }}
+              />
+            </section>
+          )}
+          {!locked && !futureWeek && !editing && (
             <section className="card">
               <h2 className="mb-1 font-semibold">Add today&apos;s work</h2>
               <p className="mb-4 text-xs text-slate-500">Each piece of work goes into this week&apos;s timesheet.</p>
               <DailyLogForm
                 action={addEntry}
-                tasks={tasks.map((t) => ({ id: t.id, title: t.title, project: t.project.name, progress: t.status === "DONE" ? 100 : t.progress }))}
-                projects={projects}
+                tasks={taskOptions}
+                projects={projectOptions}
                 defaultDate={toDateInput(defaultDate)}
                 minDate={toDateInput(weekStart)}
                 maxDate={toDateInput(lastDay)}
