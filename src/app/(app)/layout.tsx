@@ -5,14 +5,16 @@ import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
 import { lowStockItems } from "@/lib/inventory";
 import { db } from "@/lib/db";
+import { myPendingAcks } from "@/lib/notices";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const [approvals, lowStock, myInterviews] = await Promise.all([
+  const [approvals, lowStock, myInterviews, toAcknowledge] = await Promise.all([
     pendingApprovals(user),
     isAdmin(user) ? lowStockItems() : [],
     db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
+    myPendingAcks(user),
   ]);
 
   return (
@@ -31,6 +33,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <nav className="flex-1 space-y-4 overflow-y-auto">
           <div className="space-y-0.5">
             <NavLink href="/">Home</NavLink>
+            <NavLink href="/notices">
+              <span className="flex items-center justify-between">
+                Notice board
+                {toAcknowledge.length > 0 && (
+                  <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950">
+                    {toAcknowledge.length}
+                  </span>
+                )}
+              </span>
+            </NavLink>
           </div>
           <div className="space-y-0.5">
             <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Work</div>

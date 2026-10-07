@@ -65,6 +65,8 @@ model User {
   interviewsTaken       Interview[]        @relation("Interviewer")
   interviewsBooked      Interview[]        @relation("InterviewScheduler")
   createdOffers         Offer[]
+  notices               Notice[]
+  noticeAcks            NoticeAck[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -1538,4 +1540,58 @@ model Offer {
   updatedAt        DateTime       @updatedAt
 
   @@index([candidateId])
+}
+
+// ─── Notice board ──────────────────────────────────────────────────────────
+
+enum NoticeKind {
+  ANNOUNCEMENT
+  POLICY
+}
+
+/// A company announcement or policy posted by an admin or manager. Everyone with a login can read it.
+model Notice {
+  id          String      @id @default(cuid())
+  kind        NoticeKind
+  title       String
+  body        String
+  category    String? // policies: Leave, Conduct, Travel…
+  pinned      Boolean     @default(false)
+  requiresAck Boolean     @default(false)
+  ackDueDate  DateTime?   @db.Date
+  showUntil   DateTime?   @db.Date // announcements drop off Home after this day
+  /// Bumped when a policy changes and everyone must acknowledge again; older acknowledgements stop counting.
+  version     Int         @default(1)
+  authorId    String
+  author      User        @relation(fields: [authorId], references: [id])
+  attachment  NoticeFile?
+  acks        NoticeAck[]
+  archivedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([kind, archivedAt])
+}
+
+/// The policy document or poster attached to a notice (PDF or image, up to 5 MB).
+model NoticeFile {
+  id       String @id @default(cuid())
+  noticeId String @unique
+  notice   Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  fileName String
+  mimeType String
+  size     Int
+  data     Bytes
+}
+
+model NoticeAck {
+  id       String   @id @default(cuid())
+  noticeId String
+  notice   Notice   @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version  Int // the notice version that was acknowledged
+  ackedAt  DateTime @default(now())
+
+  @@unique([noticeId, userId])
 }

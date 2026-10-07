@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { pendingApprovals } from "@/lib/approvals";
+import { myPendingAcks } from "@/lib/notices";
 import { daysFromNow, todayIST } from "@/lib/time";
 import { mondayOf } from "@/lib/week";
 import { OPEN_PROJECT_STAGES, progress, projectScope } from "@/lib/projects";
@@ -17,6 +18,7 @@ import { OPEN_STAGES } from "./crm/constants";
 import { PriorityBadge, ProgressBar, StageBadge } from "./projects/ui";
 import { TimesheetBadge } from "./timesheets/badge";
 import { invoicesWithBalance } from "./invoices/data";
+import { PendingAcks } from "./notices/ui";
 
 export const metadata = { title: "Home" };
 
@@ -56,6 +58,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     allLogsDue,
     billsDue,
     interviews,
+    toAcknowledge,
+    notices,
   ] = await Promise.all([
       db.projectTask.findMany({
         where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" }, onHold: false } },
@@ -113,6 +117,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           })
         : [],
       myOpenInterviews(user.id),
+      myPendingAcks(user),
+      db.notice.findMany({
+        where: { kind: "ANNOUNCEMENT", archivedAt: null, OR: [{ showUntil: null }, { showUntil: { gte: today } }] },
+        include: { author: { select: { name: true } } },
+        orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+        take: 3,
+      }),
     ]);
   const [onOrder, billSettled] = await Promise.all([
     lowStock.length ? onOrderByItem(lowStock.map((i) => i.id)) : new Map<string, number>(),
@@ -152,6 +163,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           You don&apos;t have access to that page.
         </div>
       )}
+
+      <PendingAcks notices={toAcknowledge} />
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -395,6 +408,32 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </ul>
             </section>
           )}
+          <section className="card">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">Notice board</h2>
+              <Link href="/notices" className="link text-sm">
+                All
+              </Link>
+            </div>
+            {notices.length === 0 ? (
+              <p className="text-sm text-slate-500">No announcements.</p>
+            ) : (
+              <ul className="space-y-3 text-sm">
+                {notices.map((n) => (
+                  <li key={n.id}>
+                    <Link href={`/notices/${n.id}`} className="font-medium hover:underline">
+                      {n.pinned && "📌 "}
+                      {n.title}
+                    </Link>
+                    <p className="line-clamp-2 text-slate-600">{n.body}</p>
+                    <p className="text-xs text-slate-400">
+                      {n.author.name} · {formatDate(n.createdAt)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
           {manager ? (
             <section className="card">
               <div className="mb-3 flex items-center justify-between">

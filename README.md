@@ -16,6 +16,7 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 - **My work and timesheets**: each person's tasks ordered by update requests, then what is overdue and due next; a daily work log (start and end time with lunch left out, what was done, status, files) that fills the weekly timesheet, submitted to the manager for approval. Managers see everyone's logged work under Team daily work.
 - **Expense claims**: staff claim back travel, food, stay, kits and other work spending, with a photo or PDF of the receipt and an optional project or school. Travel in their own two-wheeler or car is paid per km at rates set under **Admin → Settings** (0 = enter the fare by hand). The manager or an admin approves in Approvals, optionally a lower amount. Approved claims are added to the next payroll run on top of net salary and listed on the payslip; an admin can instead mark one paid separately (cash, UPI). Team expenses shows totals by person and category with a CSV download.
 - **Purchases**: vendors (with GSTIN, state and payment terms), purchase orders that anyone can raise and the requester's manager or an admin approves in the Approvals inbox (admins' own orders are approved automatically), a printable order for the vendor, and deliveries recorded against the order. Stock items that arrive go straight into inventory at the order's price. Admins enter the vendor's bill (with a photo or PDF), record payments with any TDS held back, and see what is owed on **Payables**, by vendor and how late. GST is CGST + SGST for Kerala vendors and IGST for others. Spreadsheet download of all bills for the accountant.
+- **Notice board**: admins and managers post company announcements and policies (with an optional PDF or image). Announcements show on everyone's Home; a notice can require everyone to read and acknowledge it, with a due date and a list of who hasn't yet. Changing a policy can ask everyone to acknowledge again.
 
 Planned next: operations.
 
@@ -28,6 +29,7 @@ Planned next: operations.
 | Timesheet | Log each day's work against a task or project (it can also move the task's progress), submit the week, see it approved or sent back. Managers and admins also see Team daily work |
 | Approvals | Managers and admins approve projects, timesheets, leave and attendance fixes in one place |
 | Expenses | Claim travel and other spending with a receipt; see what is waiting, approved and paid. Managers: Team expenses |
+| Notice board | Everyone reads announcements and policies and taps "I have read this" where asked; admins and managers post, pin, archive and see who hasn't read |
 | Leads | Capture enquiries, log calls, then **Convert** one into an institution + contact + deal in one step |
 | Deals | Board by stage (Prospect → Demo → Proposal → Negotiation → Won/Lost) with programme, students covered and value |
 | Institutions / Contacts | Every school, college or company and the people there, with all their deals and activity |
