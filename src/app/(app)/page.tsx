@@ -20,6 +20,8 @@ import { TimesheetBadge } from "./timesheets/badge";
 import { invoicesWithBalance } from "./invoices/data";
 import { PendingAcks } from "./notices/ui";
 import { HelpdeskHomeCard } from "./helpdesk/home-card";
+import { ReviewTodos } from "./hr/reviews/ui";
+import { myReviewTodos } from "@/lib/reviews";
 
 export const metadata = { title: "Home" };
 
@@ -61,6 +63,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     interviews,
     toAcknowledge,
     notices,
+    reviewTodos,
   ] = await Promise.all([
       db.projectTask.findMany({
         where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" }, onHold: false } },
@@ -125,6 +128,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
         take: 3,
       }),
+      myReviewTodos(user),
     ]);
   const [onOrder, billSettled] = await Promise.all([
     lowStock.length ? onOrderByItem(lowStock.map((i) => i.id)) : new Map<string, number>(),
@@ -166,6 +170,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       )}
 
       <PendingAcks notices={toAcknowledge} />
+      <ReviewTodos todos={reviewTodos} today={today} />
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>

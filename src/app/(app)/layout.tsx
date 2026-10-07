@@ -7,16 +7,18 @@ import { lowStockItems } from "@/lib/inventory";
 import { db } from "@/lib/db";
 import { myPendingAcks } from "@/lib/notices";
 import { helpdeskCounts } from "@/lib/helpdesk";
+import { myReviewTodos } from "@/lib/reviews";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk] = await Promise.all([
+  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk, reviewTodos] = await Promise.all([
     pendingApprovals(user),
     isAdmin(user) ? lowStockItems() : [],
     db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
     myPendingAcks(user),
     helpdeskCounts(user),
+    myReviewTodos(user),
   ]);
 
   return (
@@ -151,6 +153,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             )}
             {isManagerOrAdmin(user) && <NavLink href="/hr/onboarding">Onboarding</NavLink>}
             {isManagerOrAdmin(user) && <NavLink href="/hr/training">Training</NavLink>}
+            <NavLink href="/hr/reviews">
+              <span className="flex items-center justify-between">
+                Performance reviews
+                {reviewTodos.length > 0 && (
+                  <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950">{reviewTodos.length}</span>
+                )}
+              </span>
+            </NavLink>
             {isAdmin(user) && <NavLink href="/hr/assets">Assets</NavLink>}
             <NavLink href="/hr/holidays">Holidays</NavLink>
           </div>

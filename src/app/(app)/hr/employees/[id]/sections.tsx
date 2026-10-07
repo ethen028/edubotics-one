@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Asset, EmployeeDocument, OnboardingTask, SalaryStructure, TrainingAssignment, TrainingModule } from "@prisma/client";
+import type { Asset, EmployeeDocument, OnboardingTask, PerformanceReview, ReviewCycle, SalaryStructure, TrainingAssignment, TrainingModule } from "@prisma/client";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
@@ -7,6 +7,7 @@ import { DOCUMENT_TYPES, TASK_CATEGORIES } from "@/lib/hr-constants";
 import { addTask, applyChecklist, deleteDocument, deleteTask, reviewDocument, setTaskStatus, uploadDocument } from "../../onboarding/actions";
 import { assignTraining, removeTraining, setTrainingStatus } from "../../training/actions";
 import { deleteSalary, saveSalary } from "../../../payroll/actions";
+import { RatingBadge } from "../../reviews/ui";
 
 const TASK_COLOR = { PENDING: "gray", IN_PROGRESS: "blue", COMPLETED: "green", NOT_APPLICABLE: "gray" } as const;
 const DOC_COLOR = { PENDING: "amber", UNDER_REVIEW: "blue", VERIFIED: "green", REJECTED: "red" } as const;
@@ -369,6 +370,51 @@ export function SalarySection({
           <input name="note" placeholder="Note, e.g. annual increment" className="input col-span-2 py-1 sm:col-span-3" />
           <SubmitButton className="btn-secondary btn-sm">Save salary</SubmitButton>
         </ActionForm>
+      )}
+    </section>
+  );
+}
+
+/** Review history: the final rating shows once the manager has shared it. */
+export function ReviewsSection({
+  reviews,
+  isSelf,
+}: {
+  reviews: (PerformanceReview & { cycle: ReviewCycle; reviewer: { name: string } | null })[];
+  isSelf: boolean;
+}) {
+  return (
+    <section className="card text-sm">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="font-semibold">Performance reviews</h2>
+        {isSelf && (
+          <Link href="/hr/reviews" className="link text-xs">
+            All my reviews
+          </Link>
+        )}
+      </div>
+      {reviews.length === 0 ? (
+        <p className="text-slate-500">No reviews yet.</p>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {reviews.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center gap-2 py-2">
+              <div className="min-w-0 flex-1">
+                <Link href={`/hr/reviews/${r.id}`} className="link">
+                  {r.cycle.name}
+                </Link>
+                <div className="text-xs text-slate-500">
+                  {formatDate(r.cycle.periodStart)} – {formatDate(r.cycle.periodEnd)} · reviewer {r.reviewer?.name ?? "an admin"}
+                </div>
+              </div>
+              {r.managerSubmittedAt ? (
+                <RatingBadge rating={r.managerRating} />
+              ) : (
+                <Badge>{r.cycle.stage === "CLOSED" ? "Not finished" : "In progress"}</Badge>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );
