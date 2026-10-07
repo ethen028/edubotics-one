@@ -151,6 +151,7 @@ const orgSchema = z.object({
   city: optional,
   district: optional,
   state: optional,
+  gstin: optional.transform((v) => v?.toUpperCase() ?? null),
   ownerId: optional,
   notes: optional,
 });
@@ -178,6 +179,9 @@ export async function deleteOrganization(id: string) {
   // School programmes keep their session history, so they block deleting the school.
   if (await db.programme.count({ where: { organizationId: id } }))
     throw new Error("This institution has school programmes. Delete those first under Operations.");
+  // Invoices are tax records, so a billed institution stays.
+  if (await db.invoice.count({ where: { organizationId: id } }))
+    throw new Error("This institution has invoices, so it can't be deleted.");
   await db.organization.delete({ where: { id } });
   refresh();
   redirect("/crm/organizations");
