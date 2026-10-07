@@ -57,7 +57,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       db.project.findMany({
         where: { ...projectScope(user), stage: { in: [...OPEN_PROJECT_STAGES] } },
         include: {
-          tasks: { select: { status: true } },
+          tasks: { select: { status: true, progress: true } },
           milestones: { where: { doneAt: null }, orderBy: { dueDate: { sort: "asc", nulls: "last" } }, take: 1 },
         },
         orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],
@@ -99,11 +99,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       manager ? db.programmeSession.count({ where: needsLogWhere(today) }) : 0,
     ]);
 
-  // Overdue first, then nearest due date, then priority.
+  // Update requests first, then overdue and nearest due date, then priority.
   myTasks.sort((a, b) => {
+    const ra = a.updateRequestedAt ? 0 : 1;
+    const rb = b.updateRequestedAt ? 0 : 1;
     const da = a.dueDate?.getTime() ?? Infinity;
     const dbb = b.dueDate?.getTime() ?? Infinity;
-    return da - dbb || PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    return ra - rb || da - dbb || PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
   });
   const focus = myTasks[0];
   const dueToday = myTasks.filter((t) => t.dueDate && t.dueDate <= today).length;
@@ -157,6 +159,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 {focus.dueDate && ` · due ${formatDate(focus.dueDate)}`}
                 {focus.dueDate && focus.dueDate < today && " (overdue)"}
               </p>
+              {focus.updateRequestedAt && (
+                <p className="mt-1 text-sm font-medium text-amber-200">Your project owner asked for an update on this.</p>
+              )}
             </div>
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -167,8 +172,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             </span>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link href={`/projects/${focus.project.id}`} className="btn bg-white text-brand-900 hover:bg-brand-50">
-              Open project
+            <Link href={`/projects/${focus.project.id}/tasks/${focus.id}`} className="btn bg-white text-brand-900 hover:bg-brand-50">
+              {focus.updateRequestedAt ? "Post update" : "Open task"}
             </Link>
             <Link href="/work" className="btn text-white ring-1 ring-white/30 hover:bg-white/10">
               All my work ({myTasks.length})
@@ -216,8 +221,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{t.title}</div>
-                      <div className="truncate text-xs text-slate-500">{t.project.name}</div>
+                      <Link href={`/projects/${t.project.id}/tasks/${t.id}`} className="block truncate font-medium hover:underline">
+                        {t.title}
+                      </Link>
+                      <div className="truncate text-xs text-slate-500">
+                        {t.project.name}
+                        {t.updateRequestedAt && <span className="font-medium text-amber-700"> · update requested</span>}
+                      </div>
                     </div>
                     <PriorityBadge priority={t.priority} />
                     <span

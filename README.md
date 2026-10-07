@@ -12,6 +12,9 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 - **My work and timesheets**: each person's tasks ordered by what is overdue and due next; a weekly timesheet logged against tasks or projects, submitted to the manager for approval.
 - **Approvals**: one inbox for managers and admins with projects, timesheets, leave, missed punch-outs and inventory requests.
 - **Inventory**: robotics and IoT kits, parts and consumables counted by quantity, with a stock history for every item. Anyone can request items (usually for a project); the requester's manager or an admin approves; an admin issues them and later records what came back and what was lost or used up. Items at or below their low-stock level are flagged in the sidebar and on the home page. Equipment issued to one person (laptops, access cards) stays in HR → Assets.
+- **Progress updates and files** (from Task Flow): each task has its own page with a progress slider, reports, file attachments and history. The project owner can ask the assignee for an update, which waits on their Home and My work until they post one. Project pages have an updates feed and files; the Projects page shows tasks by status, what needs attention and recent activity; Team workload shows who is carrying what.
+- **My work and timesheets**: each person's tasks ordered by update requests, then what is overdue and due next; a daily work log (start and end time with lunch left out, what was done, status, files) that fills the weekly timesheet, submitted to the manager for approval. Managers see everyone's logged work under Team daily work.
+- **Approvals**: one inbox for managers and admins with projects, timesheets, leave and missed punch-outs.
 
 Planned next: operations.
 
@@ -21,7 +24,7 @@ Planned next: operations.
 |---|---|
 | Home | Your next priority, open tasks, hours this week, project health, approvals waiting, CRM follow-ups, who is on leave, holidays. Admins also see pipeline and won-this-month |
 | My work / Projects | Tasks assigned to you; projects you are on (managers: also their team's; admins: all) |
-| Timesheet | Log hours per day against a task or project, submit the week, see it approved or sent back |
+| Timesheet | Log each day's work against a task or project (it can also move the task's progress), submit the week, see it approved or sent back. Managers and admins also see Team daily work |
 | Approvals | Managers and admins approve projects, timesheets, leave and attendance fixes in one place |
 | Leads | Capture enquiries, log calls, then **Convert** one into an institution + contact + deal in one step |
 | Deals | Board by stage (Prospect → Demo → Proposal → Negotiation → Won/Lost) with programme, students covered and value |

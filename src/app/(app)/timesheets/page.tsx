@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
-import { Empty, Field, PageHeader } from "@/components/ui";
+import { isManagerOrAdmin, requireUser } from "@/lib/auth";
+import { Empty, PageHeader } from "@/components/ui";
 import { formatDate, toDateInput } from "@/lib/format";
 import { parseDateOnly } from "@/lib/leave";
 import { todayIST } from "@/lib/time";
 import { addDays, mondayOf, weekDays } from "@/lib/week";
 import { projectScope } from "@/lib/projects";
 import { addEntry, deleteEntry, submitWeek } from "./actions";
-import { TimesheetBadge } from "./badge";
+import { DailyStatusBadge, TimesheetBadge } from "./badge";
+import { DailyLogForm } from "./daily-log-form";
 
 export const metadata = { title: "Timesheet" };
 
@@ -53,7 +53,7 @@ export default async function TimesheetPage({ searchParams }: PageProps<"/timesh
     db.projectTask.findMany({
       // Open tasks, plus ones finished in the last two weeks so their time can still be logged.
       where: { assigneeId: user.id, OR: [{ status: { not: "DONE" } }, { completedAt: { gte: addDays(today, -14) } }] },
-      select: { id: true, title: true, project: { select: { name: true } } },
+      select: { id: true, title: true, status: true, progress: true, project: { select: { name: true } } },
       orderBy: { createdAt: "asc" },
     }),
     db.timesheet.findMany({
@@ -71,6 +71,9 @@ export default async function TimesheetPage({ searchParams }: PageProps<"/timesh
   // One row per project (or "Other" for time with only a note).
   const rows = [...new Map(entries.map((e) => [e.project?.id ?? "", e.project?.name ?? "Other work"])).entries()];
   const defaultDate = today >= weekStart && today <= addDays(weekStart, 6) ? today : weekStart;
+  // No logging ahead of today.
+  const lastDay = addDays(weekStart, 6) < today ? addDays(weekStart, 6) : today;
+  const futureWeek = weekStart > today;
 
   return (
     <>
@@ -85,6 +88,11 @@ export default async function TimesheetPage({ searchParams }: PageProps<"/timesh
             <Link href="/timesheets" className="btn-secondary">
               This week
             </Link>
+            {isManagerOrAdmin(user) && (
+              <Link href="/timesheets/team" className="btn-secondary">
+                Team daily work
+              </Link>
+            )}
             <Link href={`?week=${toDateInput(addDays(weekStart, 7))}`} className="btn-secondary">
               Next →
             </Link>
@@ -176,11 +184,25 @@ export default async function TimesheetPage({ searchParams }: PageProps<"/timesh
             <ul className="divide-y divide-slate-100 text-sm">
               {entries.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-3 py-2">
-                  <div>
-                    <span className="font-medium">{dayName(e.date)}</span> · {Number(e.hours)} h ·{" "}
-                    {e.project?.name ?? "Other work"}
+                  <div className="min-w-0">
+                    <span className="font-medium">{dayName(e.date)}</span> · {Number(e.hours)} h
+                    {e.startTime && e.endTime && (
+                      <span className="text-slate-500">
+                        {" "}
+                        ({e.startTime}–{e.endTime})
+                      </span>
+                    )}{" "}
+                    · {e.project?.name ?? "Other work"}
                     {e.task && <span className="text-slate-500"> · {e.task.title}</span>}
+                    {e.workStatus && (
+                      <>
+                        {" "}
+                        <DailyStatusBadge status={e.workStatus} />
+                      </>
+                    )}
+                    {e.title && <div className="font-medium text-slate-700">{e.title}</div>}
                     {e.note && <div className="text-slate-500">{e.note}</div>}
+                    {e.remarks && <div className="text-xs text-slate-400">Remarks: {e.remarks}</div>}
                   </div>
                   {!locked && (
                     <form action={deleteEntry.bind(null, e.id)}>
@@ -194,51 +216,18 @@ export default async function TimesheetPage({ searchParams }: PageProps<"/timesh
         </section>
 
         <div className="space-y-6">
-          {!locked && (
+          {!locked && !futureWeek && (
             <section className="card">
-              <h2 className="mb-3 font-semibold">Log time</h2>
-              <ActionForm action={addEntry} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Day">
-                    <input
-                      type="date"
-                      name="date"
-                      required
-                      defaultValue={toDateInput(defaultDate)}
-                      min={toDateInput(weekStart)}
-                      max={toDateInput(addDays(weekStart, 6))}
-                      className="input"
-                    />
-                  </Field>
-                  <Field label="Hours">
-                    <input type="number" name="hours" required min="0.25" max="16" step="0.25" className="input" />
-                  </Field>
-                </div>
-                <Field label="Task">
-                  <select name="taskId" defaultValue="" className="input">
-                    <option value="">—</option>
-                    {tasks.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.title} ({t.project.name})
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Or project">
-                  <select name="projectId" defaultValue="" className="input">
-                    <option value="">—</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="What you did">
-                  <input name="note" className="input" placeholder="Required if no project" />
-                </Field>
-                <SubmitButton>Add</SubmitButton>
-              </ActionForm>
+              <h2 className="mb-1 font-semibold">Add today&apos;s work</h2>
+              <p className="mb-4 text-xs text-slate-500">Each piece of work goes into this week&apos;s timesheet.</p>
+              <DailyLogForm
+                action={addEntry}
+                tasks={tasks.map((t) => ({ id: t.id, title: t.title, project: t.project.name, progress: t.status === "DONE" ? 100 : t.progress }))}
+                projects={projects}
+                defaultDate={toDateInput(defaultDate)}
+                minDate={toDateInput(weekStart)}
+                maxDate={toDateInput(lastDay)}
+              />
             </section>
           )}
           <section className="card">

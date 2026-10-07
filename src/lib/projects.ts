@@ -54,9 +54,22 @@ export async function canApproveProject(user: CurrentUser, project: { ownerId: s
   return owner?.managerId === user.employee.id;
 }
 
-export function progress(tasks: { status: string }[]) {
+/** Average of the tasks' own progress (a done task counts as 100%), as in Task Flow. */
+export function progress(tasks: { status: string; progress: number }[]) {
   if (tasks.length === 0) return 0;
-  return Math.round((tasks.filter((t) => t.status === "DONE").length / tasks.length) * 100);
+  return Math.round(tasks.reduce((s, t) => s + (t.status === "DONE" ? 100 : t.progress), 0) / tasks.length);
+}
+
+/** The assignee, the project owner or an admin can report progress on a task. */
+export function canUpdateTask(user: CurrentUser, task: { assigneeId: string | null }, project: { ownerId: string }) {
+  return task.assigneeId === user.id || canEditProject(user, project);
+}
+
+/** Task status for the overview chart and lists: an open task past its due date shows as overdue. */
+export type TaskHealth = "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE" | "OVERDUE";
+export function taskHealth(task: { status: string; dueDate: Date | null }, today: Date): TaskHealth {
+  if (task.status !== "DONE" && task.dueDate && task.dueDate < today) return "OVERDUE";
+  return task.status as TaskHealth;
 }
 
 export const stageInfo: Record<ProjectStage, { title: string; hint: string }> = {

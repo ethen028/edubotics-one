@@ -24,6 +24,7 @@ import {
   deleteProject,
   deleteTask,
   moveStage,
+  postProjectUpdate,
   removeMember,
   setTaskStatus,
   toggleHold,
@@ -34,7 +35,18 @@ import { outstanding, requestNo } from "@/lib/inventory";
 import { RequestBadge } from "../../inventory/ui";
 import { ProjectForm } from "../forms";
 import { projectFormOptions } from "../data";
-import { PriorityBadge, ProgressBar, StageBadge, StageRail, WORK_STATUSES, WorkBadge } from "../ui";
+import {
+  FileList,
+  PriorityBadge,
+  ProgressBar,
+  StageBadge,
+  StageRail,
+  TaskStatusBadge,
+  UpdateFeed,
+  UpdateRequestedBadge,
+  WORK_STATUSES,
+  updateInclude,
+} from "../ui";
 import { ProgrammeBadge } from "../../operations/ui";
 
 export default async function ProjectPage({ params }: PageProps<"/projects/[id]">) {
@@ -52,7 +64,11 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
       members: { include: { user: { select: { id: true, name: true } } }, orderBy: { createdAt: "asc" } },
       milestones: { orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }] },
       tasks: {
-        include: { assignee: { select: { id: true, name: true } }, milestone: { select: { title: true } } },
+        include: {
+          assignee: { select: { id: true, name: true } },
+          milestone: { select: { title: true } },
+          _count: { select: { files: true } },
+        },
         orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
       },
       stockRequests: {
@@ -60,6 +76,8 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
         include: { lines: { include: { item: { select: { name: true, returnable: true } } } } },
         orderBy: { createdAt: "desc" },
       },
+      updates: { include: updateInclude, orderBy: { createdAt: "desc" }, take: 15 },
+      files: { include: { uploadedBy: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
     },
   });
   if (!project) notFound();
@@ -221,7 +239,8 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <section className="card min-w-0 lg:col-span-2">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+        <section className="card">
           <h2 className="mb-3 font-semibold">Tasks</h2>
           {project.tasks.length === 0 ? (
             <Empty>No tasks yet.</Empty>
@@ -230,15 +249,27 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
               {project.tasks.map((t) => {
                 const late = t.status !== "DONE" && t.dueDate && t.dueDate < today;
                 const canMove = canEdit || t.assignee?.id === user.id;
+                const tPct = t.status === "DONE" ? 100 : t.progress;
                 return (
                   <li key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm">
-                    <div className="min-w-0 flex-1">
-                      <div className={t.status === "DONE" ? "text-slate-400 line-through" : "font-medium"}>{t.title}</div>
+                    <div className="min-w-0 flex-1 basis-full sm:basis-0">
+                      <Link
+                        href={`/projects/${project.id}/tasks/${t.id}`}
+                        className={t.status === "DONE" ? "text-slate-400 line-through hover:underline" : "font-medium hover:underline"}
+                      >
+                        {t.title}
+                      </Link>{" "}
+                      {t.updateRequestedAt && <UpdateRequestedBadge />}
                       <div className="text-xs text-slate-500">
                         {t.assignee?.name ?? "Unassigned"}
                         {t.milestone && ` · ${t.milestone.title}`}
+                        {t._count.files > 0 && ` · 📎 ${t._count.files}`}
                         {t.description && ` · ${t.description}`}
                       </div>
+                    </div>
+                    <div className="flex w-24 items-center gap-1.5" title={`${tPct}% complete`}>
+                      <ProgressBar value={tPct} className="flex-1" />
+                      <span className="w-8 text-right text-xs text-slate-500 tabular-nums">{tPct}%</span>
                     </div>
                     <PriorityBadge priority={t.priority} />
                     <span className={`text-xs ${late ? "font-medium text-red-600" : "text-slate-500"}`}>
@@ -256,7 +287,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                         <button className="btn-secondary btn-sm">Set</button>
                       </form>
                     ) : (
-                      <WorkBadge status={t.status} />
+                      <TaskStatusBadge status={t.status} dueDate={t.dueDate} today={today} />
                     )}
                     {canEdit && (
                       <form action={deleteTask.bind(null, t.id)}>
@@ -316,6 +347,19 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             </ActionForm>
           )}
         </section>
+
+        <section className="card">
+          <h2 className="mb-3 font-semibold">Updates</h2>
+          <ActionForm action={postProjectUpdate.bind(null, project.id)} className="mb-4 space-y-2">
+            <textarea name="note" rows={2} className="input" placeholder="Share progress, blockers or meeting notes with the team" />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <input type="file" name="files" multiple className="text-xs text-slate-500" />
+              <SubmitButton className="btn-secondary btn-sm">Post</SubmitButton>
+            </div>
+          </ActionForm>
+          <UpdateFeed updates={project.updates} projectId={project.id} showTask />
+        </section>
+        </div>
 
         <div className="space-y-6">
           <section className="card">
@@ -408,6 +452,11 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                 })}
               </ul>
             )}
+          </section>
+
+          <section className="card">
+            <h2 className="mb-3 font-semibold">Files ({project.files.length})</h2>
+            <FileList files={project.files} canDelete={(f) => canEdit || f.uploadedById === user.id} />
           </section>
 
           <section className="card">

@@ -2,10 +2,10 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { Empty, PageHeader, Stat } from "@/components/ui";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { todayIST } from "@/lib/time";
 import { OPEN_PROJECT_STAGES, kindLabel, progress, projectScope, scopeLabel } from "@/lib/projects";
-import { ProgressBar, StageBadge } from "./ui";
+import { ProgressBar, StageBadge, StatusRing, UpdateRequestedBadge, healthCounts, updateInclude } from "./ui";
 
 export const metadata = { title: "Projects" };
 
@@ -20,7 +20,17 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
     include: {
       owner: { select: { name: true } },
       organization: { select: { id: true, name: true } },
-      tasks: { select: { status: true, dueDate: true } },
+      tasks: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          progress: true,
+          dueDate: true,
+          updateRequestedAt: true,
+          assignee: { select: { name: true } },
+        },
+      },
       milestones: { where: { doneAt: null }, orderBy: { dueDate: { sort: "asc", nulls: "last" } }, take: 1 },
       _count: { select: { members: true } },
     },
@@ -35,6 +45,20 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
   const late = open.filter((p) => p.dueDate && p.dueDate < today).length;
   const awaiting = open.filter((p) => p.stage === "APPROVAL").length;
 
+  // Task Flow's overview: tasks by status, what needs attention, and the latest reports.
+  const activeTasks = open.flatMap((p) => p.tasks.map((t) => ({ ...t, project: { id: p.id, name: p.name } })));
+  const counts = healthCounts(activeTasks, today);
+  const attention = activeTasks
+    .filter((t) => t.status !== "DONE" && ((t.dueDate && t.dueDate < today) || t.updateRequestedAt))
+    .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity))
+    .slice(0, 6);
+  const recent = await db.projectUpdate.findMany({
+    where: { project: { ...projectScope(user), stage: { in: [...OPEN_PROJECT_STAGES] } } },
+    include: { ...updateInclude, project: { select: { id: true, name: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+
   return (
     <>
       <PageHeader
@@ -45,6 +69,11 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
             <Link href={`?done=${showDone ? "0" : "1"}`} className="btn-secondary">
               {showDone ? "Hide completed" : "Show completed"}
             </Link>
+            {isManagerOrAdmin(user) && (
+              <Link href="/projects/people" className="btn-secondary">
+                Team workload
+              </Link>
+            )}
             {isManagerOrAdmin(user) && (
               <Link href="/projects/new" className="btn-primary">
                 New project
@@ -60,6 +89,62 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
         <Stat label="Overdue tasks" value={overdueTasks} href="/work" />
         <Stat label="Waiting for approval" value={awaiting} href={isManagerOrAdmin(user) ? "/approvals" : undefined} />
       </div>
+
+      {activeTasks.length > 0 && (
+        <div className="mb-6 grid gap-6 lg:grid-cols-3">
+          <section className="card">
+            <h2 className="mb-4 font-semibold">Project status overview</h2>
+            <StatusRing counts={counts} />
+          </section>
+          <section className="card">
+            <h2 className="font-semibold">Needs attention</h2>
+            <p className="mb-3 text-xs text-slate-500">Overdue or update requested</p>
+            {attention.length === 0 ? (
+              <p className="text-sm text-slate-500">Nothing overdue. 🎉</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 text-sm">
+                {attention.map((t) => (
+                  <li key={t.id} className="py-2">
+                    <Link href={`/projects/${t.project.id}/tasks/${t.id}`} className="font-medium hover:underline">
+                      {t.title}
+                    </Link>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
+                      <span>{t.assignee?.name ?? "Unassigned"}</span>
+                      <span>· {t.project.name}</span>
+                      {t.dueDate && t.dueDate < today && <span className="font-medium text-red-600">· due {formatDate(t.dueDate)}</span>}
+                      {t.updateRequestedAt && <UpdateRequestedBadge />}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <section className="card">
+            <h2 className="mb-3 font-semibold">Recent activity</h2>
+            {recent.length === 0 ? (
+              <p className="text-sm text-slate-500">No updates yet. Reports from task pages show up here.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 text-sm">
+                {recent.map((u) => (
+                  <li key={u.id} className="py-2">
+                    <b>{u.author.name}</b> {u.isRequest ? "asked for an update on" : "posted an update on"}{" "}
+                    <Link
+                      href={u.task ? `/projects/${u.project.id}/tasks/${u.task.id}` : `/projects/${u.project.id}`}
+                      className="link"
+                    >
+                      {u.task?.title ?? u.project.name}
+                    </Link>
+                    <div className="text-xs text-slate-500">
+                      {u.progressTo !== null && `${u.progressFrom ?? 0}% → ${u.progressTo}% · `}
+                      {formatDateTime(u.createdAt)}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      )}
 
       {projects.length === 0 ? (
         <Empty>

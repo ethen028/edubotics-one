@@ -37,7 +37,7 @@ export async function pendingApprovals(user: CurrentUser) {
         ownerId: { not: user.id },
         ...(isAdmin(user) ? {} : { owner: { employee: { managerId: me } } }),
       },
-      include: { owner: { select: { name: true } }, tasks: { select: { status: true } } },
+      include: { owner: { select: { name: true } }, tasks: { select: { status: true, progress: true } } },
       orderBy: { updatedAt: "asc" },
     }),
     db.stockRequest.findMany({

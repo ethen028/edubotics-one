@@ -48,6 +48,8 @@ model User {
   programmeTrainers     ProgrammeTrainer[]
   trainerSessions       ProgrammeSession[] @relation("SessionTrainer")
   loggedSessions        ProgrammeSession[] @relation("SessionLogger")
+  projectUpdates        ProjectUpdate[]
+  projectFiles          ProjectFile[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -633,6 +635,8 @@ model Project {
   programmes     Programme[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+  updates        ProjectUpdate[]
+  files          ProjectFile[]
 
   @@index([stage])
 }
@@ -676,27 +680,75 @@ enum Priority {
 }
 
 model ProjectTask {
-  id          String      @id @default(cuid())
-  projectId   String
-  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  milestoneId String?
-  milestone   Milestone?  @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
-  title       String
-  description String?
-  status      WorkStatus  @default(TODO)
-  priority    Priority    @default(MEDIUM)
-  dueDate     DateTime?   @db.Date
-  completedAt DateTime?
-  assigneeId  String?
-  assignee    User?       @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  createdById String
-  createdBy   User        @relation("TaskCreator", fields: [createdById], references: [id])
-  timeEntries TimeEntry[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id                String          @id @default(cuid())
+  projectId         String
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestoneId       String?
+  milestone         Milestone?      @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  title             String
+  description       String?
+  status            WorkStatus      @default(TODO)
+  priority          Priority        @default(MEDIUM)
+  progress          Int             @default(0) // 0–100, set by the assignee when they post an update (Task Flow)
+  dueDate           DateTime?       @db.Date
+  completedAt       DateTime?
+  /// Set when the owner asks the assignee for an update; cleared when the assignee posts one.
+  updateRequestedAt DateTime?
+  assigneeId        String?
+  assignee          User?           @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdById       String
+  createdBy         User            @relation("TaskCreator", fields: [createdById], references: [id])
+  timeEntries       TimeEntry[]
+  updates           ProjectUpdate[]
+  files             ProjectFile[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   @@index([assigneeId, status])
   @@index([projectId])
+}
+
+/// A progress report on a project or one of its tasks: a note, a progress change and/or files (from Task Flow).
+model ProjectUpdate {
+  id           String        @id @default(cuid())
+  projectId    String
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId       String?
+  task         ProjectTask?  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User          @relation(fields: [authorId], references: [id])
+  note         String?
+  progressFrom Int?
+  progressTo   Int?
+  statusTo     WorkStatus?
+  /// The owner asking for an update, rather than reporting one.
+  isRequest    Boolean       @default(false)
+  files        ProjectFile[]
+  createdAt    DateTime      @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([taskId])
+}
+
+/// A file attached to a project, kept in the database like employee documents.
+model ProjectFile {
+  id           String         @id @default(cuid())
+  projectId    String
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId       String?
+  task         ProjectTask?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  updateId     String?
+  update       ProjectUpdate? @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String
+  uploadedBy   User           @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime       @default(now())
+
+  @@index([projectId])
+  @@index([taskId])
 }
 
 // ─── Timesheets ────────────────────────────────────────────────────────────
@@ -726,18 +778,31 @@ model Timesheet {
   @@unique([employeeId, weekStart])
 }
 
+enum DailyWorkStatus {
+  COMPLETED
+  IN_PROGRESS
+  PENDING
+  BLOCKED
+}
+
 model TimeEntry {
-  id          String       @id @default(cuid())
+  id          String           @id @default(cuid())
   timesheetId String
-  timesheet   Timesheet    @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
-  date        DateTime     @db.Date
+  timesheet   Timesheet        @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+  date        DateTime         @db.Date
   projectId   String?
-  project     Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
   taskId      String?
-  task        ProjectTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  hours       Decimal      @db.Decimal(4, 2)
+  task        ProjectTask?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  hours       Decimal          @db.Decimal(4, 2)
   note        String? // what was done; required when no project is picked
-  createdAt   DateTime     @default(now())
+  // Daily work log (Task Flow's worksheet): optional clock times, a headline, how it went and remarks.
+  startTime   String? // "09:30"
+  endTime     String? // "18:30"
+  title       String?
+  workStatus  DailyWorkStatus?
+  remarks     String?
+  createdAt   DateTime         @default(now())
 
   @@index([timesheetId, date])
 }
