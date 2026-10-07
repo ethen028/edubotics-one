@@ -10,8 +10,9 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 
 - **Projects and tasks**: every school programme, college workshop, final-year project or internal job runs through the same eight steps (Create → Assign → Plan → Execute → Review → Approval → Handover → Complete), with a team, milestones and tasks. A won CRM deal starts its delivery project in one click, with the institution and programme filled in. Approval is a gate: an admin or the owner's manager approves or sends it back with a note.
 - **My work and timesheets**: each person's tasks ordered by what is overdue and due next; a weekly timesheet logged against tasks or projects, submitted to the manager for approval.
-- **Approvals**: one inbox for managers and admins with projects, timesheets, leave, missed punch-outs and inventory requests.
+- **Approvals**: one inbox for managers and admins with projects, timesheets, leave, missed punch-outs, inventory requests and purchase orders.
 - **Inventory**: robotics and IoT kits, parts and consumables counted by quantity, with a stock history for every item. Anyone can request items (usually for a project); the requester's manager or an admin approves; an admin issues them and later records what came back and what was lost or used up. Items at or below their low-stock level are flagged in the sidebar and on the home page. Equipment issued to one person (laptops, access cards) stays in HR → Assets.
+- **Purchases**: vendors (with GSTIN, state and payment terms), purchase orders that anyone can raise and the requester's manager or an admin approves in the Approvals inbox (admins' own orders are approved automatically), a printable order for the vendor, and deliveries recorded against the order. Stock items that arrive go straight into inventory at the order's price. Admins enter the vendor's bill (with a photo or PDF), record payments with any TDS held back, and see what is owed on **Payables**, by vendor and how late. GST is CGST + SGST for Kerala vendors and IGST for others. Spreadsheet download of all bills for the accountant.
 
 Planned next: operations.
 

@@ -5,14 +5,14 @@ import { isAdmin, isManagerOrAdmin, type CurrentUser } from "./auth";
 
 /**
  * Everything waiting on this user's decision, in one place: leave, missed punch-outs,
- * timesheets, project approvals and kit/part requests. Admins see everyone's; managers their direct reports'.
+ * timesheets, project approvals, kit/part requests and purchase orders. Admins see everyone's; managers their direct reports'.
  */
 export async function pendingApprovals(user: CurrentUser) {
-  if (!isManagerOrAdmin(user)) return { leave: [], corrections: [], timesheets: [], projects: [], stock: [], total: 0 };
+  if (!isManagerOrAdmin(user)) return { leave: [], corrections: [], timesheets: [], projects: [], stock: [], purchases: [], total: 0 };
   const me = user.employee?.id ?? "__none__";
   const team: Prisma.EmployeeWhereInput = isAdmin(user) ? {} : { managerId: me };
 
-  const [leave, corrections, timesheets, projects, stock] = await Promise.all([
+  const [leave, corrections, timesheets, projects, stock, purchases] = await Promise.all([
     db.leaveRequest.findMany({
       where: { status: "PENDING", employeeId: { not: me }, employee: team },
       include: { employee: true, leaveType: true },
@@ -53,6 +53,20 @@ export async function pendingApprovals(user: CurrentUser) {
       },
       orderBy: { createdAt: "asc" },
     }),
+    db.purchaseOrder.findMany({
+      where: {
+        status: "PENDING",
+        requesterId: { not: user.id },
+        ...(isAdmin(user) ? {} : { requester: { employee: { managerId: me } } }),
+      },
+      include: {
+        requester: { select: { name: true } },
+        vendor: { select: { name: true } },
+        project: { select: { id: true, name: true } },
+        lines: { select: { description: true, quantity: true, unit: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
   return {
     leave,
@@ -60,6 +74,7 @@ export async function pendingApprovals(user: CurrentUser) {
     timesheets,
     projects,
     stock,
-    total: leave.length + corrections.length + timesheets.length + projects.length + stock.length,
+    purchases,
+    total: leave.length + corrections.length + timesheets.length + projects.length + stock.length + purchases.length,
   };
 }

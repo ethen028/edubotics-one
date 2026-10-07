@@ -8,6 +8,9 @@ import { OPEN_PROJECT_STAGES, progress, projectScope } from "@/lib/projects";
 import { Badge, Stat } from "@/components/ui";
 import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
 import { lowStockItems, outstanding, requestNo } from "@/lib/inventory";
+import { onOrderByItem, settledByBill } from "@/lib/purchases";
+import { round2 } from "@/lib/purchase-math";
+import { formatINR2 } from "./purchases/ui";
 import { OPEN_STAGES } from "./crm/constants";
 import { PriorityBadge, ProgressBar, StageBadge } from "./projects/ui";
 import { TimesheetBadge } from "./timesheets/badge";
@@ -32,7 +35,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
   const weekStart = mondayOf(today);
 
-  const [myTasks, projects, myWeek, approvals, myPendingLeave, myFollowUps, onLeaveToday, holidays, pipeline, wonThisMonth, lowStock, itemsOut] =
+  const [myTasks, projects, myWeek, approvals, myPendingLeave, myFollowUps, onLeaveToday, holidays, pipeline, wonThisMonth, lowStock, itemsOut, billsDue] =
     await Promise.all([
       db.projectTask.findMany({
         where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" }, onHold: false } },
@@ -74,7 +77,22 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         include: { requester: { select: { name: true } }, lines: { include: { item: { select: { returnable: true } } } } },
         orderBy: { returnBy: { sort: "asc", nulls: "last" } },
       }),
+      // Vendor bills overdue or due within a week.
+      admin
+        ? db.vendorBill.findMany({
+            where: { status: "OPEN", dueDate: { lte: new Date(today.getTime() + 7 * 86_400_000) } },
+            include: { vendor: { select: { name: true } } },
+            orderBy: { dueDate: "asc" },
+          })
+        : [],
     ]);
+  const [onOrder, billSettled] = await Promise.all([
+    lowStock.length ? onOrderByItem(lowStock.map((i) => i.id)) : new Map<string, number>(),
+    billsDue.length ? settledByBill(billsDue.map((b) => b.id)) : new Map<string, number>(),
+  ]);
+  const billsToPay = billsDue
+    .map((b) => ({ ...b, balance: round2(Number(b.total) - (billSettled.get(b.id) ?? 0)) }))
+    .filter((b) => b.balance > 0);
 
   // Overdue first, then nearest due date, then priority.
   myTasks.sort((a, b) => {
@@ -291,6 +309,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   {approvals.leave.length > 0 && <li>Leave · {approvals.leave.length}</li>}
                   {approvals.corrections.length > 0 && <li>Missed punch-outs · {approvals.corrections.length}</li>}
                   {approvals.stock.length > 0 && <li>Kit and part requests · {approvals.stock.length}</li>}
+                  {approvals.purchases.length > 0 && <li>Purchase orders · {approvals.purchases.length}</li>}
                 </ul>
               )}
             </section>
@@ -322,8 +341,39 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                     <Link href={`/inventory/${i.id}`} className="truncate hover:underline">
                       {i.name}
                     </Link>
-                    <span className={i.onHand === 0 ? "font-medium text-red-600" : "text-amber-700"}>
-                      {i.onHand} {i.unit}
+                    <span className="shrink-0 text-right">
+                      <span className={i.onHand === 0 ? "font-medium text-red-600" : "text-amber-700"}>
+                        {i.onHand} {i.unit}
+                      </span>
+                      {onOrder.get(i.id) ? (
+                        <span className="ml-2 text-xs text-slate-500">{onOrder.get(i.id)} on order</span>
+                      ) : (
+                        <Link href={`/purchases/new?item=${i.id}&qty=${Math.max(1, i.reorderLevel * 2 - i.onHand)}`} className="link ml-2 text-xs">
+                          Order
+                        </Link>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {billsToPay.length > 0 && (
+            <section className="card">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-semibold">Vendor bills to pay</h2>
+                <Link href="/purchases/payables" className="link text-sm">
+                  All
+                </Link>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {billsToPay.slice(0, 6).map((b) => (
+                  <li key={b.id} className="flex justify-between gap-2">
+                    <Link href={`/purchases/bills/${b.id}`} className="truncate hover:underline">
+                      {b.vendor.name} · {b.billNo}
+                    </Link>
+                    <span className={`shrink-0 ${b.dueDate < today ? "font-medium text-red-600" : "text-slate-600"}`}>
+                      {formatINR2(b.balance)} · {b.dueDate < today ? "late" : `due ${formatDate(b.dueDate)}`}
                     </span>
                   </li>
                 ))}

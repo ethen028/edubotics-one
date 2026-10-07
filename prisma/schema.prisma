@@ -26,24 +26,29 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  ownedLeads         Lead[]         @relation("LeadOwner")
-  ownedOrganizations Organization[] @relation("OrgOwner")
-  ownedContacts      Contact[]      @relation("ContactOwner")
-  ownedDeals         Deal[]         @relation("DealOwner")
-  activities         Activity[]     @relation("ActivityAssignee")
-  createdActivities  Activity[]     @relation("ActivityCreator")
+  ownedLeads         Lead[]             @relation("LeadOwner")
+  ownedOrganizations Organization[]     @relation("OrgOwner")
+  ownedContacts      Contact[]          @relation("ContactOwner")
+  ownedDeals         Deal[]             @relation("DealOwner")
+  activities         Activity[]         @relation("ActivityAssignee")
+  createdActivities  Activity[]         @relation("ActivityCreator")
   uploadedDocuments  EmployeeDocument[] @relation("DocUploader")
   reviewedDocuments  EmployeeDocument[] @relation("DocReviewer")
   payrollRuns        PayrollRun[]
-  ownedProjects      Project[]      @relation("ProjectOwner")
+  ownedProjects      Project[]          @relation("ProjectOwner")
   projectMembers     ProjectMember[]
-  assignedTasks      ProjectTask[]  @relation("TaskAssignee")
-  createdTasks       ProjectTask[]  @relation("TaskCreator")
-  decidedProjects    Project[]      @relation("ProjectApprover")
-  decidedTimesheets  Timesheet[]    @relation("TimesheetApprover")
-  stockRequests      StockRequest[] @relation("StockRequester")
-  decidedStockReqs   StockRequest[] @relation("StockApprover")
+  assignedTasks      ProjectTask[]      @relation("TaskAssignee")
+  createdTasks       ProjectTask[]      @relation("TaskCreator")
+  decidedProjects    Project[]          @relation("ProjectApprover")
+  decidedTimesheets  Timesheet[]        @relation("TimesheetApprover")
+  stockRequests      StockRequest[]     @relation("StockRequester")
+  decidedStockReqs   StockRequest[]     @relation("StockApprover")
   stockMovements     StockMovement[]
+  purchaseOrders     PurchaseOrder[]    @relation("PORequester")
+  decidedPurchases   PurchaseOrder[]    @relation("POApprover")
+  purchaseReceipts   PurchaseReceipt[]
+  vendorBills        VendorBill[]
+  vendorPayments     VendorPayment[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -71,35 +76,35 @@ enum EmployeeStatus {
 }
 
 model Employee {
-  id               String         @id @default(cuid())
-  code             String         @unique // e.g. EBG-001
+  id               String                 @id @default(cuid())
+  code             String                 @unique // e.g. EBG-001
   firstName        String
   lastName         String
-  workEmail        String         @unique
+  workEmail        String                 @unique
   personalEmail    String?
   phone            String?
   designation      String
   departmentId     String?
-  department       Department?    @relation(fields: [departmentId], references: [id])
+  department       Department?            @relation(fields: [departmentId], references: [id])
   managerId        String?
-  manager          Employee?      @relation("Reports", fields: [managerId], references: [id])
-  reports          Employee[]     @relation("Reports")
-  employmentType   EmploymentType @default(FULL_TIME)
-  status           EmployeeStatus @default(ACTIVE)
-  dateOfJoining    DateTime       @db.Date
-  dateOfExit       DateTime?      @db.Date
-  dateOfBirth      DateTime?      @db.Date
+  manager          Employee?              @relation("Reports", fields: [managerId], references: [id])
+  reports          Employee[]             @relation("Reports")
+  employmentType   EmploymentType         @default(FULL_TIME)
+  status           EmployeeStatus         @default(ACTIVE)
+  dateOfJoining    DateTime               @db.Date
+  dateOfExit       DateTime?              @db.Date
+  dateOfBirth      DateTime?              @db.Date
   gender           String?
   bloodGroup       String?
   address          String?
   city             String?
-  state            String?        @default("Kerala")
+  state            String?                @default("Kerala")
   emergencyName    String?
   emergencyPhone   String?
-  userId           String?        @unique
-  user             User?          @relation(fields: [userId], references: [id])
-  leaveRequests    LeaveRequest[] @relation("LeaveApplicant")
-  approvedRequests LeaveRequest[] @relation("LeaveApprover")
+  userId           String?                @unique
+  user             User?                  @relation(fields: [userId], references: [id])
+  leaveRequests    LeaveRequest[]         @relation("LeaveApplicant")
+  approvedRequests LeaveRequest[]         @relation("LeaveApprover")
   attendance       AttendanceSession[]
   attendanceMarks  AttendanceMark[]
   corrections      AttendanceCorrection[]
@@ -110,8 +115,8 @@ model Employee {
   salaries         SalaryStructure[]
   payslips         Payslip[]
   timesheets       Timesheet[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 }
 
 model LeaveType {
@@ -153,9 +158,9 @@ model LeaveRequest {
 }
 
 model Holiday {
-  id       String   @id @default(cuid())
-  date     DateTime @unique @db.Date
-  name     String
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  name      String
   optional  Boolean  @default(false) // restricted holiday
   tentative Boolean  @default(false) // date depends on the moon or isn't notified yet
 }
@@ -163,17 +168,17 @@ model Holiday {
 // ─── Company settings (single row, id = 1) ─────────────────────────────────
 
 model CompanySettings {
-  id                 Int   @id @default(1)
-  workMinutesPerDay  Int   @default(540) // 9 hours, as in Edubotics HR V1.2
-  overtimeAfterMins  Int   @default(30) // OD once a day runs this far past the target
-  weeklyOffDays      Int[] @default([0, 6]) // 0 = Sunday … 6 = Saturday
+  id                Int   @id @default(1)
+  workMinutesPerDay Int   @default(540) // 9 hours, as in Edubotics HR V1.2
+  overtimeAfterMins Int   @default(30) // OD once a day runs this far past the target
+  weeklyOffDays     Int[] @default([0, 6]) // 0 = Sunday … 6 = Saturday
 
   // Payroll. Deductions start switched off (Edubotics deducts none today).
-  lopDivisor   Int     @default(30) // LOP per day = monthly gross ÷ this, as in HR V1.2
-  pfEnabled    Boolean @default(false)
-  esiEnabled   Boolean @default(false)
-  ptEnabled    Boolean @default(false)
-  tdsEnabled   Boolean @default(false)
+  lopDivisor Int     @default(30) // LOP per day = monthly gross ÷ this, as in HR V1.2
+  pfEnabled  Boolean @default(false)
+  esiEnabled Boolean @default(false)
+  ptEnabled  Boolean @default(false)
+  tdsEnabled Boolean @default(false)
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -597,26 +602,26 @@ enum ProjectKind {
 }
 
 model Project {
-  id             String        @id @default(cuid())
+  id             String          @id @default(cuid())
   name           String
-  kind           ProjectKind   @default(CLIENT_PROJECT)
+  kind           ProjectKind     @default(CLIENT_PROJECT)
   description    String?
-  stage          ProjectStage  @default(CREATE)
-  onHold         Boolean       @default(false)
-  startDate      DateTime?     @db.Date
-  dueDate        DateTime?     @db.Date
+  stage          ProjectStage    @default(CREATE)
+  onHold         Boolean         @default(false)
+  startDate      DateTime?       @db.Date
+  dueDate        DateTime?       @db.Date
   completedAt    DateTime?
   ownerId        String
-  owner          User          @relation("ProjectOwner", fields: [ownerId], references: [id])
+  owner          User            @relation("ProjectOwner", fields: [ownerId], references: [id])
   departmentId   String?
-  department     Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  department     Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   dealId         String?
-  deal           Deal?         @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  deal           Deal?           @relation(fields: [dealId], references: [id], onDelete: SetNull)
   approvalNote   String? // the approver's note, or why it was sent back
   decidedById    String?
-  decidedBy      User?         @relation("ProjectApprover", fields: [decidedById], references: [id])
+  decidedBy      User?           @relation("ProjectApprover", fields: [decidedById], references: [id])
   decidedAt      DateTime?
   members        ProjectMember[]
   milestones     Milestone[]
@@ -624,8 +629,9 @@ model Project {
   timeEntries    TimeEntry[]
   stockRequests  StockRequest[]
   stockMovements StockMovement[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  purchaseOrders PurchaseOrder[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([stage])
 }
@@ -741,22 +747,23 @@ model TimeEntry {
 
 /// One stocked thing: a robotics kit, a sensor, a pack of jumper wires.
 model StockItem {
-  id           String             @id @default(cuid())
-  sku          String             @unique // EB-KIT-ARD-01
+  id           String              @id @default(cuid())
+  sku          String              @unique // EB-KIT-ARD-01
   name         String
   category     String // see INVENTORY_CATEGORIES
-  unit         String             @default("pcs") // pcs, kit, set, pack, m
+  unit         String              @default("pcs") // pcs, kit, set, pack, m
   location     String? // shelf, cupboard, branch
-  returnable   Boolean            @default(true) // kits come back after a programme; consumables don't
-  onHand       Int                @default(0) // kept in step with StockMovement
-  reorderLevel Int                @default(0) // low-stock alert at or below this
-  unitCost     Decimal?           @db.Decimal(10, 2)
+  returnable   Boolean             @default(true) // kits come back after a programme; consumables don't
+  onHand       Int                 @default(0) // kept in step with StockMovement
+  reorderLevel Int                 @default(0) // low-stock alert at or below this
+  unitCost     Decimal?            @db.Decimal(10, 2)
   notes        String?
-  active       Boolean            @default(true)
+  active       Boolean             @default(true)
   movements    StockMovement[]
   requestLines StockRequestLine[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  poLines      PurchaseOrderLine[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
   @@index([category])
 }
@@ -781,6 +788,8 @@ model StockMovement {
   request   StockRequest?     @relation(fields: [requestId], references: [id], onDelete: SetNull)
   projectId String?
   project   Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  receiptId String? // received against a purchase order
+  receipt   PurchaseReceipt?  @relation(fields: [receiptId], references: [id], onDelete: SetNull)
   byId      String
   by        User              @relation(fields: [byId], references: [id])
   createdAt DateTime          @default(now())
@@ -836,4 +845,169 @@ model StockRequestLine {
   writtenOff Int          @default(0) // lost, damaged or used up
 
   @@unique([requestId, itemId])
+}
+
+// ─── Purchases ─────────────────────────────────────────────────────────────
+// Buying from suppliers: vendors, purchase orders approved in the Approvals inbox,
+// goods received into stock, the vendor's bill and what has been paid on it.
+
+model Vendor {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  state       String          @default("Kerala") // decides CGST + SGST or IGST
+  gstin       String?
+  pan         String?
+  paymentDays Int             @default(30) // bill due this many days after the bill date
+  bankDetails String? // account, IFSC or UPI ID, for paying them
+  notes       String?
+  active      Boolean         @default(true)
+  orders      PurchaseOrder[]
+  bills       VendorBill[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+enum PurchaseOrderStatus {
+  PENDING // waiting for approval
+  APPROVED // approved, not yet sent to the vendor
+  ORDERED // sent to the vendor, waiting for delivery
+  PART_RECEIVED
+  RECEIVED // everything arrived
+  CLOSED // closed with some lines short
+  REJECTED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id           String              @id @default(cuid())
+  number       Int                 @unique @default(autoincrement()) // shown as PO-0001
+  vendorId     String
+  vendor       Vendor              @relation(fields: [vendorId], references: [id])
+  requesterId  String
+  requester    User                @relation("PORequester", fields: [requesterId], references: [id])
+  projectId    String?
+  project      Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  purpose      String
+  expectedBy   DateTime?           @db.Date
+  interState   Boolean             @default(false) // vendor outside Kerala: IGST instead of CGST + SGST
+  subtotal     Decimal             @db.Decimal(12, 2) // before GST
+  tax          Decimal             @db.Decimal(12, 2)
+  total        Decimal             @db.Decimal(12, 2)
+  status       PurchaseOrderStatus @default(PENDING)
+  decidedById  String?
+  decidedBy    User?               @relation("POApprover", fields: [decidedById], references: [id])
+  decidedAt    DateTime?
+  decisionNote String?
+  orderedAt    DateTime?
+  closedAt     DateTime?
+  lines        PurchaseOrderLine[]
+  receipts     PurchaseReceipt[]
+  bills        VendorBill[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([status])
+  @@index([vendorId])
+}
+
+/// One thing bought. Linked to a stock item when it goes into inventory; free text for anything else.
+model PurchaseOrderLine {
+  id          String                @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        StockItem?            @relation(fields: [itemId], references: [id])
+  description String
+  quantity    Int
+  unit        String                @default("pcs")
+  unitPrice   Decimal               @db.Decimal(12, 2) // before GST
+  gstRate     Int                   @default(18)
+  received    Int                   @default(0)
+  receipts    PurchaseReceiptLine[]
+}
+
+/// A delivery from the vendor (goods received note). Stock items go into inventory.
+model PurchaseReceipt {
+  id         String                @id @default(cuid())
+  orderId    String
+  order      PurchaseOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  receivedOn DateTime              @db.Date
+  note       String?
+  byId       String
+  by         User                  @relation(fields: [byId], references: [id])
+  lines      PurchaseReceiptLine[]
+  movements  StockMovement[]
+  createdAt  DateTime              @default(now())
+}
+
+model PurchaseReceiptLine {
+  id        String            @id @default(cuid())
+  receiptId String
+  receipt   PurchaseReceipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  lineId    String
+  line      PurchaseOrderLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  quantity  Int
+}
+
+enum VendorBillStatus {
+  OPEN
+  CANCELLED
+}
+
+/// The vendor's invoice to us. Paid in one or more payments; what's left shows under Payables.
+model VendorBill {
+  id        String           @id @default(cuid())
+  vendorId  String
+  vendor    Vendor           @relation(fields: [vendorId], references: [id])
+  orderId   String?
+  order     PurchaseOrder?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  billNo    String // the vendor's invoice number
+  billDate  DateTime         @db.Date
+  dueDate   DateTime         @db.Date
+  subtotal  Decimal          @db.Decimal(12, 2)
+  tax       Decimal          @db.Decimal(12, 2) // GST on the bill (input credit)
+  total     Decimal          @db.Decimal(12, 2)
+  notes     String?
+  status    VendorBillStatus @default(OPEN)
+  byId      String
+  by        User             @relation(fields: [byId], references: [id])
+  file      VendorBillFile?
+  payments  VendorPayment[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([vendorId, billNo])
+  @@index([dueDate])
+}
+
+/// Photo or PDF of the vendor's bill, kept apart so lists don't load the bytes.
+model VendorBillFile {
+  id       String     @id @default(cuid())
+  billId   String     @unique
+  bill     VendorBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  fileName String
+  mimeType String
+  size     Int
+  data     Bytes
+}
+
+model VendorPayment {
+  id        String     @id @default(cuid())
+  billId    String
+  bill      VendorBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  paidOn    DateTime   @db.Date
+  amount    Decimal    @db.Decimal(12, 2) // money sent
+  tds       Decimal    @default(0) @db.Decimal(12, 2) // income tax held back and paid to the government
+  method    String // BANK_TRANSFER, UPI, CHEQUE, CASH, OTHER
+  reference String? // UTR, cheque number
+  note      String?
+  byId      String
+  by        User       @relation(fields: [byId], references: [id])
+  createdAt DateTime   @default(now())
+
+  @@index([billId])
 }

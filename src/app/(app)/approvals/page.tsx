@@ -13,6 +13,9 @@ import { decideTimesheet } from "../timesheets/actions";
 import { decideProject } from "../projects/actions";
 import { decideStockRequest } from "../inventory/actions";
 import { requestNo } from "@/lib/inventory";
+import { decidePurchaseOrder } from "../purchases/actions";
+import { poNo } from "@/lib/purchase-math";
+import { formatINR2 } from "../purchases/ui";
 
 export const metadata = { title: "Approvals" };
 
@@ -44,7 +47,7 @@ function Decide({ action, sendBack }: { action: (formData: FormData) => Promise<
 
 export default async function ApprovalsPage() {
   const user = await requireUser(["ADMIN", "MANAGER"]);
-  const { leave, corrections, timesheets, projects, stock, total } = await pendingApprovals(user);
+  const { leave, corrections, timesheets, projects, stock, purchases, total } = await pendingApprovals(user);
 
   return (
     <>
@@ -99,6 +102,25 @@ export default async function ApprovalsPage() {
             </div>
           );
         })}
+      </Section>
+
+      <Section title="Purchase orders" count={purchases.length}>
+        {purchases.map((o) => (
+          <div key={o.id} className="card flex flex-wrap items-start justify-between gap-4">
+            <div className="text-sm">
+              <Link href={`/purchases/${o.id}`} className="link">
+                {poNo(o.number)}
+              </Link>{" "}
+              · <span className="font-medium">{o.requester.name}</span> · {o.vendor.name} ·{" "}
+              <span className="font-medium">{formatINR2(o.total)}</span>
+              {o.project && <> · {o.project.name}</>}
+              {o.expectedBy && <> · needed {formatDate(o.expectedBy)}</>}
+              <div className="mt-1">{o.lines.map((l) => `${l.quantity} ${l.unit} ${l.description}`).join(" · ")}</div>
+              <div className="mt-0.5 text-slate-500">{o.purpose}</div>
+            </div>
+            <Decide action={decidePurchaseOrder.bind(null, o.id)} />
+          </div>
+        ))}
       </Section>
 
       <Section title="Timesheets" count={timesheets.length}>
