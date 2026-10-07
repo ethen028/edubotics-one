@@ -3,45 +3,8 @@
 /** The company's own state. A vendor in another state charges IGST instead of CGST + SGST. */
 export const COMPANY_STATE = "Kerala";
 
-/** States and union territories, for where a vendor is registered. */
-export const INDIAN_STATES = [
-  "Andaman and Nicobar Islands",
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chandigarh",
-  "Chhattisgarh",
-  "Dadra and Nagar Haveli and Daman and Diu",
-  "Delhi",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jammu and Kashmir",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Ladakh",
-  "Lakshadweep",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Puducherry",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-] as const;
+/** States and union territories, for where a vendor is registered. Same list as invoices use. */
+export { INDIAN_STATES } from "./invoices";
 
 export const GST_RATES = [0, 5, 12, 18, 28, 40] as const;
 

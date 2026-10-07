@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import { projectScope } from "@/lib/projects";
 import { orderScope } from "@/lib/purchases";
 import { poNo, round2 } from "@/lib/purchase-math";
+import { getSettings } from "@/lib/settings";
 import { PrintButton } from "../../../payroll/payslip/[id]/print-button";
 import { TotalsTable, formatINR2 } from "../../ui";
 
@@ -20,6 +21,7 @@ export default async function PrintOrderPage({ params }: PageProps<"/purchases/[
     include: { vendor: true, lines: { orderBy: { id: "asc" } }, decidedBy: { select: { name: true } } },
   });
   if (!order) notFound();
+  const settings = await getSettings();
 
   return (
     <>
@@ -31,9 +33,14 @@ export default async function PrintOrderPage({ params }: PageProps<"/purchases/[
       </div>
       <article className="card mx-auto max-w-3xl print:border-0 print:shadow-none">
         <header className="mb-6 flex items-start justify-between border-b border-slate-200 pb-4">
-          <div>
-            <div className="text-lg font-semibold">Edubotics Global</div>
-            <div className="text-sm text-slate-500">Edappally, Kochi, Kerala</div>
+          <div className="text-sm">
+            <div className="text-lg font-semibold">{settings.companyName}</div>
+            <div className="whitespace-pre-line text-slate-500">{settings.companyAddress}</div>
+            {(settings.companyPhone || settings.companyEmail) && (
+              <div className="text-slate-500">{[settings.companyPhone, settings.companyEmail].filter(Boolean).join(" · ")}</div>
+            )}
+            {settings.gstin && <div className="mt-1">GSTIN {settings.gstin}</div>}
+            {settings.pan && <div>PAN {settings.pan}</div>}
           </div>
           <div className="text-right">
             <div className="font-semibold">Purchase order</div>
@@ -97,7 +104,7 @@ export default async function PrintOrderPage({ params }: PageProps<"/purchases/[
         <footer className="mt-10 flex justify-end text-sm">
           <div className="text-center">
             <div className="mb-1 h-10" />
-            <div className="border-t border-slate-300 px-6 pt-1">Authorised by {order.decidedBy?.name ?? "Edubotics Global"}</div>
+            <div className="border-t border-slate-300 px-6 pt-1">Authorised by {order.decidedBy?.name ?? settings.companyName}</div>
           </div>
         </footer>
       </article>
