@@ -17,6 +17,7 @@ import { emailInvoice } from "../../emails/actions";
 import { EmailComposer, EmailHistory, emailLogSelect } from "@/components/email";
 import { mailSetup } from "@/lib/mail";
 import { invoiceEmail, reminderEmail } from "@/lib/email-templates";
+import { creditReasonLabel, invoiceMoney } from "@/lib/credit-notes";
 
 export const metadata = { title: "Invoice" };
 
@@ -28,6 +29,7 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
     include: {
       lines: { orderBy: { position: "asc" } },
       payments: { include: { recordedBy: { select: { name: true } } }, orderBy: { receivedOn: "asc" } },
+      creditNotes: { orderBy: [{ issueDate: "asc" }, { seq: "asc" }] },
       organization: { select: { id: true, name: true, email: true } },
       contact: { select: { name: true, phone: true, email: true } },
       emails: { select: emailLogSelect, orderBy: { createdAt: "desc" } },
@@ -42,8 +44,10 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
   const options = isDraft ? await invoiceFormOptions() : null;
   const today = todayIST();
   const settled = settledAmount(invoice.payments);
-  const balance = Number(invoice.total) - settled;
-  const state = payState(invoice, settled, today);
+  const money = invoiceMoney(invoice.total, settled, invoice.creditNotes);
+  const balance = money.balance;
+  const state = payState(invoice, settled, today, money.credited - money.refunded);
+  const canCredit = invoice.status === "ISSUED" && money.credited < Number(invoice.total) - 0.005;
   const daysLate = Math.round((today.getTime() - invoice.dueDate.getTime()) / 86400000);
   const facts = { number: invoice.number ?? "", issueDate: invoice.issueDate, dueDate: invoice.dueDate, total: invoice.total, balance, daysLate };
   const reminding = state === "OVERDUE";
@@ -94,6 +98,11 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
                 <a href={`/invoices/${invoice.id}/pdf`} target="_blank" className="btn-secondary">
                   PDF
                 </a>
+              )}
+              {canCredit && (
+                <Link href={`/credit-notes/new?invoice=${invoice.id}`} className="btn-secondary">
+                  Raise a credit note
+                </Link>
               )}
               <PrintButton />
             </div>
@@ -173,6 +182,18 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
                     {formatMoney(Math.max(0, balance))}
                   </div>
                 </div>
+                {money.credited > 0 && (
+                  <div>
+                    <div className="text-xs text-slate-500">Credit notes</div>
+                    <div className="text-lg font-semibold">{formatMoney(money.credited)}</div>
+                  </div>
+                )}
+                {money.owedBack > 0 && (
+                  <div>
+                    <div className="text-xs text-slate-500">To refund</div>
+                    <div className="text-lg font-semibold text-purple-700">{formatMoney(money.owedBack)}</div>
+                  </div>
+                )}
               </div>
               {invoice.contact && (
                 <p className="text-xs text-slate-500">
@@ -198,6 +219,30 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
           )}
 
           <EmailHistory emails={invoice.emails} />
+
+          {invoice.creditNotes.length > 0 && (
+            <section className="card p-0">
+              <h2 className="px-5 pt-4 pb-2 font-semibold">Credit notes</h2>
+              <ul className="divide-y divide-slate-100 text-sm">
+                {invoice.creditNotes.map((n) => (
+                  <li key={n.id} className="flex items-start justify-between gap-3 px-5 py-3">
+                    <div>
+                      <Link href={`/credit-notes/${n.id}`} className="link font-medium">
+                        {n.number}
+                      </Link>
+                      <div className="text-xs text-slate-500">
+                        {formatDate(n.issueDate)} · {creditReasonLabel[n.reason]}
+                      </div>
+                      {n.status === "CANCELLED" && <div className="text-xs text-slate-400">Cancelled</div>}
+                    </div>
+                    <div className={`font-medium whitespace-nowrap ${n.status === "CANCELLED" ? "text-slate-400 line-through" : ""}`}>
+                      − {formatMoney(n.total)}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {invoice.payments.length > 0 && (
             <section className="card p-0">
@@ -257,9 +302,12 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
             </section>
           )}
 
-          {invoice.status === "ISSUED" && isAdmin(user) && invoice.payments.length === 0 && (
+          {invoice.status === "ISSUED" && isAdmin(user) && invoice.payments.length === 0 && money.credited === 0 && (
             <details className="card">
               <summary className="cursor-pointer text-sm font-medium text-red-700">Cancel this invoice</summary>
+              <p className="mt-2 text-xs text-slate-500">
+                Only for an invoice raised by mistake. If the school already has it, or it&apos;s in a GST return, raise a credit note instead.
+              </p>
               <ActionForm action={cancelInvoice.bind(null, invoice.id)} className="mt-3 space-y-3">
                 <Field label="Why">
                   <input name="reason" required className="input" placeholder="e.g. Wrong amount, reissued as a new invoice" />

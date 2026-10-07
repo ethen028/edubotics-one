@@ -23,7 +23,9 @@ export async function GET() {
       "IGST",
       "Total",
       "Received + TDS",
+      "Credit notes",
       "Still due",
+      "To refund",
       "Status",
     ],
     ...invoices.map((i) => [
@@ -35,7 +37,9 @@ export async function GET() {
       i.placeOfSupply,
       ...[i.subtotal, i.cgst, i.sgst, i.igst, i.total].map(Number),
       i.settled,
+      i.credited,
       i.balance,
+      i.owedBack,
       payStateLabel[i.state],
     ]),
   ];

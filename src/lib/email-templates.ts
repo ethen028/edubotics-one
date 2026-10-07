@@ -40,6 +40,29 @@ export function invoiceEmail(inv: InvoiceFacts, contact: string | null, sender: 
   };
 }
 
+/** A credit note to the school, saying what it does to the invoice. */
+export function creditNoteEmail(
+  cn: { number: string; issueDate: Date; total: unknown; invoiceNumber: string; balance: number; owedBack: number },
+  contact: string | null,
+  sender: string,
+  s: Settings,
+): Draft {
+  return {
+    subject: `Credit note ${cn.number} against invoice ${cn.invoiceNumber}`,
+    message: paragraphs(
+      greeting(contact),
+      `Please find attached our credit note ${cn.number} dated ${formatDate(cn.issueDate)} for ${formatMoney(Number(cn.total))}, against invoice ${cn.invoiceNumber}.`,
+      cn.owedBack > 0
+        ? `This means you have paid ${formatMoney(cn.owedBack)} more than is now due on that invoice. We will refund it; please reply with the account you would like it paid to.`
+        : cn.balance > 0
+          ? `The amount still due on invoice ${cn.invoiceNumber} is now ${formatMoney(cn.balance)}.`
+          : `Nothing more is due on invoice ${cn.invoiceNumber}.`,
+      "Please reply to this email if you have any questions.",
+      signOff(sender, s),
+    ),
+  };
+}
+
 /** A gentle reminder for one or more unpaid invoices from the same school. */
 export function reminderEmail(invoices: InvoiceFacts[], contact: string | null, sender: string, s: Settings): Draft {
   const total = invoices.reduce((n, i) => n + i.balance, 0);

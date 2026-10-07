@@ -54,6 +54,7 @@ model User {
   createdInvoices       Invoice[]            @relation("InvoiceCreator")
   createdQuotes         Quote[]              @relation("QuoteCreator")
   recordedPayments      InvoicePayment[]
+  createdCreditNotes    CreditNote[]         @relation("CreditNoteCreator")
   purchaseOrders        PurchaseOrder[]      @relation("PORequester")
   decidedPurchases      PurchaseOrder[]      @relation("POApprover")
   purchaseReceipts      PurchaseReceipt[]
@@ -1199,6 +1200,7 @@ model Invoice {
   createdBy      User             @relation("InvoiceCreator", fields: [createdById], references: [id])
   lines          InvoiceLine[]
   payments       InvoicePayment[]
+  creditNotes    CreditNote[]
   emails         EmailLog[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -1209,16 +1211,17 @@ model Invoice {
 }
 
 model InvoiceLine {
-  id          String  @id @default(cuid())
+  id          String           @id @default(cuid())
   invoiceId   String
-  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice     Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   position    Int
   description String
   sac         String? // SAC/HSN code
-  quantity    Decimal @db.Decimal(10, 2)
-  unitPrice   Decimal @db.Decimal(12, 2)
-  gstRate     Decimal @default(0) @db.Decimal(5, 2) // percent
-  amount      Decimal @db.Decimal(14, 2) // quantity × unit price, before tax
+  quantity    Decimal          @db.Decimal(10, 2)
+  unitPrice   Decimal          @db.Decimal(12, 2)
+  gstRate     Decimal          @default(0) @db.Decimal(5, 2) // percent
+  amount      Decimal          @db.Decimal(14, 2) // quantity × unit price, before tax
+  credited    CreditNoteLine[]
 
   @@index([invoiceId])
 }
@@ -1239,6 +1242,75 @@ model InvoicePayment {
   createdAt    DateTime      @default(now())
 
   @@index([invoiceId])
+}
+
+// ─── Credit notes ──────────────────────────────────────────────────────────
+// Corrects or partly cancels an issued invoice the GST way: its own number series, the same
+// tax split as the invoice, and it lowers what the school owes on that invoice.
+
+enum CreditNoteStatus {
+  ISSUED // numbered; counts against the invoice
+  CANCELLED // keeps its number; no longer counts
+}
+
+enum CreditNoteReason {
+  SESSIONS_NOT_HELD // fewer sessions or days delivered than billed
+  WRONG_AMOUNT // price, quantity or rate was wrong on the invoice
+  DISCOUNT // discount agreed after the invoice
+  SERVICE_ISSUE // deficiency in service
+  CANCEL_INVOICE // the whole invoice is withdrawn
+  OTHER
+}
+
+model CreditNote {
+  id              String           @id @default(cuid())
+  fy              String // financial year of the credit note date, "26-27"
+  seq             Int
+  number          String           @unique // EBG/CN/26-27/001
+  status          CreditNoteStatus @default(ISSUED)
+  invoiceId       String
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  reason          CreditNoteReason
+  reasonNote      String? // printed on the credit note
+  issueDate       DateTime         @db.Date
+  subtotal        Decimal          @db.Decimal(14, 2)
+  cgst            Decimal          @default(0) @db.Decimal(14, 2)
+  sgst            Decimal          @default(0) @db.Decimal(14, 2)
+  igst            Decimal          @default(0) @db.Decimal(14, 2)
+  total           Decimal          @db.Decimal(14, 2)
+  // Money paid back to the school when the credit is more than what was still due.
+  refundAmount    Decimal          @default(0) @db.Decimal(14, 2)
+  refundedOn      DateTime?        @db.Date
+  refundMethod    PaymentMethod?
+  refundReference String?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  createdById     String
+  createdBy       User             @relation("CreditNoteCreator", fields: [createdById], references: [id])
+  lines           CreditNoteLine[]
+  emails          EmailLog[]
+  createdAt       DateTime         @default(now())
+
+  @@unique([fy, seq])
+  @@index([invoiceId])
+}
+
+model CreditNoteLine {
+  id            String       @id @default(cuid())
+  creditNoteId  String
+  creditNote    CreditNote   @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  invoiceLineId String? // the invoice line this credits
+  invoiceLine   InvoiceLine? @relation(fields: [invoiceLineId], references: [id], onDelete: SetNull)
+  position      Int
+  description   String
+  sac           String?
+  quantity      Decimal      @db.Decimal(10, 2)
+  unitPrice     Decimal      @db.Decimal(12, 2)
+  gstRate       Decimal      @default(0) @db.Decimal(5, 2)
+  amount        Decimal      @db.Decimal(14, 2) // before tax
+
+  @@index([creditNoteId])
+  @@index([invoiceLineId])
 }
 
 // ─── Quotations ────────────────────────────────────────────────────────────
@@ -1778,6 +1850,7 @@ enum EmailKind {
   QUOTE
   PAYSLIP
   INTERVIEW_INVITE
+  CREDIT_NOTE
 }
 
 enum EmailStatus {
@@ -1786,27 +1859,30 @@ enum EmailStatus {
 }
 
 model EmailLog {
-  id          String      @id @default(cuid())
-  kind        EmailKind
-  status      EmailStatus
-  to          String // comma-separated
-  cc          String?
-  subject     String
-  attachments String[] // file names, e.g. "Invoice EBG-26-27-001.pdf"
-  error       String? // why it failed, as the mail server said
-  invoices    Invoice[] // one for an invoice email, every unpaid one for a school's reminder
-  quoteId     String?
-  quote       Quote?      @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  payslipId   String?
-  payslip     Payslip?    @relation(fields: [payslipId], references: [id], onDelete: Cascade)
-  interviewId String?
-  interview   Interview?  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  sentById    String
-  sentBy      User        @relation(fields: [sentById], references: [id])
-  createdAt   DateTime    @default(now())
+  id           String      @id @default(cuid())
+  kind         EmailKind
+  status       EmailStatus
+  to           String // comma-separated
+  cc           String?
+  subject      String
+  attachments  String[] // file names, e.g. "Invoice EBG-26-27-001.pdf"
+  error        String? // why it failed, as the mail server said
+  invoices     Invoice[] // one for an invoice email, every unpaid one for a school's reminder
+  quoteId      String?
+  quote        Quote?      @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  payslipId    String?
+  payslip      Payslip?    @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+  interviewId  String?
+  interview    Interview?  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  creditNoteId String?
+  creditNote   CreditNote? @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  sentById     String
+  sentBy       User        @relation(fields: [sentById], references: [id])
+  createdAt    DateTime    @default(now())
 
   @@index([kind, createdAt])
   @@index([quoteId])
   @@index([payslipId])
   @@index([interviewId])
+  @@index([creditNoteId])
 }

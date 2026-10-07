@@ -6,11 +6,12 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { mailSetup, MAIL_NOT_READY, parseAddresses, sendEmail, type Attachment } from "@/lib/mail";
-import { invoicePdf, payslipPdf, quotePdf } from "@/lib/pdf";
+import { creditNotePdf, invoicePdf, payslipPdf, quotePdf } from "@/lib/pdf";
 import { markQuoteSent } from "@/lib/quote-send";
 import { calendarInvite } from "@/lib/ics";
 import { canRecruit } from "@/lib/recruitment";
 import { settledAmount } from "@/lib/invoices";
+import { invoiceMoney } from "@/lib/credit-notes";
 import { monthLabel } from "@/lib/payroll";
 import { todayIST } from "@/lib/time";
 import { payslipEmail, reminderEmail } from "@/lib/email-templates";
@@ -74,12 +75,12 @@ export async function remindSchool(organizationId: string): Promise<FormState> {
     db.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { email: true } }),
     db.invoice.findMany({
       where: { organizationId, status: "ISSUED", dueDate: { lt: today } },
-      include: { payments: true, contact: { select: { name: true, email: true } } },
+      include: { payments: true, creditNotes: true, contact: { select: { name: true, email: true } } },
       orderBy: { dueDate: "asc" },
     }),
   ]);
   const overdue = invoices
-    .map((i) => ({ ...i, number: i.number!, balance: Number(i.total) - settledAmount(i.payments) }))
+    .map((i) => ({ ...i, number: i.number!, balance: invoiceMoney(i.total, settledAmount(i.payments), i.creditNotes).balance }))
     .filter((i) => i.balance > 0)
     .map((i) => ({ ...i, daysLate: Math.round((today.getTime() - i.dueDate.getTime()) / 86400000) }));
   if (overdue.length === 0) return { error: "Nothing from this school is overdue now." };
@@ -95,6 +96,23 @@ export async function remindSchool(organizationId: string): Promise<FormState> {
   );
   revalidatePath("/invoices", "layout");
   return "error" in result ? { error: result.error } : { ok: `Reminder sent to ${to}.` };
+}
+
+// ─── Credit notes ──────────────────────────────────────────────────────────
+
+/** Email a credit note to the school with its PDF. */
+export async function emailCreditNote(id: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const ready = await readySettings();
+  if ("error" in ready) return { error: ready.error };
+  const form = readComposer(formData);
+  if ("error" in form) return { error: form.error };
+  const note = await db.creditNote.findUnique({ where: { id } });
+  if (!note || note.status !== "ISSUED") return { error: "Only an issued credit note can be emailed." };
+  const pdf = (await creditNotePdf(id))!;
+  const result = await sendEmail({ kind: "CREDIT_NOTE", ...form, attachments: [pdf], links: { creditNoteId: id } }, ready.settings, user.id);
+  revalidatePath(`/credit-notes/${id}`);
+  return "error" in result ? { error: result.error } : { ok: sentTo(form.to) };
 }
 
 // ─── Quotes ────────────────────────────────────────────────────────────────

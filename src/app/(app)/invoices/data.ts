@@ -2,6 +2,7 @@ import "server-only";
 import type { Organization, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { normalizeState, payState, settledAmount } from "@/lib/invoices";
+import { invoiceMoney } from "@/lib/credit-notes";
 import { todayIST } from "@/lib/time";
 import { getSettings } from "@/lib/settings";
 import { toDateInput } from "@/lib/format";
@@ -63,7 +64,7 @@ export async function billedForDeal(dealId: string) {
   return Number(r._sum.subtotal ?? 0);
 }
 
-/** Invoices with what has been received and where each one stands today. */
+/** Invoices with what has been received, what credit notes took off, and where each one stands today. */
 export async function invoicesWithBalance(where: Prisma.InvoiceWhereInput = {}) {
   const today = todayIST();
   const invoices = await db.invoice.findMany({
@@ -72,6 +73,7 @@ export async function invoicesWithBalance(where: Prisma.InvoiceWhereInput = {}) 
       organization: { select: { id: true, name: true, phone: true, email: true } },
       contact: { select: { name: true, phone: true, email: true } },
       payments: { select: { amount: true, tds: true, receivedOn: true } },
+      creditNotes: { select: { status: true, total: true, refundAmount: true } },
       // The last payment reminder that went out, for the Payments due page.
       emails: { where: { status: "SENT", kind: "PAYMENT_REMINDER" }, select: { createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
     },
@@ -80,12 +82,15 @@ export async function invoicesWithBalance(where: Prisma.InvoiceWhereInput = {}) 
   return invoices.map((inv) => {
     const settled = settledAmount(inv.payments);
     const live = inv.status === "ISSUED";
+    const money = invoiceMoney(inv.total, settled, inv.creditNotes);
     return {
       ...inv,
       settled,
-      balance: live ? Math.max(0, Number(inv.total) - settled) : 0,
+      credited: money.credited,
+      owedBack: live ? money.owedBack : 0,
+      balance: live ? money.balance : 0,
       daysLate: live ? Math.round((today.getTime() - inv.dueDate.getTime()) / 86400000) : 0,
-      state: payState(inv, settled, today),
+      state: payState(inv, settled, today, money.credited - money.refunded),
     };
   });
 }
