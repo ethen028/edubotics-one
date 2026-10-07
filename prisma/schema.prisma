@@ -26,47 +26,51 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  ownedLeads            Lead[]             @relation("LeadOwner")
-  ownedOrganizations    Organization[]     @relation("OrgOwner")
-  ownedContacts         Contact[]          @relation("ContactOwner")
-  ownedDeals            Deal[]             @relation("DealOwner")
-  activities            Activity[]         @relation("ActivityAssignee")
-  createdActivities     Activity[]         @relation("ActivityCreator")
-  uploadedDocuments     EmployeeDocument[] @relation("DocUploader")
-  reviewedDocuments     EmployeeDocument[] @relation("DocReviewer")
+  ownedLeads            Lead[]               @relation("LeadOwner")
+  ownedOrganizations    Organization[]       @relation("OrgOwner")
+  ownedContacts         Contact[]            @relation("ContactOwner")
+  ownedDeals            Deal[]               @relation("DealOwner")
+  activities            Activity[]           @relation("ActivityAssignee")
+  createdActivities     Activity[]           @relation("ActivityCreator")
+  uploadedDocuments     EmployeeDocument[]   @relation("DocUploader")
+  reviewedDocuments     EmployeeDocument[]   @relation("DocReviewer")
   payrollRuns           PayrollRun[]
-  ownedProjects         Project[]          @relation("ProjectOwner")
+  ownedProjects         Project[]            @relation("ProjectOwner")
   projectMembers        ProjectMember[]
-  assignedTasks         ProjectTask[]      @relation("TaskAssignee")
-  createdTasks          ProjectTask[]      @relation("TaskCreator")
-  decidedProjects       Project[]          @relation("ProjectApprover")
-  decidedTimesheets     Timesheet[]        @relation("TimesheetApprover")
-  stockRequests         StockRequest[]     @relation("StockRequester")
-  decidedStockReqs      StockRequest[]     @relation("StockApprover")
+  assignedTasks         ProjectTask[]        @relation("TaskAssignee")
+  createdTasks          ProjectTask[]        @relation("TaskCreator")
+  decidedProjects       Project[]            @relation("ProjectApprover")
+  decidedTimesheets     Timesheet[]          @relation("TimesheetApprover")
+  stockRequests         StockRequest[]       @relation("StockRequester")
+  decidedStockReqs      StockRequest[]       @relation("StockApprover")
   stockMovements        StockMovement[]
-  coordinatedProgrammes Programme[]        @relation("ProgrammeCoordinator")
+  coordinatedProgrammes Programme[]          @relation("ProgrammeCoordinator")
   programmeTrainers     ProgrammeTrainer[]
-  trainerSessions       ProgrammeSession[] @relation("SessionTrainer")
-  loggedSessions        ProgrammeSession[] @relation("SessionLogger")
+  trainerSessions       ProgrammeSession[]   @relation("SessionTrainer")
+  loggedSessions        ProgrammeSession[]   @relation("SessionLogger")
   projectUpdates        ProjectUpdate[]
   projectFiles          ProjectFile[]
-  decidedClaims         ExpenseClaim[]     @relation("ClaimApprover")
-  createdInvoices       Invoice[]          @relation("InvoiceCreator")
+  decidedClaims         ExpenseClaim[]       @relation("ClaimApprover")
+  createdInvoices       Invoice[]            @relation("InvoiceCreator")
   recordedPayments      InvoicePayment[]
-  purchaseOrders        PurchaseOrder[]    @relation("PORequester")
-  decidedPurchases      PurchaseOrder[]    @relation("POApprover")
+  purchaseOrders        PurchaseOrder[]      @relation("PORequester")
+  decidedPurchases      PurchaseOrder[]      @relation("POApprover")
   purchaseReceipts      PurchaseReceipt[]
   vendorBills           VendorBill[]
   vendorPayments        VendorPayment[]
-  hiringJobs            JobOpening[]       @relation("JobHiringManager")
-  createdJobs           JobOpening[]       @relation("JobCreator")
-  addedCandidates       Candidate[]        @relation("CandidateCreator")
+  hiringJobs            JobOpening[]         @relation("JobHiringManager")
+  createdJobs           JobOpening[]         @relation("JobCreator")
+  addedCandidates       Candidate[]          @relation("CandidateCreator")
   candidateFiles        CandidateFile[]
-  interviewsTaken       Interview[]        @relation("Interviewer")
-  interviewsBooked      Interview[]        @relation("InterviewScheduler")
+  interviewsTaken       Interview[]          @relation("Interviewer")
+  interviewsBooked      Interview[]          @relation("InterviewScheduler")
   createdOffers         Offer[]
   notices               Notice[]
   noticeAcks            NoticeAck[]
+  helpdeskRequests      HelpdeskTicket[]     @relation("TicketRequester")
+  helpdeskAssigned      HelpdeskTicket[]     @relation("TicketAssignee")
+  helpdeskComments      HelpdeskComment[]
+  helpdeskFiles         HelpdeskAttachment[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -355,19 +359,20 @@ enum AssetStatus {
 }
 
 model Asset {
-  id           String      @id @default(cuid())
-  code         String      @unique // EDU-LAP-021
+  id           String           @id @default(cuid())
+  code         String           @unique // EDU-LAP-021
   name         String
   category     String // Laptop, Access card, Lab kit, Phone…
   serialNo     String?
-  purchaseDate DateTime?   @db.Date
-  status       AssetStatus @default(AVAILABLE)
+  purchaseDate DateTime?        @db.Date
+  status       AssetStatus      @default(AVAILABLE)
   employeeId   String?
-  employee     Employee?   @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  employee     Employee?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   assignedAt   DateTime?
   notes        String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  tickets      HelpdeskTicket[]
 }
 
 // ─── Training ──────────────────────────────────────────────────────────────
@@ -1594,4 +1599,74 @@ model NoticeAck {
   ackedAt  DateTime @default(now())
 
   @@unique([noticeId, userId])
+}
+
+// ─── Helpdesk ──────────────────────────────────────────────────────────────
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED // withdrawn by the person who raised it
+}
+
+/// A request from any staff member to the admin team: equipment, ID card, repairs, letters…
+model HelpdeskTicket {
+  id              String               @id @default(cuid())
+  number          Int                  @unique @default(autoincrement()) // shown as HD-001
+  title           String
+  description     String
+  category        String // see HELPDESK_CATEGORIES
+  priority        Priority             @default(MEDIUM)
+  status          TicketStatus         @default(OPEN)
+  requesterId     String
+  requester       User                 @relation("TicketRequester", fields: [requesterId], references: [id])
+  assigneeId      String?
+  assignee        User?                @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assetId         String? // the laptop, kit or card this is about, from HR Assets
+  asset           Asset?               @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  resolution      String? // what was done, written when it is marked done
+  doneAt          DateTime?
+  requesterUnread Boolean              @default(false) // someone else changed it since the requester last looked
+  comments        HelpdeskComment[]
+  attachments     HelpdeskAttachment[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([requesterId, status])
+  @@index([status, assigneeId])
+}
+
+/// A reply on a request, or a line in its history ("Moved to In progress").
+model HelpdeskComment {
+  id        String         @id @default(cuid())
+  ticketId  String
+  ticket    HelpdeskTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User           @relation(fields: [authorId], references: [id])
+  body      String?
+  event     String? // system note, e.g. "Assigned to Anu" or "Marked done"
+  createdAt DateTime       @default(now())
+
+  attachments HelpdeskAttachment[]
+
+  @@index([ticketId, createdAt])
+}
+
+/// Photos and PDFs on a request, stored in Postgres like employee documents (5 MB each).
+model HelpdeskAttachment {
+  id           String           @id @default(cuid())
+  ticketId     String
+  ticket       HelpdeskTicket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  commentId    String?
+  comment      HelpdeskComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String
+  uploadedBy   User             @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime         @default(now())
+
+  @@index([ticketId])
 }

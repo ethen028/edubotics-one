@@ -6,15 +6,17 @@ import { pendingApprovals } from "@/lib/approvals";
 import { lowStockItems } from "@/lib/inventory";
 import { db } from "@/lib/db";
 import { myPendingAcks } from "@/lib/notices";
+import { helpdeskCounts } from "@/lib/helpdesk";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const [approvals, lowStock, myInterviews, toAcknowledge] = await Promise.all([
+  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk] = await Promise.all([
     pendingApprovals(user),
     isAdmin(user) ? lowStockItems() : [],
     db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
     myPendingAcks(user),
+    helpdeskCounts(user),
   ]);
 
   return (
@@ -53,6 +55,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               Expenses
             </NavLink>
             {isManagerOrAdmin(user) && <NavLink href="/expenses/team">Team expenses</NavLink>}
+            <NavLink href="/helpdesk">
+              <span className="flex items-center justify-between">
+                Helpdesk
+                {helpdesk.total > 0 && (
+                  <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950">{helpdesk.total}</span>
+                )}
+              </span>
+            </NavLink>
             {isManagerOrAdmin(user) && (
               <NavLink href="/approvals">
                 <span className="flex items-center justify-between">

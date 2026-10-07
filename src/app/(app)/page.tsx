@@ -19,6 +19,7 @@ import { PriorityBadge, ProgressBar, StageBadge } from "./projects/ui";
 import { TimesheetBadge } from "./timesheets/badge";
 import { invoicesWithBalance } from "./invoices/data";
 import { PendingAcks } from "./notices/ui";
+import { HelpdeskHomeCard } from "./helpdesk/home-card";
 
 export const metadata = { title: "Home" };
 
@@ -434,6 +435,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </ul>
             )}
           </section>
+          <HelpdeskHomeCard user={user} />
           {manager ? (
             <section className="card">
               <div className="mb-3 flex items-center justify-between">
