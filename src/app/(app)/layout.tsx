@@ -4,11 +4,16 @@ import { Sidebar } from "@/components/sidebar";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
 import { lowStockItems } from "@/lib/inventory";
+import { db } from "@/lib/db";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const [approvals, lowStock] = await Promise.all([pendingApprovals(user), isAdmin(user) ? lowStockItems() : []]);
+  const [approvals, lowStock, myInterviews] = await Promise.all([
+    pendingApprovals(user),
+    isAdmin(user) ? lowStockItems() : [],
+    db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -106,6 +111,17 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               People
             </NavLink>
             {isManagerOrAdmin(user) && <NavLink href="/hr/attendance/register">Attendance register</NavLink>}
+            {isManagerOrAdmin(user) && <NavLink href="/recruitment">Recruitment</NavLink>}
+            {(isManagerOrAdmin(user) || myInterviews > 0) && (
+              <NavLink href="/recruitment/interviews">
+                <span className="flex items-center justify-between">
+                  My interviews
+                  {myInterviews > 0 && (
+                    <span className="rounded-full bg-white/15 px-1.5 text-[11px] font-semibold">{myInterviews}</span>
+                  )}
+                </span>
+              </NavLink>
+            )}
             {isManagerOrAdmin(user) && <NavLink href="/hr/onboarding">Onboarding</NavLink>}
             {isManagerOrAdmin(user) && <NavLink href="/hr/training">Training</NavLink>}
             {isAdmin(user) && <NavLink href="/hr/assets">Assets</NavLink>}

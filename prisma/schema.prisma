@@ -58,16 +58,25 @@ model User {
   purchaseReceipts      PurchaseReceipt[]
   vendorBills           VendorBill[]
   vendorPayments        VendorPayment[]
+  hiringJobs            JobOpening[]       @relation("JobHiringManager")
+  createdJobs           JobOpening[]       @relation("JobCreator")
+  addedCandidates       Candidate[]        @relation("CandidateCreator")
+  candidateFiles        CandidateFile[]
+  interviewsTaken       Interview[]        @relation("Interviewer")
+  interviewsBooked      Interview[]        @relation("InterviewScheduler")
+  createdOffers         Offer[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
 
 model Department {
-  id        String     @id @default(cuid())
-  name      String     @unique
+  id        String       @id @default(cuid())
+  name      String       @unique
   employees Employee[]
   projects  Project[]
-  createdAt DateTime   @default(now())
+  createdAt DateTime     @default(now())
+  jobs      JobOpening[]
+  offers    Offer[]
 }
 
 enum EmploymentType {
@@ -127,6 +136,8 @@ model Employee {
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
   expenseClaims    ExpenseClaim[]
+  hiredFrom        Candidate?             @relation("HiredAs")
+  offersToReport   Offer[]                @relation("OfferManager")
 }
 
 model LeaveType {
@@ -1362,4 +1373,169 @@ model VendorPayment {
   createdAt DateTime   @default(now())
 
   @@index([billId])
+}
+
+// ─── Recruitment ───────────────────────────────────────────────────────────
+
+enum JobStatus {
+  OPEN
+  ON_HOLD
+  FILLED // every opening has a hire
+  CLOSED // stopped without filling
+}
+
+model JobOpening {
+  id              String         @id @default(cuid())
+  title           String // Robotics Trainer, Sales Executive…
+  departmentId    String?
+  department      Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  employmentType  EmploymentType @default(FULL_TIME)
+  location        String?        @default("Kochi")
+  positions       Int            @default(1) // how many people to hire
+  salaryRange     String? // shown to the team only, e.g. "₹18,000–25,000 a month"
+  description     String?
+  status          JobStatus      @default(OPEN)
+  hiringManagerId String?
+  hiringManager   User?          @relation("JobHiringManager", fields: [hiringManagerId], references: [id], onDelete: SetNull)
+  createdById     String
+  createdBy       User           @relation("JobCreator", fields: [createdById], references: [id])
+  closedAt        DateTime?
+  candidates      Candidate[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([status])
+}
+
+enum CandidateStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+  WITHDRAWN // the candidate pulled out
+}
+
+model Candidate {
+  id              String          @id @default(cuid())
+  jobId           String
+  job             JobOpening      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name            String
+  email           String?
+  phone           String?
+  city            String?
+  source          String          @default("Other") // Referral, LinkedIn, Naukri, Walk-in…
+  referredBy      String?
+  currentRole     String? // current job or course, e.g. "B.Tech ECE, final year"
+  experienceYears Decimal?        @db.Decimal(4, 1)
+  expectedSalary  Decimal?        @db.Decimal(12, 2) // monthly, INR
+  noticePeriod    String?
+  notes           String?
+  stage           CandidateStage  @default(APPLIED)
+  closedReason    String? // why rejected or withdrawn
+  employeeId      String?         @unique // set when hired and moved into HR
+  employee        Employee?       @relation("HiredAs", fields: [employeeId], references: [id], onDelete: SetNull)
+  createdById     String
+  createdBy       User            @relation("CandidateCreator", fields: [createdById], references: [id])
+  files           CandidateFile[]
+  interviews      Interview[]
+  offers          Offer[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([jobId, stage])
+  @@index([email])
+  @@index([phone])
+}
+
+/// Resumes and other files, kept in Postgres like employee documents (5 MB cap each).
+model CandidateFile {
+  id           String    @id @default(cuid())
+  candidateId  String
+  candidate    Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  kind         String    @default("Resume") // Resume, Portfolio, Certificate, Other
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime  @default(now())
+
+  @@index([candidateId])
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  DONE // feedback given
+  CANCELLED
+  NO_SHOW
+}
+
+enum Recommendation {
+  STRONG_YES
+  YES
+  NO
+  STRONG_NO
+}
+
+model Interview {
+  id             String          @id @default(cuid())
+  candidateId    String
+  candidate      Candidate       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  round          String // Phone screen, Technical, Demo class, HR / final
+  scheduledAt    DateTime
+  mode           String          @default("In person") // In person, Video call, Phone
+  location       String? // room, address or meeting link
+  interviewerId  String
+  interviewer    User            @relation("Interviewer", fields: [interviewerId], references: [id])
+  status         InterviewStatus @default(SCHEDULED)
+  rating         Int? // 1–5
+  recommendation Recommendation?
+  feedback       String?
+  feedbackAt     DateTime?
+  scheduledById  String
+  scheduledBy    User            @relation("InterviewScheduler", fields: [scheduledById], references: [id])
+  createdAt      DateTime        @default(now())
+
+  @@index([interviewerId, scheduledAt])
+  @@index([candidateId])
+}
+
+enum OfferStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+/// Salary uses the same parts as payroll, so a hire's salary record is filled in from the accepted offer.
+model Offer {
+  id               String         @id @default(cuid())
+  candidateId      String
+  candidate        Candidate      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  designation      String
+  departmentId     String?
+  department       Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  managerId        String? // who they will report to
+  manager          Employee?      @relation("OfferManager", fields: [managerId], references: [id], onDelete: SetNull)
+  employmentType   EmploymentType @default(FULL_TIME)
+  basic            Decimal        @db.Decimal(12, 2) // monthly
+  hra              Decimal        @default(0) @db.Decimal(12, 2)
+  specialAllowance Decimal        @default(0) @db.Decimal(12, 2)
+  joiningDate      DateTime       @db.Date
+  respondBy        DateTime?      @db.Date
+  probationMonths  Int            @default(6)
+  notes            String? // extra terms printed on the letter
+  status           OfferStatus    @default(DRAFT)
+  sentAt           DateTime?
+  respondedAt      DateTime?
+  createdById      String
+  createdBy        User           @relation(fields: [createdById], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([candidateId])
 }
