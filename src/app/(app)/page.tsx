@@ -5,6 +5,7 @@ import { pendingApprovals } from "@/lib/approvals";
 import { daysFromNow, todayIST } from "@/lib/time";
 import { mondayOf } from "@/lib/week";
 import { OPEN_PROJECT_STAGES, progress, projectScope } from "@/lib/projects";
+import { myOpenInterviews } from "@/lib/recruitment";
 import { Badge, Stat } from "@/components/ui";
 import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
 import { OPEN_STAGES } from "./crm/constants";
@@ -31,7 +32,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
   const weekStart = mondayOf(today);
 
-  const [myTasks, projects, myWeek, approvals, myPendingLeave, myFollowUps, onLeaveToday, holidays, pipeline, wonThisMonth] =
+  const [myTasks, projects, myWeek, approvals, myPendingLeave, myFollowUps, onLeaveToday, holidays, pipeline, wonThisMonth, interviews] =
     await Promise.all([
       db.projectTask.findMany({
         where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" }, onHold: false } },
@@ -66,6 +67,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       db.holiday.findMany({ where: { date: { gte: today } }, orderBy: { date: "asc" }, take: 4 }),
       db.deal.aggregate({ where: { stage: { in: [...OPEN_STAGES] } }, _sum: { value: true }, _count: true }),
       db.deal.aggregate({ where: { stage: "WON", closedAt: { gte: monthStart } }, _sum: { value: true }, _count: true }),
+      myOpenInterviews(user.id),
     ]);
 
   // Overdue first, then nearest due date, then priority.
@@ -266,6 +268,33 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
 
         <div className="space-y-6">
+          {interviews.length > 0 && (
+            <section className="card">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-semibold">Your interviews</h2>
+                <Link href="/recruitment/interviews" className="link text-sm">
+                  All
+                </Link>
+              </div>
+              <ul className="space-y-2 text-sm">
+                {interviews.slice(0, 5).map((i) => (
+                  <li key={i.id}>
+                    <Link href={`/recruitment/candidates/${i.candidate.id}`} className="hover:underline">
+                      <b>{i.candidate.name}</b> <span className="text-slate-500">· {i.round}</span>
+                    </Link>
+                    <div className="text-xs text-slate-500">
+                      {i.candidate.job.title} ·{" "}
+                      {i.scheduledAt < now ? (
+                        <span className="font-medium text-amber-700">feedback due</span>
+                      ) : (
+                        formatDateTime(i.scheduledAt)
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {manager ? (
             <section className="card">
               <div className="mb-3 flex items-center justify-between">

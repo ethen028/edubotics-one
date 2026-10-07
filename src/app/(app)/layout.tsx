@@ -3,11 +3,15 @@ import { NavLink } from "@/components/nav-link";
 import { Sidebar } from "@/components/sidebar";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
+import { db } from "@/lib/db";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const approvals = await pendingApprovals(user);
+  const [approvals, myInterviews] = await Promise.all([
+    pendingApprovals(user),
+    db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -63,6 +67,17 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               People
             </NavLink>
             {isManagerOrAdmin(user) && <NavLink href="/hr/attendance/register">Attendance register</NavLink>}
+            {isManagerOrAdmin(user) && <NavLink href="/recruitment">Recruitment</NavLink>}
+            {(isManagerOrAdmin(user) || myInterviews > 0) && (
+              <NavLink href="/recruitment/interviews">
+                <span className="flex items-center justify-between">
+                  My interviews
+                  {myInterviews > 0 && (
+                    <span className="rounded-full bg-white/15 px-1.5 text-[11px] font-semibold">{myInterviews}</span>
+                  )}
+                </span>
+              </NavLink>
+            )}
             {isManagerOrAdmin(user) && <NavLink href="/hr/onboarding">Onboarding</NavLink>}
             {isManagerOrAdmin(user) && <NavLink href="/hr/training">Training</NavLink>}
             {isAdmin(user) && <NavLink href="/hr/assets">Assets</NavLink>}
