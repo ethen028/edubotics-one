@@ -3,11 +3,12 @@ import { NavLink } from "@/components/nav-link";
 import { Sidebar } from "@/components/sidebar";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
+import { helpdeskCounts } from "@/lib/helpdesk";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const approvals = await pendingApprovals(user);
+  const [approvals, helpdesk] = await Promise.all([pendingApprovals(user), helpdeskCounts(user)]);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -31,6 +32,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <NavLink href="/work">My work</NavLink>
             <NavLink href="/projects">Projects</NavLink>
             <NavLink href="/timesheets">Timesheet</NavLink>
+            <NavLink href="/helpdesk">
+              <span className="flex items-center justify-between">
+                Helpdesk
+                {helpdesk.total > 0 && (
+                  <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950">{helpdesk.total}</span>
+                )}
+              </span>
+            </NavLink>
             {isManagerOrAdmin(user) && (
               <NavLink href="/approvals">
                 <span className="flex items-center justify-between">

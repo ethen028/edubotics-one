@@ -10,6 +10,7 @@ import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
 import { OPEN_STAGES } from "./crm/constants";
 import { PriorityBadge, ProgressBar, StageBadge } from "./projects/ui";
 import { TimesheetBadge } from "./timesheets/badge";
+import { HelpdeskHomeCard } from "./helpdesk/home-card";
 
 export const metadata = { title: "Home" };
 
@@ -266,6 +267,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
 
         <div className="space-y-6">
+          <HelpdeskHomeCard user={user} />
           {manager ? (
             <section className="card">
               <div className="mb-3 flex items-center justify-between">

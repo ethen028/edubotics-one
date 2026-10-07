@@ -41,6 +41,10 @@ model User {
   createdTasks       ProjectTask[]  @relation("TaskCreator")
   decidedProjects    Project[]      @relation("ProjectApprover")
   decidedTimesheets  Timesheet[]    @relation("TimesheetApprover")
+  helpdeskRequests   HelpdeskTicket[]     @relation("TicketRequester")
+  helpdeskAssigned   HelpdeskTicket[]     @relation("TicketAssignee")
+  helpdeskComments   HelpdeskComment[]
+  helpdeskFiles      HelpdeskAttachment[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -311,6 +315,7 @@ model Asset {
   employee     Employee?   @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   assignedAt   DateTime?
   notes        String?
+  tickets      HelpdeskTicket[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
@@ -728,4 +733,74 @@ model TimeEntry {
   createdAt   DateTime     @default(now())
 
   @@index([timesheetId, date])
+}
+
+// ─── Helpdesk ──────────────────────────────────────────────────────────────
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED // withdrawn by the person who raised it
+}
+
+/// A request from any staff member to the admin team: equipment, ID card, repairs, letters…
+model HelpdeskTicket {
+  id              String       @id @default(cuid())
+  number          Int          @unique @default(autoincrement()) // shown as HD-001
+  title           String
+  description     String
+  category        String // see HELPDESK_CATEGORIES
+  priority        Priority     @default(MEDIUM)
+  status          TicketStatus @default(OPEN)
+  requesterId     String
+  requester       User         @relation("TicketRequester", fields: [requesterId], references: [id])
+  assigneeId      String?
+  assignee        User?        @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assetId         String? // the laptop, kit or card this is about, from HR Assets
+  asset           Asset?       @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  resolution      String? // what was done, written when it is marked done
+  doneAt          DateTime?
+  requesterUnread Boolean      @default(false) // someone else changed it since the requester last looked
+  comments        HelpdeskComment[]
+  attachments     HelpdeskAttachment[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([requesterId, status])
+  @@index([status, assigneeId])
+}
+
+/// A reply on a request, or a line in its history ("Moved to In progress").
+model HelpdeskComment {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    HelpdeskTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id])
+  body      String?
+  event     String? // system note, e.g. "Assigned to Anu" or "Marked done"
+  createdAt DateTime      @default(now())
+
+  attachments HelpdeskAttachment[]
+
+  @@index([ticketId, createdAt])
+}
+
+/// Photos and PDFs on a request, stored in Postgres like employee documents (5 MB each).
+model HelpdeskAttachment {
+  id           String           @id @default(cuid())
+  ticketId     String
+  ticket       HelpdeskTicket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  commentId    String?
+  comment      HelpdeskComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String
+  uploadedBy   User             @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime         @default(now())
+
+  @@index([ticketId])
 }
