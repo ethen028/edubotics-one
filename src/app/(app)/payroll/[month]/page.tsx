@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { istDate } from "@/lib/attendance";
-import { RUN_COLOR, monthLabel } from "@/lib/payroll";
+import { RUN_COLOR, monthLabel, monthRange } from "@/lib/payroll";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize, toDateInput } from "@/lib/format";
@@ -13,16 +13,29 @@ import { deleteRun, finalizeRun, markPaid, recalculateRun, removeSlip, reopenRun
 export default async function PayrollRunPage({ params }: PageProps<"/payroll/[month]">) {
   await requireUser(["ADMIN"]);
   const { month } = await params;
-  const [run, settings] = await Promise.all([
+  let monthEnd: Date;
+  try {
+    monthEnd = monthRange(month).end;
+  } catch {
+    notFound();
+  }
+  const [run, settings, waitingClaims] = await Promise.all([
     db.payrollRun.findUnique({
       where: { month },
-      include: { payslips: { include: { employee: true }, orderBy: { employee: { firstName: "asc" } } } },
+      include: {
+        payslips: {
+          include: { employee: true, _count: { select: { expenseClaims: true } } },
+          orderBy: { employee: { firstName: "asc" } },
+        },
+      },
     }),
     getSettings(),
+    // Approved since this draft was built; Recalculate adds them.
+    db.expenseClaim.count({ where: { status: "APPROVED", payslipId: null, date: { lte: monthEnd } } }),
   ]);
   if (!run) notFound();
   const draft = run.status === "DRAFT";
-  const sum = (k: "gross" | "totalDeductions" | "net") => run.payslips.reduce((s, p) => s + Number(p[k]), 0);
+  const sum = (k: "gross" | "totalDeductions" | "reimbursements" | "net") => run.payslips.reduce((s, p) => s + Number(p[k]), 0);
   const deductionsOn = [settings.pfEnabled && "PF", settings.esiEnabled && "ESI", settings.ptEnabled && "PT", settings.tdsEnabled && "TDS"].filter(Boolean);
 
   return (
@@ -51,11 +64,12 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
         }
       />
 
-      <div className="mb-4 grid grid-cols-3 gap-3 text-center sm:max-w-xl">
+      <div className="mb-4 grid grid-cols-2 gap-3 text-center sm:max-w-2xl sm:grid-cols-4">
         {(
           [
             ["Gross", sum("gross")],
             ["Deductions", sum("totalDeductions")],
+            ["Expense claims", sum("reimbursements")],
             ["Net pay", sum("net")],
           ] as const
         ).map(([k, v]) => (
@@ -66,11 +80,18 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
         ))}
       </div>
 
+      {draft && waitingClaims > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {waitingClaims} approved expense claim{waitingClaims > 1 ? "s are" : " is"} not on this payroll yet. Recalculate to add{" "}
+          {waitingClaims > 1 ? "them" : "it"}.
+        </div>
+      )}
+
       <div className="mb-6 flex flex-wrap gap-2">
         {draft && (
           <>
             <form action={recalculateRun.bind(null, run.id)}>
-              <button className="btn-secondary">Recalculate from salaries and leave</button>
+              <button className="btn-secondary">Recalculate from salaries, leave and claims</button>
             </form>
             <form action={finalizeRun.bind(null, run.id)}>
               <button className="btn-primary">Finalize and publish payslips</button>
@@ -102,6 +123,7 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
               <th className="text-right">LOP</th>
               <th className="text-right">Gross</th>
               <th className="text-right">Deductions</th>
+              <th className="text-right">Expense claims</th>
               <th className="text-right">Net pay</th>
               <th></th>
             </tr>
@@ -160,6 +182,15 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
                 <td className="text-right">{Number(p.lopDays) || "—"}</td>
                 <td className="text-right">{formatINR(p.gross)}</td>
                 <td className="text-right">{formatINR(p.totalDeductions)}</td>
+                <td className="text-right">
+                  {Number(p.reimbursements) ? (
+                    <Link href={`/expenses/team?month=all&person=${p.employee.id}`} className="link" title={`${p._count.expenseClaims} claims`}>
+                      {formatINR(p.reimbursements)}
+                    </Link>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="text-right font-semibold">{formatINR(p.net)}</td>
                 <td className="whitespace-nowrap">
                   <Link href={`/payroll/payslip/${p.id}`} className="link text-sm">

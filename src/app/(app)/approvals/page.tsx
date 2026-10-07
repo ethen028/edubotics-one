@@ -5,7 +5,7 @@ import { pendingApprovals } from "@/lib/approvals";
 import { formatTime } from "@/lib/attendance";
 import { progress } from "@/lib/projects";
 import { Badge, Empty, PageHeader } from "@/components/ui";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, formatINR } from "@/lib/format";
 import { addDays } from "@/lib/week";
 import { decideLeave } from "../hr/actions";
 import { decideCorrection } from "../hr/attendance/actions";
@@ -13,6 +13,8 @@ import { decideTimesheet } from "../timesheets/actions";
 import { decideProject } from "../projects/actions";
 import { decideStockRequest } from "../inventory/actions";
 import { requestNo } from "@/lib/inventory";
+import { decideClaim } from "../expenses/actions";
+import { CATEGORY_LABEL, VEHICLE_LABEL } from "@/lib/expenses";
 
 export const metadata = { title: "Approvals" };
 
@@ -44,7 +46,7 @@ function Decide({ action, sendBack }: { action: (formData: FormData) => Promise<
 
 export default async function ApprovalsPage() {
   const user = await requireUser(["ADMIN", "MANAGER"]);
-  const { leave, corrections, timesheets, projects, stock, total } = await pendingApprovals(user);
+  const { leave, corrections, timesheets, claims, projects, stock, total } = await pendingApprovals(user);
 
   return (
     <>
@@ -124,6 +126,53 @@ export default async function ApprovalsPage() {
             </div>
           );
         })}
+      </Section>
+
+      <Section title="Expense claims" count={claims.length}>
+        {claims.map((c) => (
+          <div key={c.id} className="card flex flex-wrap items-start justify-between gap-4">
+            <div className="text-sm">
+              <span className="font-medium">
+                {c.employee.firstName} {c.employee.lastName}
+              </span>{" "}
+              · {formatDate(c.date)} · {CATEGORY_LABEL[c.category]}
+              {c.vehicle && `, ${VEHICLE_LABEL[c.vehicle as keyof typeof VEHICLE_LABEL] ?? c.vehicle} ${Number(c.distanceKm)} km`} ·{" "}
+              <b>{formatINR(c.amount)}</b>
+              <div className="mt-0.5">{c.description}</div>
+              <div className="mt-1 flex flex-wrap gap-x-2 text-slate-500">
+                <span>{[c.project?.name, c.organization?.name].filter(Boolean).join(" · ")}</span>
+                {c.receipt ? (
+                  <a href={`/api/expenses/${c.id}/receipt`} target="_blank" className="link">
+                    View receipt
+                  </a>
+                ) : (
+                  <span className="text-amber-700">No receipt</span>
+                )}
+              </div>
+            </div>
+            <form action={decideClaim.bind(null, c.id)} className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-1 text-xs text-slate-500">
+                Approve ₹
+                <input
+                  name="approvedAmount"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  max={Number(c.amount)}
+                  defaultValue={Number(c.amount)}
+                  className="input w-24"
+                />
+              </label>
+              <input name="note" placeholder="Note (optional)" className="input w-44" />
+              <button name="decision" value="APPROVED" className="btn-primary btn-sm">
+                Approve
+              </button>
+              <button name="decision" value="REJECTED" formNoValidate className="btn-danger btn-sm">
+                Reject
+              </button>
+            </form>
+          </div>
+        ))}
       </Section>
 
       <Section title="Leave" count={leave.length}>

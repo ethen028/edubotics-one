@@ -36,11 +36,22 @@ export async function lopLeaveDays(employeeId: string, month: string) {
   }, 0);
 }
 
+/**
+ * Approved expense claims not yet paid or on another payroll, spent on or before the month's last day.
+ * They are paid back with this month's salary.
+ */
+export function claimsDueFor(employeeId: string, month: string) {
+  return db.expenseClaim.findMany({
+    where: { employeeId, status: "APPROVED", payslipId: null, date: { lte: monthRange(month).end } },
+    select: { id: true, amount: true, approvedAmount: true },
+  });
+}
+
 /** Computes a payslip for one employee, or null when they have no salary or weren't employed that month. */
 export async function draftSlip(
   employee: { id: string; dateOfJoining: Date; dateOfExit: Date | null },
   month: string,
-  opts: { lopDays?: number; manual?: Partial<Manual> } = {},
+  opts: { lopDays?: number; manual?: Partial<Manual>; reimbursements?: number } = {},
 ) {
   const structure = await salaryFor(employee.id, month);
   const employedDays = employedDaysIn(month, employee.dateOfJoining, employee.dateOfExit);
@@ -53,5 +64,6 @@ export async function draftSlip(
     lopDays: opts.lopDays ?? (await lopLeaveDays(employee.id, month)),
     manual: { otherEarnings: 0, professionalTax: 0, tds: 0, otherDeductions: 0, ...opts.manual },
     rules: settings,
+    reimbursements: opts.reimbursements,
   });
 }

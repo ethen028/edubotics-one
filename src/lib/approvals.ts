@@ -5,14 +5,14 @@ import { isAdmin, isManagerOrAdmin, type CurrentUser } from "./auth";
 
 /**
  * Everything waiting on this user's decision, in one place: leave, missed punch-outs,
- * timesheets, project approvals and kit/part requests. Admins see everyone's; managers their direct reports'.
+ * timesheets, expense claims, project approvals and kit/part requests. Admins see everyone's; managers their direct reports'.
  */
 export async function pendingApprovals(user: CurrentUser) {
-  if (!isManagerOrAdmin(user)) return { leave: [], corrections: [], timesheets: [], projects: [], stock: [], total: 0 };
+  if (!isManagerOrAdmin(user)) return { leave: [], corrections: [], timesheets: [], claims: [], projects: [], stock: [], total: 0 };
   const me = user.employee?.id ?? "__none__";
   const team: Prisma.EmployeeWhereInput = isAdmin(user) ? {} : { managerId: me };
 
-  const [leave, corrections, timesheets, projects, stock] = await Promise.all([
+  const [leave, corrections, timesheets, claims, projects, stock] = await Promise.all([
     db.leaveRequest.findMany({
       where: { status: "PENDING", employeeId: { not: me }, employee: team },
       include: { employee: true, leaveType: true },
@@ -30,6 +30,16 @@ export async function pendingApprovals(user: CurrentUser) {
         entries: { include: { project: { select: { name: true } } }, orderBy: { date: "asc" } },
       },
       orderBy: { weekStart: "asc" },
+    }),
+    db.expenseClaim.findMany({
+      where: { status: "SUBMITTED", employeeId: { not: me }, employee: team },
+      include: {
+        employee: true,
+        project: { select: { name: true } },
+        organization: { select: { name: true } },
+        receipt: { select: { id: true } },
+      },
+      orderBy: { date: "asc" },
     }),
     db.project.findMany({
       where: {
@@ -58,8 +68,9 @@ export async function pendingApprovals(user: CurrentUser) {
     leave,
     corrections,
     timesheets,
+    claims,
     projects,
     stock,
-    total: leave.length + corrections.length + timesheets.length + projects.length + stock.length,
+    total: leave.length + corrections.length + timesheets.length + claims.length + projects.length + stock.length,
   };
 }

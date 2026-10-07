@@ -350,6 +350,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 <ul className="space-y-1.5 text-sm">
                   {approvals.projects.length > 0 && <li>Projects · {approvals.projects.length}</li>}
                   {approvals.timesheets.length > 0 && <li>Timesheets · {approvals.timesheets.length}</li>}
+                  {approvals.claims.length > 0 && <li>Expense claims · {approvals.claims.length}</li>}
                   {approvals.leave.length > 0 && <li>Leave · {approvals.leave.length}</li>}
                   {approvals.corrections.length > 0 && <li>Missed punch-outs · {approvals.corrections.length}</li>}
                   {approvals.stock.length > 0 && <li>Kit and part requests · {approvals.stock.length}</li>}
