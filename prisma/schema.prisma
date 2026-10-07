@@ -295,6 +295,12 @@ model CompanySettings {
   googleClientSecret String? // encrypted with the session secret, see src/lib/secret-box.ts
   googleDomain       String? // e.g. eduboticsglobal.com: only Google accounts on this domain may sign in
   appAddress         String? // the https address people open the app at; Google sends them back here
+
+  // Backups (Admin → Backups): a copy of the whole database every day, see src/lib/backups.ts
+  backupsEnabled   Boolean @default(true)
+  backupHour       Int     @default(17) // India time; a missed backup runs as soon as the app is up again
+  backupKeepDays   Int     @default(30) // keep every backup this many days
+  backupKeepMonths Int     @default(12) // then keep the first backup of each month this many months
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────

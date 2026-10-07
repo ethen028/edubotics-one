@@ -11,6 +11,7 @@ export const ACTIVITY_AREAS = {
   MONEY: "Invoices and payments",
   HR: "Exits and certificates",
   DELETED: "Deleted records",
+  BACKUPS: "Backups",
 } as const;
 export type ActivityArea = keyof typeof ACTIVITY_AREAS;
 

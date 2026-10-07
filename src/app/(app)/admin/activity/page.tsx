@@ -17,6 +17,7 @@ const areaColor: Record<ActivityArea, "gray" | "blue" | "green" | "amber" | "red
   MONEY: "amber",
   HR: "gray",
   DELETED: "red",
+  BACKUPS: "blue",
 };
 
 export default async function ActivityPage({ searchParams }: PageProps<"/admin/activity">) {
