@@ -270,6 +270,11 @@ model CompanySettings {
   certSignatoryTitle String? @default("Director")
   certSignature      Bytes?
   certSignatureType  String? // image/png or image/jpeg
+
+  // Careers page (/careers): off until an admin turns it on.
+  careersEnabled      Boolean @default(false)
+  careersIntro        String?
+  careersContactEmail String?
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -1607,6 +1612,10 @@ model JobOpening {
   createdById     String
   createdBy       User           @relation("JobCreator", fields: [createdById], references: [id])
   closedAt        DateTime?
+  // Careers page: an open job ticked here is listed publicly with its title, department, type,
+  // location, description and closing date. Salary range and hiring manager are never shown.
+  onCareersPage   Boolean        @default(false)
+  applyBy         DateTime?      @db.Date // last day to apply online; blank = until the job is closed
   candidates      Candidate[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -1643,8 +1652,9 @@ model Candidate {
   closedReason    String? // why rejected or withdrawn
   employeeId      String?         @unique // set when hired and moved into HR
   employee        Employee?       @relation("HiredAs", fields: [employeeId], references: [id], onDelete: SetNull)
-  createdById     String
-  createdBy       User            @relation("CandidateCreator", fields: [createdById], references: [id])
+  createdById     String? // empty when they applied themselves on the careers page
+  createdBy       User?           @relation("CandidateCreator", fields: [createdById], references: [id])
+  appliedOnlineAt DateTime? // when they applied on the careers page and agreed to their details being kept
   files           CandidateFile[]
   interviews      Interview[]
   offers          Offer[]
@@ -1666,8 +1676,8 @@ model CandidateFile {
   mimeType     String
   size         Int
   data         Bytes
-  uploadedById String
-  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+  uploadedById String? // empty when the candidate sent it from the careers page
+  uploadedBy   User?     @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime  @default(now())
 
   @@index([candidateId])

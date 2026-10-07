@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { WEEKDAYS, getSettings } from "@/lib/settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Field, PageHeader } from "@/components/ui";
-import { sendTestEmail, updateCertificateSettings, updateMailSettings, updateSettings } from "./actions";
+import { sendTestEmail, updateCareersSettings, updateCertificateSettings, updateMailSettings, updateSettings } from "./actions";
 import { certificateSignature } from "@/lib/settings";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
 import { db } from "@/lib/db";
@@ -21,7 +21,7 @@ export default async function SettingsPage() {
   const recent = await db.emailLog.findMany({ select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 15 });
   return (
     <>
-      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email and certificates." />
+      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email, certificates and the careers page." />
       <div className="card max-w-xl">
         <ActionForm action={updateSettings} className="space-y-4">
           <Field label="Working time per day">
@@ -305,6 +305,35 @@ export default async function SettingsPage() {
               </div>
             )}
             <SubmitButton>Save certificate settings</SubmitButton>
+          </ActionForm>
+        </div>
+      </section>
+
+      <section id="careers" className="mt-8 max-w-xl scroll-mt-6">
+        <div className="card space-y-4">
+          <h2 className="font-semibold">Careers page</h2>
+          <p className="text-sm text-slate-600">
+            A jobs page at <span className="font-mono text-xs">/careers</span> where candidates apply with their resume. Applications land in
+            Recruitment as new candidates. It shows only jobs ticked “Show on the careers page”, and never salaries, staff names or anything
+            else inside the app. For now it opens only on the office network; putting it on the internet is a separate step.
+          </p>
+          <ActionForm action={updateCareersSettings} className="space-y-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" name="careersEnabled" defaultChecked={s.careersEnabled} /> Careers page is on
+            </label>
+            <Field label="Welcome text at the top">
+              <textarea
+                name="careersIntro"
+                rows={3}
+                defaultValue={s.careersIntro ?? ""}
+                className="input"
+                placeholder={`${s.companyName} teaches robotics, coding and STEM to children in schools across Kerala. We are looking for people who enjoy building things and teaching.`}
+              />
+            </Field>
+            <Field label="Email for candidates' questions (optional)">
+              <input name="careersContactEmail" type="email" defaultValue={s.careersContactEmail ?? ""} className="input" placeholder="careers@eduboticsglobal.com" />
+            </Field>
+            <SubmitButton>Save careers page</SubmitButton>
           </ActionForm>
         </div>
       </section>

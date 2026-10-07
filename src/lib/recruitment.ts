@@ -6,6 +6,7 @@ import { isAdmin, isManagerOrAdmin, type CurrentUser } from "./auth";
 export const CANDIDATE_SOURCES = [
   "Referral",
   "Website",
+  "Careers page",
   "LinkedIn",
   "Naukri",
   "Indeed",

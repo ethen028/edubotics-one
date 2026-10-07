@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { Badge, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
 import { PIPELINE_STAGES, canRecruit } from "@/lib/recruitment";
+import { pastApplyBy } from "@/lib/careers";
 import { JobForm } from "../../forms";
 import { setJobStatus, updateJob } from "../../actions";
 import { JobStatusBadge, StageBadge } from "../../ui";
@@ -45,6 +46,18 @@ export default async function JobPage({ params }: PageProps<"/recruitment/jobs/[
             <JobStatusBadge status={job.status} /> {[job.department?.name, humanize(job.employmentType), job.location].filter(Boolean).join(" · ")} ·{" "}
             {hired} of {job.positions} hired
             {job.hiringManager && ` · hiring manager ${job.hiringManager.name}`}
+            {job.onCareersPage && job.status === "OPEN" && (
+              <>
+                {" · "}
+                {pastApplyBy(job) ? (
+                  `apply-by date ${formatDate(job.applyBy)} passed, so it is off the careers page`
+                ) : (
+                  <a href={`/careers/${job.id}`} target="_blank" className="link">
+                    on the careers page{job.applyBy && ` until ${formatDate(job.applyBy)}`}
+                  </a>
+                )}
+              </>
+            )}
           </>
         }
         actions={

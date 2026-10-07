@@ -241,8 +241,11 @@ export default async function CandidatePage({ params }: PageProps<"/recruitment/
                   </dd>
                 </>
               )}
-              <dt className="text-slate-500">Added</dt>
-              <dd>{formatDate(candidate.createdAt)}</dd>
+              <dt className="text-slate-500">{candidate.appliedOnlineAt ? "Applied" : "Added"}</dt>
+              <dd>
+                {formatDate(candidate.appliedOnlineAt ?? candidate.createdAt)}
+                {candidate.appliedOnlineAt && ", online on the careers page"}
+              </dd>
             </dl>
             {candidate.notes && <p className="mt-3 rounded-lg bg-slate-50 p-2.5 whitespace-pre-line">{candidate.notes}</p>}
           </section>

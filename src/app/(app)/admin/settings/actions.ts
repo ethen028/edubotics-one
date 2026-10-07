@@ -179,6 +179,27 @@ export async function sendTestEmail(_: FormState, formData: FormData): Promise<F
   return { ok: `Test email sent to ${to.list.join(", ")}. Check that it arrived (and isn't in spam). Sending is now switched on.` };
 }
 
+/** The public careers page: on or off, the welcome text and an email for candidates' questions. */
+export async function updateCareersSettings(_: FormState, formData: FormData): Promise<FormState> {
+  await requireUser(["ADMIN"]);
+  const parsed = z
+    .object({
+      careersIntro: text(1500),
+      careersContactEmail: text(120).pipe(z.string().email("Enter a valid contact email, or leave it blank.").nullable()),
+    })
+    .safeParse({ careersIntro: formData.get("careersIntro") ?? "", careersContactEmail: formData.get("careersContactEmail") ?? "" });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const careersEnabled = formData.get("careersEnabled") === "on";
+  await db.companySettings.update({ where: { id: 1 }, data: { ...parsed.data, careersEnabled } });
+  revalidatePath("/admin/settings");
+  revalidatePath("/recruitment", "layout");
+  return {
+    ok: careersEnabled
+      ? "Saved. The careers page is on: tick “Show on the careers page” on each job you want listed."
+      : "Saved. The careers page is off and shows no jobs.",
+  };
+}
+
 const MAX_SIGNATURE_BYTES = 1024 * 1024;
 
 /** Who signs workshop certificates, and an optional scan of their signature (PNG or JPG). */

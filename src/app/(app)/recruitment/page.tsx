@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { CandidateStage } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { Empty, PageHeader, Stat } from "@/components/ui";
+import { Badge, Empty, PageHeader, Stat } from "@/components/ui";
+import { careersSettings, listedWhere, pastApplyBy } from "@/lib/careers";
 import { formatDate, formatDateTime, humanize } from "@/lib/format";
 import { OPEN_STAGES, PIPELINE_STAGES, canRecruit } from "@/lib/recruitment";
 import { daysFromNow } from "@/lib/time";
@@ -17,7 +19,7 @@ export default async function RecruitmentPage({ searchParams }: PageProps<"/recr
   const { all } = (await searchParams) as Record<string, string | undefined>;
   const showAll = all === "1";
 
-  const [jobs, counts, upcoming, offersOut, awaitingFeedback] = await Promise.all([
+  const [jobs, counts, upcoming, offersOut, awaitingFeedback, careers, online, listed, host] = await Promise.all([
     db.jobOpening.findMany({
       where: showAll ? {} : { status: { in: ["OPEN", "ON_HOLD"] } },
       include: { department: true, hiringManager: { select: { name: true } } },
@@ -31,6 +33,14 @@ export default async function RecruitmentPage({ searchParams }: PageProps<"/recr
     }),
     db.offer.count({ where: { status: "SENT" } }),
     db.interview.count({ where: { status: "SCHEDULED", scheduledAt: { lt: new Date() } } }),
+    careersSettings(),
+    db.candidate.findMany({
+      where: { appliedOnlineAt: { not: null }, stage: "APPLIED" },
+      select: { id: true, name: true, appliedOnlineAt: true, job: { select: { title: true } } },
+      orderBy: { appliedOnlineAt: "desc" },
+    }),
+    db.jobOpening.count({ where: listedWhere() }),
+    headers().then((h) => h.get("host")),
   ]);
 
   const count = (jobId: string, stage: CandidateStage) => counts.find((c) => c.jobId === jobId && c.stage === stage)?._count ?? 0;
@@ -99,6 +109,11 @@ export default async function RecruitmentPage({ searchParams }: PageProps<"/recr
                         <Link href={`/recruitment/jobs/${j.id}`} className="link">
                           {j.title}
                         </Link>
+                        {j.onCareersPage && j.status === "OPEN" && careers.enabled && (
+                          <span className="ml-1.5">
+                            {pastApplyBy(j) ? <Badge color="amber">Apply-by date passed</Badge> : <Badge color="green">On careers page</Badge>}
+                          </span>
+                        )}
                         <div className="text-xs text-slate-500">
                           {[j.department?.name, j.location, `${count(j.id, "HIRED")} of ${j.positions} hired`].filter(Boolean).join(" · ")}
                         </div>
@@ -117,6 +132,62 @@ export default async function RecruitmentPage({ searchParams }: PageProps<"/recr
                 </tbody>
               </table>
             </div>
+          )}
+        </section>
+
+        <div className="space-y-6">
+        <section className="card">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-semibold">Careers page</h2>
+            {careers.enabled ? <Badge color="green">On</Badge> : <Badge>Off</Badge>}
+          </div>
+          {careers.enabled ? (
+            <p className="text-sm text-slate-600">
+              {listed === 0 ? "No jobs are listed yet. Tick “Show on the careers page” on a job." : `${listed} ${listed === 1 ? "job" : "jobs"} listed.`}{" "}
+              Inside the office it opens at{" "}
+              <a href="/careers" target="_blank" className="link break-words">
+                {host ? `${host}/careers` : "/careers"}
+              </a>
+              . It is not on the internet yet.
+            </p>
+          ) : (
+            <p className="text-sm text-slate-600">
+              A public jobs page where candidates apply straight into Recruitment.
+              {user.role === "ADMIN" ? (
+                <>
+                  {" "}
+                  <Link href="/admin/settings#careers" className="link">
+                    Turn it on in Settings
+                  </Link>
+                  .
+                </>
+              ) : (
+                " An admin can turn it on in Settings."
+              )}
+            </p>
+          )}
+          {online.length > 0 && (
+            <>
+              <h3 className="mt-4 mb-1 text-sm font-semibold">New online applications ({online.length})</h3>
+              <ul className="divide-y divide-slate-100 text-sm">
+                {online.slice(0, 6).map((c) => (
+                  <li key={c.id} className="py-2">
+                    <Link href={`/recruitment/candidates/${c.id}`} className="link">
+                      {c.name}
+                    </Link>
+                    <div className="text-xs text-slate-500">
+                      {c.job.title} · {formatDateTime(c.appliedOnlineAt)}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {online.length > 6 && (
+                <Link href="/recruitment/candidates?stage=APPLIED" className="link text-sm">
+                  See all
+                </Link>
+              )}
+              <p className="mt-2 text-xs text-slate-500">They leave this list once moved to screening or closed.</p>
+            </>
           )}
         </section>
 
@@ -145,6 +216,7 @@ export default async function RecruitmentPage({ searchParams }: PageProps<"/recr
             </ul>
           )}
         </section>
+        </div>
       </div>
     </>
   );
