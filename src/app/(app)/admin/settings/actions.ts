@@ -6,6 +6,9 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import type { FormState } from "@/components/action-form";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
+import { getSettings } from "@/lib/settings";
+import { mailSetup, parseAddresses, sendEmail } from "@/lib/mail";
+import { seal } from "@/lib/secret-box";
 
 const text = (max: number) =>
   z
@@ -89,4 +92,85 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
   await db.companySettings.upsert({ where: { id: 1 }, update: data, create: { id: 1, ...data } });
   revalidatePath("/", "layout");
   return { ok: "Settings saved." };
+}
+
+// ─── Email ─────────────────────────────────────────────────────────────────
+
+const mailSchema = z.object({
+  smtpHost: text(120),
+  smtpPort: z.coerce.number().int().min(1).max(65535),
+  smtpUser: text(160),
+  mailFromName: text(80),
+  mailFromAddress: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((v) => v === "" || z.email().safeParse(v).success, "The “send from” address isn't an email address.")
+    .transform((v) => v || null),
+  mailReplyTo: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((v) => v === "" || z.email().safeParse(v).success, "The reply-to address isn't an email address.")
+    .transform((v) => v || null),
+});
+
+/** Saves the mail account. Changing the server, login or sender switches sending off until a test goes through. */
+export async function updateMailSettings(_: FormState, formData: FormData): Promise<FormState> {
+  await requireUser(["ADMIN"]);
+  const parsed = mailSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+  if (d.smtpHost && !d.mailFromAddress) return { error: "Enter the address emails are sent from." };
+  const before = await getSettings();
+  const password = String(formData.get("smtpPassword") ?? "");
+  const clear = formData.get("clearPassword") === "on";
+  const smtpPassword = clear ? null : password ? seal(password) : before.smtpPassword;
+  const smtpSecure = d.smtpPort === 465;
+  const accountChanged =
+    d.smtpHost !== before.smtpHost ||
+    d.smtpPort !== before.smtpPort ||
+    d.smtpUser !== before.smtpUser ||
+    d.mailFromAddress !== before.mailFromAddress ||
+    smtpPassword !== before.smtpPassword;
+  await db.companySettings.update({
+    where: { id: 1 },
+    data: {
+      ...d,
+      smtpSecure,
+      smtpPassword,
+      mailBccSelf: formData.get("mailBccSelf") === "on",
+      ...(accountChanged ? { mailVerifiedAt: null } : {}),
+    },
+  });
+  revalidatePath("/", "layout");
+  if (!d.smtpHost) return { ok: "Saved. Email stays off until a mail server is filled in." };
+  return { ok: accountChanged || !before.mailVerifiedAt ? "Saved. Now send a test email to switch sending on." : "Saved." };
+}
+
+/** Sends a test to the given address; when it goes through, the app may send emails. */
+export async function sendTestEmail(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser(["ADMIN"]);
+  const to = parseAddresses(String(formData.get("testTo") ?? ""), { required: true });
+  if ("error" in to) return { error: to.error };
+  const settings = await getSettings();
+  if (mailSetup(settings) === "NOT_SET") return { error: "Fill in and save the mail server and the “send from” address first." };
+  const result = await sendEmail(
+    {
+      kind: "TEST",
+      to: to.list,
+      subject: `Test email from ${settings.companyName} (Edubotics One)`,
+      message: `This is a test from Edubotics One, sent by ${user.name}.\n\nIf you can read this, invoices, quotes, payslips, interview invites and payment reminders can now be emailed from the app.`,
+    },
+    settings,
+    user.id,
+  );
+  if ("error" in result) {
+    await db.companySettings.update({ where: { id: 1 }, data: { mailVerifiedAt: null } });
+    revalidatePath("/", "layout");
+    return { error: result.error };
+  }
+  await db.companySettings.update({ where: { id: 1 }, data: { mailVerifiedAt: new Date() } });
+  revalidatePath("/", "layout");
+  return { ok: `Test email sent to ${to.list.join(", ")}. Check that it arrived (and isn't in spam). Sending is now switched on.` };
 }

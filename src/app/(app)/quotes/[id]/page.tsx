@@ -14,6 +14,10 @@ import { InvoiceForm } from "../../invoices/invoice-form";
 import { QuoteDocument } from "../document";
 import { quoteFormOptions } from "../data";
 import { acceptQuote, declineQuote, deleteQuoteDraft, reopenQuote, reviseQuote, sendQuote, updateQuote } from "../actions";
+import { emailQuote } from "../../emails/actions";
+import { EmailComposer, EmailHistory, emailLogSelect } from "@/components/email";
+import { mailSetup } from "@/lib/mail";
+import { quoteEmail } from "@/lib/email-templates";
 
 export const metadata = { title: "Quote" };
 
@@ -24,8 +28,9 @@ export default async function QuotePage({ params }: PageProps<"/quotes/[id]">) {
     where: { id },
     include: {
       lines: { orderBy: { position: "asc" } },
-      organization: { select: { id: true, name: true } },
+      organization: { select: { id: true, name: true, email: true } },
       contact: { select: { name: true, phone: true, email: true } },
+      emails: { select: emailLogSelect, orderBy: { createdAt: "desc" } },
       deal: { select: { id: true, title: true, stage: true } },
       revisionOf: { select: { id: true, number: true } },
       revisions: { select: { id: true, number: true, status: true }, orderBy: { createdAt: "asc" } },
@@ -42,6 +47,13 @@ export default async function QuotePage({ params }: PageProps<"/quotes/[id]">) {
   const liveInvoices = quote.invoices.filter((i) => i.status !== "CANCELLED");
   const billed = liveInvoices.reduce((n, i) => n + Number(i.subtotal), 0);
   const left = Math.max(0, Number(quote.subtotal) - billed);
+  const emailDraft = quoteEmail(
+    { ...quote, number: quote.number ?? "(number given when sent)" },
+    quote.deal?.title ?? null,
+    quote.contact?.name ?? null,
+    user.name,
+    settings,
+  );
 
   return (
     <>
@@ -87,6 +99,9 @@ export default async function QuotePage({ params }: PageProps<"/quotes/[id]">) {
                   <button className="btn-secondary">Revise</button>
                 </form>
               )}
+              <a href={`/quotes/${quote.id}/pdf`} target="_blank" className="btn-secondary">
+                PDF
+              </a>
               <PrintButton />
             </div>
           }
@@ -167,6 +182,21 @@ export default async function QuotePage({ params }: PageProps<"/quotes/[id]">) {
         </div>
 
         <aside className="space-y-6 print:hidden">
+          {(isDraft || quote.status === "SENT") && (
+            <EmailComposer
+              title={isDraft ? "Email it to the school" : "Email this quote"}
+              action={emailQuote.bind(null, quote.id)}
+              draft={{ to: quote.contact?.email ?? quote.organization.email ?? "", ...emailDraft }}
+              attachments={[`Quotation ${quote.number?.replace(/\//g, "-") ?? "(numbered when sent)"}.pdf`]}
+              setup={mailSetup(settings)}
+              admin={isAdmin(user)}
+              submitLabel={isDraft ? "Email and mark as sent" : "Send quote"}
+              hint={isDraft ? "Sending marks the quote as sent, the same as the button above." : undefined}
+            />
+          )}
+
+          <EmailHistory emails={quote.emails} />
+
           {quote.status === "SENT" && (
             <section className="card space-y-4">
               <div>

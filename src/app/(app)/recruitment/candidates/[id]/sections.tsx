@@ -16,23 +16,34 @@ import {
   uploadCandidateFile,
 } from "../../actions";
 import { InterviewStatusBadge, OfferStatusBadge, RecommendationBadge, Stars } from "../../ui";
+import { emailInterviewInvite } from "../../../emails/actions";
+import { EmailComposer } from "@/components/email";
+import type { MailSetup } from "@/lib/mail";
 
 type Option = { id: string; name: string };
 
 // ─── Interviews ────────────────────────────────────────────────────────────
 
-type InterviewRow = Interview & { interviewer: { name: string } };
+type InterviewRow = Interview & {
+  interviewer: { name: string };
+  emails?: { id: string; status: "SENT" | "FAILED"; to: string; createdAt: Date; error: string | null }[];
+};
+
+/** Invite emails for each booked interview, worked out on the page. */
+export type Invites = { setup: MailSetup; admin: boolean; drafts: Record<string, { to: string; cc: string; subject: string; message: string }> };
 
 export function InterviewList({
   interviews,
   userId,
   recruiter,
   admin,
+  invites,
 }: {
   interviews: InterviewRow[];
   userId: string;
   recruiter: boolean;
   admin: boolean;
+  invites?: Invites;
 }) {
   if (interviews.length === 0) return <p className="text-sm text-slate-500">No interviews yet.</p>;
   return (
@@ -66,6 +77,24 @@ export function InterviewList({
                 )}
               </div>
             </div>
+            {recruiter &&
+              i.emails?.map((e) => (
+                <div key={e.id} className={`mt-1 text-xs ${e.status === "SENT" ? "text-emerald-700" : "text-red-700"}`}>
+                  {e.status === "SENT" ? `Invite emailed to ${e.to}, ${formatDateTime(e.createdAt)}` : `Invite to ${e.to} failed: ${e.error}`}
+                </div>
+              ))}
+            {invites && i.status === "SCHEDULED" && invites.drafts[i.id] && (
+              <EmailComposer
+                className="mt-2 border-t border-slate-100 pt-2 text-sm [&>summary]:text-sm [&>summary]:font-medium"
+                title={i.emails?.some((e) => e.status === "SENT") ? "Email the invite again" : "Email the invite to the candidate"}
+                action={emailInterviewInvite.bind(null, i.id)}
+                draft={invites.drafts[i.id]}
+                attachments={["interview.ics (calendar invite)"]}
+                setup={invites.setup}
+                admin={invites.admin}
+                submitLabel="Send invite"
+              />
+            )}
             {i.status === "DONE" && i.rating && i.recommendation && (
               <div className="mt-2 rounded-lg bg-slate-50 p-2.5">
                 <div className="flex flex-wrap items-center gap-2">

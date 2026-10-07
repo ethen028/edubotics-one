@@ -2,17 +2,24 @@ import { requireUser } from "@/lib/auth";
 import { WEEKDAYS, getSettings } from "@/lib/settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Field, PageHeader } from "@/components/ui";
-import { updateSettings } from "./actions";
+import { sendTestEmail, updateMailSettings, updateSettings } from "./actions";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
+import { db } from "@/lib/db";
+import { mailSetup } from "@/lib/mail";
+import { formatDateTime } from "@/lib/format";
+import { Badge } from "@/components/ui";
+import { EmailHistory, emailLogSelect } from "@/components/email";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  await requireUser(["ADMIN"]);
+  const user = await requireUser(["ADMIN"]);
   const s = await getSettings();
+  const setup = mailSetup(s);
+  const recent = await db.emailLog.findMany({ select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 15 });
   return (
     <>
-      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses and invoices." />
+      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices and email." />
       <div className="card max-w-xl">
         <ActionForm action={updateSettings} className="space-y-4">
           <Field label="Working time per day">
@@ -168,6 +175,99 @@ export default async function SettingsPage() {
           <SubmitButton>Save settings</SubmitButton>
         </ActionForm>
       </div>
+
+      <section id="email" className="mt-8 grid scroll-mt-6 gap-6 xl:grid-cols-[36rem_1fr]">
+        <div className="card space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">Email</h2>
+            {setup === "READY" ? (
+              <Badge color="green">On · tested {formatDateTime(s.mailVerifiedAt)}</Badge>
+            ) : setup === "UNTESTED" ? (
+              <Badge color="amber">Off until a test email goes through</Badge>
+            ) : (
+              <Badge>Off · not set up</Badge>
+            )}
+          </div>
+          <p className="text-sm text-slate-600">
+            Invoices, quotes, payslips, interview invites and payment reminders are sent from the company&apos;s own mail account, only when
+            someone presses Send.
+          </p>
+          <div className="rounded-lg bg-brand-50 p-3 text-xs text-slate-700">
+            <strong>Gmail or Google Workspace:</strong> server <code>smtp.gmail.com</code>, port 587, username is the full email address,
+            and the password is an <em>app password</em> (Google Account → Security → 2-Step Verification → App passwords), not the normal
+            one.
+          </div>
+          <ActionForm action={updateMailSettings} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
+              <Field label="Mail server (SMTP)">
+                <input name="smtpHost" defaultValue={s.smtpHost ?? ""} className="input" placeholder="smtp.gmail.com" />
+              </Field>
+              <Field label="Port">
+                <select name="smtpPort" defaultValue={s.smtpPort} className="input">
+                  <option value={587}>587</option>
+                  <option value={465}>465</option>
+                  <option value={25}>25</option>
+                  {![587, 465, 25].includes(s.smtpPort) && <option value={s.smtpPort}>{s.smtpPort}</option>}
+                </select>
+              </Field>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Username">
+                <input name="smtpUser" defaultValue={s.smtpUser ?? ""} className="input" autoComplete="off" placeholder="accounts@yourdomain.com" />
+              </Field>
+              <Field label="Password">
+                <input
+                  name="smtpPassword"
+                  type="password"
+                  className="input"
+                  autoComplete="new-password"
+                  placeholder={s.smtpPassword ? "Saved. Leave blank to keep it" : "App password"}
+                />
+              </Field>
+              <Field label="Send from (name)">
+                <input name="mailFromName" defaultValue={s.mailFromName ?? ""} className="input" placeholder={s.companyName} />
+              </Field>
+              <Field label="Send from (address)">
+                <input name="mailFromAddress" type="email" defaultValue={s.mailFromAddress ?? ""} className="input" />
+              </Field>
+            </div>
+            <Field label="Replies go to (optional)">
+              <input name="mailReplyTo" type="email" defaultValue={s.mailReplyTo ?? ""} className="input" placeholder="Same as the send-from address" />
+            </Field>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="mailBccSelf" defaultChecked={s.mailBccSelf} />
+              Keep a copy of every email in the send-from inbox
+            </label>
+            {s.smtpPassword && (
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" name="clearPassword" />
+                Remove the saved password
+              </label>
+            )}
+            <SubmitButton>Save email settings</SubmitButton>
+          </ActionForm>
+          {setup !== "NOT_SET" && (
+            <ActionForm action={sendTestEmail} className="space-y-2 border-t border-slate-100 pt-4">
+              <Field label="Send a test email to">
+                <div className="flex gap-2">
+                  <input name="testTo" type="email" required defaultValue={user.email} className="input" />
+                  <SubmitButton className="btn-secondary whitespace-nowrap" pendingLabel="Sending…">
+                    Send test
+                  </SubmitButton>
+                </div>
+              </Field>
+              <p className="text-xs text-slate-500">Sending switches on once a test goes through, and off again if the account details change.</p>
+            </ActionForm>
+          )}
+        </div>
+        <div className="min-w-0">
+          {recent.length > 0 ? (
+            <EmailHistory emails={recent} title="Recently sent" showKind />
+          ) : (
+            <p className="text-sm text-slate-500">Emails sent from the app will be listed here.</p>
+          )}
+        </div>
+      </section>
     </>
   );
 }

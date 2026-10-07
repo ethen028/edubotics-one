@@ -4,6 +4,10 @@ import { Empty, PageHeader, Stat } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { formatMoney } from "@/lib/invoices";
 import { invoicesWithBalance } from "../data";
+import { getSettings } from "@/lib/settings";
+import { mailSetup } from "@/lib/mail";
+import { ActionForm, SubmitButton } from "@/components/action-form";
+import { remindSchool } from "../../emails/actions";
 
 export const metadata = { title: "Payments due" };
 
@@ -19,6 +23,7 @@ const BUCKETS = [
 export default async function DuesPage() {
   await requireUser(["ADMIN", "MANAGER"]);
   const open = (await invoicesWithBalance({ status: "ISSUED" })).filter((i) => i.balance > 0);
+  const mailOn = mailSetup(await getSettings()) === "READY";
 
   const bySchool = new Map<
     string,
@@ -36,6 +41,10 @@ export default async function DuesPage() {
       total: s.invoices.reduce((n, i) => n + i.balance, 0),
       buckets: BUCKETS.map(([, test]) => s.invoices.filter((i) => test(i.daysLate)).reduce((n, i) => n + i.balance, 0)),
       oldest: Math.max(...s.invoices.map((i) => i.daysLate)),
+      email: s.invoices.find((i) => i.daysLate > 0 && i.contact?.email)?.contact?.email ?? s.org.email,
+      reminded: s.invoices
+        .flatMap((i) => i.emails.map((e) => e.createdAt))
+        .sort((a, b) => b.getTime() - a.getTime())[0],
       invoices: s.invoices.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()),
     }))
     .sort((a, b) => b.oldest - a.oldest || b.total - a.total);
@@ -46,7 +55,11 @@ export default async function DuesPage() {
     <>
       <PageHeader
         title="Payments due"
-        subtitle="Unpaid invoices by school, the longest overdue first."
+        subtitle={
+          mailOn
+            ? "Unpaid invoices by school, the longest overdue first. A reminder lists all of a school's overdue invoices, with copies attached."
+            : "Unpaid invoices by school, the longest overdue first."
+        }
         actions={
           <Link href="/invoices" className="btn-secondary">
             All invoices
@@ -86,6 +99,22 @@ export default async function DuesPage() {
                     <div className="text-xs text-slate-500">
                       {[s.contact?.name, s.contact?.phone ?? s.org.phone].filter(Boolean).join(" · ")}
                     </div>
+                    {s.oldest > 0 && (
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                        {s.reminded && <span className="text-slate-500">Reminded {formatDate(s.reminded)}</span>}
+                        {!s.email ? (
+                          <span className="text-slate-400">No email address on file</span>
+                        ) : (
+                          mailOn && (
+                            <ActionForm action={remindSchool.bind(null, s.org.id)} className="contents">
+                              <SubmitButton className="btn-secondary btn-sm" pendingLabel="Sending…">
+                                {s.reminded ? "Remind again" : "Send reminder"}
+                              </SubmitButton>
+                            </ActionForm>
+                          )
+                        )}
+                      </div>
+                    )}
                     <ul className="mt-1 space-y-0.5 text-xs">
                       {s.invoices.map((i) => (
                         <li key={i.id}>

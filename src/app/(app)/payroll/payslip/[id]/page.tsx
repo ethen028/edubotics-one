@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
-import { monthLabel } from "@/lib/payroll";
+import { monthLabel, payslipParts } from "@/lib/payroll";
+import { getSettings } from "@/lib/settings";
 import { formatDate, formatINR } from "@/lib/format";
 import { CATEGORY_LABEL, payableOf } from "@/lib/expenses";
 import { PrintButton } from "./print-button";
@@ -23,22 +24,8 @@ export default async function PayslipPage({ params }: PageProps<"/payroll/paysli
   const own = p && user.employee?.id === p.employeeId && p.run.status !== "DRAFT";
   if (!p || (!isAdmin(user) && !own)) notFound();
 
-  const earnings = [
-    ["Basic", p.basic],
-    ["HRA", p.hra],
-    ["Special allowance", p.specialAllowance],
-    ["Other earnings", p.otherEarnings],
-  ].filter(([k, v]) => k !== "Other earnings" || Number(v) > 0) as [string, typeof p.basic][];
-  const deductions = (
-    [
-      ["Loss of pay", p.lopDeduction],
-      ["Provident fund", p.pf],
-      ["ESI", p.esi],
-      ["Professional tax", p.professionalTax],
-      ["TDS", p.tds],
-      ["Other deductions", p.otherDeductions],
-    ] as [string, typeof p.basic][]
-  ).filter(([, v]) => Number(v) > 0);
+  const { earnings, deductions } = payslipParts(p);
+  const settings = await getSettings();
 
   return (
     <>
@@ -46,13 +33,16 @@ export default async function PayslipPage({ params }: PageProps<"/payroll/paysli
         <Link href={isAdmin(user) ? `/payroll/${p.run.month}` : "/payroll/my"} className="btn-secondary">
           Back
         </Link>
+        <a href={`/payroll/payslip/${p.id}/pdf`} target="_blank" className="btn-secondary">
+          PDF
+        </a>
         <PrintButton />
       </div>
       <article className="card mx-auto max-w-3xl print:border-0 print:shadow-none">
         <header className="mb-6 flex items-start justify-between border-b border-slate-200 pb-4">
           <div>
-            <div className="text-lg font-semibold">Edubotics Global</div>
-            <div className="text-sm text-slate-500">Edappally, Kochi, Kerala</div>
+            <div className="text-lg font-semibold">{settings.companyName}</div>
+            <div className="text-sm text-slate-500">{settings.companyAddress}</div>
           </div>
           <div className="text-right">
             <div className="font-semibold">Payslip</div>
