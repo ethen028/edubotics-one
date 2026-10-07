@@ -41,6 +41,9 @@ model User {
   createdTasks       ProjectTask[]  @relation("TaskCreator")
   decidedProjects    Project[]      @relation("ProjectApprover")
   decidedTimesheets  Timesheet[]    @relation("TimesheetApprover")
+  stockRequests      StockRequest[] @relation("StockRequester")
+  decidedStockReqs   StockRequest[] @relation("StockApprover")
+  stockMovements     StockMovement[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -619,6 +622,8 @@ model Project {
   milestones     Milestone[]
   tasks          ProjectTask[]
   timeEntries    TimeEntry[]
+  stockRequests  StockRequest[]
+  stockMovements StockMovement[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -728,4 +733,107 @@ model TimeEntry {
   createdAt   DateTime     @default(now())
 
   @@index([timesheetId, date])
+}
+
+// ─── Inventory ─────────────────────────────────────────────────────────────
+// Kits, parts and consumables counted by quantity. Equipment tracked one by one
+// and issued to a person (laptops, access cards) stays in HR → Assets.
+
+/// One stocked thing: a robotics kit, a sensor, a pack of jumper wires.
+model StockItem {
+  id           String             @id @default(cuid())
+  sku          String             @unique // EB-KIT-ARD-01
+  name         String
+  category     String // see INVENTORY_CATEGORIES
+  unit         String             @default("pcs") // pcs, kit, set, pack, m
+  location     String? // shelf, cupboard, branch
+  returnable   Boolean            @default(true) // kits come back after a programme; consumables don't
+  onHand       Int                @default(0) // kept in step with StockMovement
+  reorderLevel Int                @default(0) // low-stock alert at or below this
+  unitCost     Decimal?           @db.Decimal(10, 2)
+  notes        String?
+  active       Boolean            @default(true)
+  movements    StockMovement[]
+  requestLines StockRequestLine[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([category])
+}
+
+enum StockMovementType {
+  RECEIVE // bought or built, adds stock
+  ISSUE // handed out against a request
+  RETURN // came back from a request
+  ADJUST // stock count correction (either way)
+  WRITE_OFF // lost, damaged or used up
+}
+
+/// Every change to onHand, so the count can be traced.
+model StockMovement {
+  id        String            @id @default(cuid())
+  itemId    String
+  item      StockItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type      StockMovementType
+  quantity  Int // signed: + into stock, - out of stock
+  note      String?
+  requestId String?
+  request   StockRequest?     @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  projectId String?
+  project   Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  byId      String
+  by        User              @relation(fields: [byId], references: [id])
+  createdAt DateTime          @default(now())
+
+  @@index([itemId, createdAt])
+}
+
+enum StockRequestStatus {
+  PENDING // waiting for approval
+  APPROVED // approved, not yet handed out
+  REJECTED
+  CANCELLED
+  ISSUED // handed out; returnable items still out
+  CLOSED // everything returned, used up or written off
+}
+
+/// Someone asks for kits or parts, usually for a project. Approved in the Approvals inbox, then issued from stock.
+model StockRequest {
+  id           String             @id @default(cuid())
+  number       Int                @unique @default(autoincrement()) // shown as REQ-0001
+  requesterId  String
+  requester    User               @relation("StockRequester", fields: [requesterId], references: [id])
+  projectId    String?
+  project      Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  purpose      String
+  neededBy     DateTime?          @db.Date
+  returnBy     DateTime?          @db.Date
+  status       StockRequestStatus @default(PENDING)
+  decidedById  String?
+  decidedBy    User?              @relation("StockApprover", fields: [decidedById], references: [id])
+  decidedAt    DateTime?
+  decisionNote String?
+  issuedAt     DateTime?
+  closedAt     DateTime?
+  lines        StockRequestLine[]
+  movements    StockMovement[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([status])
+  @@index([requesterId])
+}
+
+model StockRequestLine {
+  id         String       @id @default(cuid())
+  requestId  String
+  request    StockRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       StockItem    @relation(fields: [itemId], references: [id])
+  quantity   Int // asked for
+  issued     Int          @default(0)
+  returned   Int          @default(0)
+  writtenOff Int          @default(0) // lost, damaged or used up
+
+  @@unique([requestId, itemId])
 }

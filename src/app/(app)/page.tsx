@@ -7,6 +7,7 @@ import { mondayOf } from "@/lib/week";
 import { OPEN_PROJECT_STAGES, progress, projectScope } from "@/lib/projects";
 import { Badge, Stat } from "@/components/ui";
 import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
+import { lowStockItems, outstanding, requestNo } from "@/lib/inventory";
 import { OPEN_STAGES } from "./crm/constants";
 import { PriorityBadge, ProgressBar, StageBadge } from "./projects/ui";
 import { TimesheetBadge } from "./timesheets/badge";
@@ -31,7 +32,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
   const weekStart = mondayOf(today);
 
-  const [myTasks, projects, myWeek, approvals, myPendingLeave, myFollowUps, onLeaveToday, holidays, pipeline, wonThisMonth] =
+  const [myTasks, projects, myWeek, approvals, myPendingLeave, myFollowUps, onLeaveToday, holidays, pipeline, wonThisMonth, lowStock, itemsOut] =
     await Promise.all([
       db.projectTask.findMany({
         where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" }, onHold: false } },
@@ -66,6 +67,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       db.holiday.findMany({ where: { date: { gte: today } }, orderBy: { date: "asc" }, take: 4 }),
       db.deal.aggregate({ where: { stage: { in: [...OPEN_STAGES] } }, _sum: { value: true }, _count: true }),
       db.deal.aggregate({ where: { stage: "WON", closedAt: { gte: monthStart } }, _sum: { value: true }, _count: true }),
+      admin ? lowStockItems() : [],
+      // Kits and parts out on issued requests: everyone's for admins, otherwise the user's own.
+      db.stockRequest.findMany({
+        where: { status: "ISSUED", ...(admin ? {} : { requesterId: user.id }) },
+        include: { requester: { select: { name: true } }, lines: { include: { item: { select: { returnable: true } } } } },
+        orderBy: { returnBy: { sort: "asc", nulls: "last" } },
+      }),
     ]);
 
   // Overdue first, then nearest due date, then priority.
@@ -282,6 +290,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   {approvals.timesheets.length > 0 && <li>Timesheets · {approvals.timesheets.length}</li>}
                   {approvals.leave.length > 0 && <li>Leave · {approvals.leave.length}</li>}
                   {approvals.corrections.length > 0 && <li>Missed punch-outs · {approvals.corrections.length}</li>}
+                  {approvals.stock.length > 0 && <li>Kit and part requests · {approvals.stock.length}</li>}
                 </ul>
               )}
             </section>
@@ -297,6 +306,53 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <Link href="/timesheets" className="link mt-2 inline-block text-sm">
                 Open timesheet
               </Link>
+            </section>
+          )}
+          {admin && lowStock.length > 0 && (
+            <section className="card">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-semibold">Low stock</h2>
+                <Link href="/inventory?view=low" className="link text-sm">
+                  All
+                </Link>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {lowStock.slice(0, 6).map((i) => (
+                  <li key={i.id} className="flex justify-between gap-2">
+                    <Link href={`/inventory/${i.id}`} className="truncate hover:underline">
+                      {i.name}
+                    </Link>
+                    <span className={i.onHand === 0 ? "font-medium text-red-600" : "text-amber-700"}>
+                      {i.onHand} {i.unit}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {itemsOut.length > 0 && (
+            <section className="card">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-semibold">{admin ? "Kits out" : "Kits with you"}</h2>
+                <Link href="/inventory/requests?status=ISSUED" className="link text-sm">
+                  All
+                </Link>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {itemsOut.slice(0, 6).map((r) => {
+                  const late = r.returnBy && r.returnBy < today;
+                  return (
+                    <li key={r.id} className="flex justify-between gap-2">
+                      <Link href={`/inventory/requests/${r.id}`} className="truncate hover:underline">
+                        {requestNo(r.number)} · {admin ? r.requester.name : `${r.lines.reduce((n, l) => n + outstanding(l), 0)} items`}
+                      </Link>
+                      <span className={late ? "font-medium text-red-600" : "text-slate-500"}>
+                        {r.returnBy ? `${late ? "overdue " : "back "}${formatDate(r.returnBy)}` : ""}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
             </section>
           )}
           <section className="card">

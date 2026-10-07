@@ -11,6 +11,8 @@ import { decideLeave } from "../hr/actions";
 import { decideCorrection } from "../hr/attendance/actions";
 import { decideTimesheet } from "../timesheets/actions";
 import { decideProject } from "../projects/actions";
+import { decideStockRequest } from "../inventory/actions";
+import { requestNo } from "@/lib/inventory";
 
 export const metadata = { title: "Approvals" };
 
@@ -42,7 +44,7 @@ function Decide({ action, sendBack }: { action: (formData: FormData) => Promise<
 
 export default async function ApprovalsPage() {
   const user = await requireUser(["ADMIN", "MANAGER"]);
-  const { leave, corrections, timesheets, projects, total } = await pendingApprovals(user);
+  const { leave, corrections, timesheets, projects, stock, total } = await pendingApprovals(user);
 
   return (
     <>
@@ -71,6 +73,32 @@ export default async function ApprovalsPage() {
             <Decide action={decideProject.bind(null, p.id)} sendBack />
           </div>
         ))}
+      </Section>
+
+      <Section title="Kit and part requests" count={stock.length}>
+        {stock.map((r) => {
+          const short = r.lines.filter((l) => l.item.onHand < l.quantity);
+          return (
+            <div key={r.id} className="card flex flex-wrap items-start justify-between gap-4">
+              <div className="text-sm">
+                <Link href={`/inventory/requests/${r.id}`} className="link">
+                  {requestNo(r.number)}
+                </Link>{" "}
+                · <span className="font-medium">{r.requester.name}</span>
+                {r.project && <> · {r.project.name}</>}
+                {r.neededBy && <> · needed {formatDate(r.neededBy)}</>}
+                <div className="mt-1">{r.lines.map((l) => `${l.quantity} ${l.item.unit} ${l.item.name}`).join(" · ")}</div>
+                <div className="mt-0.5 text-slate-500">{r.purpose}</div>
+                {short.length > 0 && (
+                  <div className="mt-1 text-xs font-medium text-red-600">
+                    Short in stock: {short.map((l) => `${l.item.name} (${l.item.onHand} left)`).join(", ")}
+                  </div>
+                )}
+              </div>
+              <Decide action={decideStockRequest.bind(null, r.id)} />
+            </div>
+          );
+        })}
       </Section>
 
       <Section title="Timesheets" count={timesheets.length}>

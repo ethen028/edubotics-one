@@ -3,11 +3,12 @@ import { NavLink } from "@/components/nav-link";
 import { Sidebar } from "@/components/sidebar";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
+import { lowStockItems } from "@/lib/inventory";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const approvals = await pendingApprovals(user);
+  const [approvals, lowStock] = await Promise.all([pendingApprovals(user), isAdmin(user) ? lowStockItems() : []]);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -43,6 +44,20 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 </span>
               </NavLink>
             )}
+          </div>
+          <div className="space-y-0.5">
+            <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Inventory</div>
+            <NavLink href="/inventory" exact>
+              <span className="flex items-center justify-between">
+                Stock
+                {lowStock.length > 0 && (
+                  <span className="rounded-full bg-red-400 px-1.5 text-[11px] font-semibold text-red-950" title="Low or out of stock">
+                    {lowStock.length}
+                  </span>
+                )}
+              </span>
+            </NavLink>
+            <NavLink href="/inventory/requests">Requests</NavLink>
           </div>
           <div className="space-y-0.5">
             <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">CRM</div>
