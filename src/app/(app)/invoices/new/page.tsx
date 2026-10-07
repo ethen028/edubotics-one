@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui";
 import { formatINR } from "@/lib/format";
 import { normalizeState } from "@/lib/invoices";
 import { todayIST } from "@/lib/time";
+import { dateSpan } from "@/lib/workshops";
 import { toDateInput } from "@/lib/format";
 import { InvoiceForm, type InvoiceDefaults } from "../invoice-form";
 import { createInvoice } from "../actions";
@@ -13,7 +14,7 @@ export const metadata = { title: "New invoice" };
 
 /**
  * Opened blank, or from an accepted quote (?quote=), a won deal (?deal=), a delivery project (?project=)
- * or an institution (?org=).
+ * an institution (?org=) or a workshop the host institution pays for (?workshop=).
  */
 export default async function NewInvoicePage({ searchParams }: PageProps<"/invoices/new">) {
   await requireUser(["ADMIN", "MANAGER"]);
@@ -25,16 +26,24 @@ export default async function NewInvoicePage({ searchParams }: PageProps<"/invoi
     ? await db.quote.findUnique({ where: { id: sp.quote, status: "ACCEPTED" }, include: { lines: { orderBy: { position: "asc" } } } })
     : null;
   const project = sp.project ? await db.project.findUnique({ where: { id: sp.project } }) : null;
+  const workshop = sp.workshop
+    ? await db.workshop.findUnique({
+        where: { id: sp.workshop, feeType: "INSTITUTION" },
+        include: { _count: { select: { registrations: { where: { status: "REGISTERED" } } } } },
+      })
+    : null;
   const dealId = quote?.dealId ?? sp.deal ?? project?.dealId ?? undefined;
   const deal = dealId ? await db.deal.findUnique({ where: { id: dealId } }) : null;
-  const orgId = quote?.organizationId ?? sp.org ?? deal?.organizationId ?? project?.organizationId ?? undefined;
+  const orgId = quote?.organizationId ?? sp.org ?? deal?.organizationId ?? project?.organizationId ?? workshop?.organizationId ?? undefined;
   const org = orgId ? await db.organization.findUnique({ where: { id: orgId } }) : null;
   const billed = deal ? await billedForDeal(deal.id) : 0;
   const remaining = deal ? Math.max(0, Number(deal.value) - billed) : 0;
 
   const description = deal
     ? [deal.program ?? deal.title, deal.students && `${deal.students} students`].filter(Boolean).join(", ")
-    : (project?.name ?? "");
+    : workshop
+      ? [`Workshop: ${workshop.title}`, dateSpan(workshop), workshop._count.registrations && `${workshop._count.registrations} participants`].filter(Boolean).join(", ")
+      : (project?.name ?? "");
 
   // A quote's first invoice copies its lines; later ones bill what is left of it as one line.
   const quoteBilled = quote
@@ -62,6 +71,7 @@ export default async function NewInvoicePage({ searchParams }: PageProps<"/invoi
     dealId: deal?.id,
     projectId: project?.id ?? (deal ? (await db.project.findFirst({ where: { dealId: deal.id }, select: { id: true } }))?.id : null),
     quoteId: quote?.id,
+    workshopId: workshop?.id,
     billToName: quote?.billToName ?? org?.name,
     billToAddress: quote ? quote.billToAddress : org ? orgAddress(org) : null,
     billToGstin: quote ? quote.billToGstin : org?.gstin,

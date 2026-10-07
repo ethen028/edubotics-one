@@ -54,6 +54,7 @@ const invoiceSchema = z.object({
   dealId: optional,
   projectId: optional,
   quoteId: optional,
+  workshopId: optional,
   billToName: z.string().trim().min(1, "required"),
   billToAddress: optional,
   billToGstin: z

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { mailSetup, MAIL_NOT_READY, parseAddresses, sendEmail, type Attachment } from "@/lib/mail";
-import { creditNotePdf, invoicePdf, payslipPdf, quotePdf } from "@/lib/pdf";
+import { certificatePdf, creditNotePdf, invoicePdf, payslipPdf, quotePdf } from "@/lib/pdf";
 import { markQuoteSent } from "@/lib/quote-send";
 import { calendarInvite } from "@/lib/ics";
 import { canRecruit } from "@/lib/recruitment";
@@ -14,7 +14,8 @@ import { settledAmount } from "@/lib/invoices";
 import { invoiceMoney } from "@/lib/credit-notes";
 import { monthLabel } from "@/lib/payroll";
 import { todayIST } from "@/lib/time";
-import { payslipEmail, reminderEmail } from "@/lib/email-templates";
+import { certificateEmail, payslipEmail, reminderEmail } from "@/lib/email-templates";
+import { canManageWorkshop, dateSpan } from "@/lib/workshops";
 import type { FormState } from "@/components/action-form";
 
 // Every email here goes out because someone pressed Send. Each one is recorded in the email history.
@@ -248,4 +249,75 @@ export async function emailInterviewInvite(interviewId: string, _: FormState, fo
   );
   revalidatePath(`/recruitment/candidates/${interview.candidateId}`);
   return "error" in result ? { error: result.error } : { ok: sentTo(form.to) };
+}
+
+// ─── Workshop certificates ─────────────────────────────────────────────────
+
+async function certificateForEmail(id: string) {
+  return db.workshopCertificate.findUnique({
+    where: { id },
+    include: { registration: { include: { workshop: { select: { id: true, title: true, startDate: true, endDate: true, coordinatorId: true } } } } },
+  });
+}
+
+/** Email one participant their certificate, from their registration page. */
+export async function emailCertificate(id: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const cert = await certificateForEmail(id);
+  if (!cert || !canManageWorkshop(user, cert.registration.workshop)) return { error: "Only whoever runs this workshop can send its certificates." };
+  if (cert.status !== "ISSUED") return { error: "This certificate was cancelled." };
+  const ready = await readySettings();
+  if ("error" in ready) return { error: ready.error };
+  const form = readComposer(formData);
+  if ("error" in form) return { error: form.error };
+  const pdf = (await certificatePdf(id))!;
+  const result = await sendEmail({ kind: "CERTIFICATE", ...form, attachments: [pdf], links: { certificateId: id } }, ready.settings, user.id);
+  revalidatePath(`/workshops/registrations/${cert.registrationId}`);
+  revalidatePath(`/workshops/${cert.registration.workshopId}`, "layout");
+  return "error" in result ? { error: result.error } : { ok: sentTo(form.to) };
+}
+
+/** Email every issued certificate of a workshop that hasn't gone out yet, to each participant's own address. */
+export async function emailWorkshopCertificates(workshopId: string): Promise<FormState> {
+  const user = await requireUser();
+  const workshop = await db.workshop.findUnique({ where: { id: workshopId } });
+  if (!workshop || !canManageWorkshop(user, workshop)) return { error: "Only whoever runs this workshop can send its certificates." };
+  const ready = await readySettings();
+  if ("error" in ready) return { error: ready.error };
+  const waiting = await db.workshopCertificate.findMany({
+    where: { status: "ISSUED", registration: { workshopId, status: "REGISTERED" }, emails: { none: { status: "SENT" } } },
+    include: { registration: { select: { name: true, email: true } } },
+    orderBy: { registration: { name: "asc" } },
+  });
+  const withEmail = waiting.filter((c) => c.registration.email);
+  const noEmail = waiting.length - withEmail.length;
+  if (withEmail.length === 0) {
+    return noEmail
+      ? { error: `${noEmail} certificate${noEmail === 1 ? " has" : "s have"} no email address to go to. Add them on each registration.` }
+      : { ok: "Everyone with a certificate already has it by email." };
+  }
+  const dates = dateSpan(workshop);
+  const failed: string[] = [];
+  for (const c of withEmail) {
+    const draft = certificateEmail({ name: c.registration.name, workshop: workshop.title, dates, number: c.number }, user.name, ready.settings);
+    const pdf = (await certificatePdf(c.id))!;
+    const result = await sendEmail(
+      { kind: "CERTIFICATE", to: [c.registration.email!], ...draft, attachments: [pdf], links: { certificateId: c.id } },
+      ready.settings,
+      user.id,
+    );
+    if ("error" in result) {
+      failed.push(c.registration.name);
+      // A wrong password or unreachable server fails every one the same way: stop and say why.
+      if (failed.length === 1 && withEmail.length > 1 && /password|reach/.test(result.error)) {
+        revalidatePath(`/workshops/${workshopId}`, "layout");
+        return { error: result.error };
+      }
+    }
+  }
+  revalidatePath(`/workshops/${workshopId}`, "layout");
+  const sent = withEmail.length - failed.length;
+  const missing = noEmail ? ` ${noEmail} without an email address were skipped.` : "";
+  if (failed.length) return { error: `Sent ${sent} of ${withEmail.length}. Not sent to ${failed.join(", ")}.${missing}` };
+  return { ok: `Certificates sent to ${sent} ${sent === 1 ? "person" : "people"}.${missing}` };
 }

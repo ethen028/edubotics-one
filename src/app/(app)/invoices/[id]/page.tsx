@@ -35,6 +35,7 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
       emails: { select: emailLogSelect, orderBy: { createdAt: "desc" } },
       deal: { select: { id: true, title: true } },
       project: { select: { id: true, name: true } },
+      workshop: { select: { id: true, title: true } },
       createdBy: { select: { name: true } },
     },
   });
@@ -79,6 +80,14 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
                   {" · project "}
                   <Link href={`/projects/${invoice.project.id}`} className="link">
                     {invoice.project.name}
+                  </Link>
+                </>
+              )}
+              {invoice.workshop && (
+                <>
+                  {" · workshop "}
+                  <Link href={`/workshops/${invoice.workshop.id}`} className="link">
+                    {invoice.workshop.title}
                   </Link>
                 </>
               )}
@@ -146,6 +155,7 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
                     contactId: invoice.contactId,
                     dealId: invoice.dealId,
                     projectId: invoice.projectId,
+                    workshopId: invoice.workshopId,
                     billToName: invoice.billToName,
                     billToAddress: invoice.billToAddress,
                     billToGstin: invoice.billToGstin,
