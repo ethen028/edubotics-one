@@ -10,13 +10,14 @@ import { monthRange } from "@/lib/payroll";
 import { claimsDueFor, draftSlip } from "@/lib/payroll-data";
 import { payableOf } from "@/lib/expenses";
 import type { FormState } from "@/components/action-form";
+import { logActivity } from "@/lib/activity";
 
 const money = z.coerce.number().min(0, "Amounts can't be negative").max(10_000_000);
 
 // ─── Salary ────────────────────────────────────────────────────────────────
 
 export async function saveSalary(employeeId: string, _: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const parsed = z
     .object({
       effectiveFrom: z.string().transform(parseDateOnly),
@@ -33,14 +34,17 @@ export async function saveSalary(employeeId: string, _: FormState, formData: For
     update: data,
     create: { employeeId, effectiveFrom, ...data },
   });
+  const person = await db.employee.findUnique({ where: { id: employeeId }, select: { firstName: true, lastName: true } });
+  await logActivity(admin, "PAYROLL", "salary.saved", `Saved salary for ${person?.firstName} ${person?.lastName} from ${effectiveFrom.toISOString().slice(0, 10)}`);
   revalidatePath(`/hr/employees/${employeeId}`);
   revalidatePath("/payroll");
   return { ok: "Salary saved." };
 }
 
 export async function deleteSalary(id: string) {
-  await requireUser(["ADMIN"]);
-  const s = await db.salaryStructure.delete({ where: { id } });
+  const admin = await requireUser(["ADMIN"]);
+  const s = await db.salaryStructure.delete({ where: { id }, include: { employee: { select: { firstName: true, lastName: true } } } });
+  await logActivity(admin, "PAYROLL", "salary.deleted", `Deleted the salary for ${s.employee.firstName} ${s.employee.lastName} from ${s.effectiveFrom.toISOString().slice(0, 10)}`);
   revalidatePath(`/hr/employees/${s.employeeId}`);
 }
 
@@ -163,15 +167,17 @@ export async function removeSlip(slipId: string) {
 export async function finalizeRun(runId: string) {
   const run = await draftRun(runId);
   await db.payrollRun.update({ where: { id: runId }, data: { status: "FINALIZED", finalizedAt: new Date() } });
+  await logActivity(await requireUser(["ADMIN"]), "PAYROLL", "payroll.finalized", `Finalised payroll for ${run.month} (${run.payslips.length} payslips)`);
   revalidatePath(`/payroll/${run.month}`);
   revalidatePath("/payroll");
 }
 
 export async function reopenRun(runId: string) {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const run = await db.payrollRun.findUniqueOrThrow({ where: { id: runId } });
   if (run.status !== "FINALIZED") throw new Error("Only a finalized, unpaid payroll can be reopened");
   await db.payrollRun.update({ where: { id: runId }, data: { status: "DRAFT", finalizedAt: null } });
+  await logActivity(admin, "PAYROLL", "payroll.reopened", `Reopened the finalised payroll for ${run.month}`);
   revalidatePath(`/payroll/${run.month}`);
   revalidatePath("/payroll");
 }
@@ -191,8 +197,9 @@ export async function markPaid(runId: string, formData: FormData) {
 }
 
 export async function deleteRun(runId: string) {
-  await draftRun(runId);
+  const run = await draftRun(runId);
   await db.payrollRun.delete({ where: { id: runId } });
+  await logActivity(await requireUser(["ADMIN"]), "PAYROLL", "payroll.deleted", `Deleted the draft payroll for ${run.month}`);
   revalidatePath("/payroll");
   revalidatePath("/expenses", "layout");
   redirect("/payroll");

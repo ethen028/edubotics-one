@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { hashPassword, requireUser, type CurrentUser } from "@/lib/auth";
+import { passwordProblem } from "@/lib/passwords";
 import { parseDateOnly } from "@/lib/leave";
 import { MAX_DOCUMENT_BYTES, checklistRows, sniffMime } from "@/lib/hr-constants";
 import {
@@ -18,6 +19,7 @@ import {
   parseISTDateTime,
 } from "@/lib/recruitment";
 import type { FormState } from "@/components/action-form";
+import { logActivity } from "@/lib/activity";
 
 const optional = z
   .string()
@@ -199,10 +201,11 @@ export async function moveCandidate(id: string, _: FormState, formData: FormData
 }
 
 export async function deleteCandidate(id: string) {
-  await requireOfferMaker();
+  const user = await requireOfferMaker();
   const candidate = await db.candidate.findUniqueOrThrow({ where: { id } });
   if (candidate.employeeId) throw new Error("A hired candidate's record stays, as it links to their HR profile");
   await db.candidate.delete({ where: { id } });
+  await logActivity(user, "DELETED", "candidate.deleted", `Deleted candidate ${candidate.name} and their files`);
   refresh(undefined, candidate.jobId);
   redirect(`/recruitment/jobs/${candidate.jobId}`);
 }
@@ -375,7 +378,8 @@ export async function hireCandidate(candidateId: string, _: FormState, formData:
   const withLogin = formData.get("withLogin") === "on";
   const password = String(formData.get("password") ?? "");
   const role = z.enum(["ADMIN", "MANAGER", "EMPLOYEE"]).catch("EMPLOYEE").parse(formData.get("role"));
-  if (withLogin && password.length < 8) return { error: "Temporary password must be at least 8 characters." };
+  const weak = withLogin ? passwordProblem(password, { email: parsed.data.workEmail, name: `${parsed.data.firstName} ${parsed.data.lastName}` }) : null;
+  if (weak) return { error: `Temporary password: ${weak}` };
 
   const candidate = await db.candidate.findUniqueOrThrow({
     where: { id: candidateId },
@@ -391,7 +395,7 @@ export async function hireCandidate(candidateId: string, _: FormState, formData:
     employeeId = await db.$transaction(async (tx) => {
       const login = passwordHash
         ? await tx.user.create({
-            data: { email: parsed.data.workEmail, name: `${parsed.data.firstName} ${parsed.data.lastName}`, passwordHash, role },
+            data: { email: parsed.data.workEmail, name: `${parsed.data.firstName} ${parsed.data.lastName}`, passwordHash, role, mustChangePassword: true },
           })
         : null;
       const employee = await tx.employee.create({

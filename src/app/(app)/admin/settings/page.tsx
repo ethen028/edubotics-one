@@ -2,7 +2,16 @@ import { requireUser } from "@/lib/auth";
 import { WEEKDAYS, getSettings } from "@/lib/settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Field, PageHeader } from "@/components/ui";
-import { sendTestEmail, updateCareersSettings, updateCertificateSettings, updateMailSettings, updateSettings } from "./actions";
+import {
+  sendTestEmail,
+  updateCareersSettings,
+  updateCertificateSettings,
+  updateGoogleSettings,
+  updateMailSettings,
+  updateSafetySettings,
+  updateSettings,
+} from "./actions";
+import { callbackUrl, googleSetup } from "@/lib/google-sign-in";
 import { certificateSignature } from "@/lib/settings";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
 import { db } from "@/lib/db";
@@ -18,10 +27,11 @@ export default async function SettingsPage() {
   const s = await getSettings();
   const setup = mailSetup(s);
   const signature = await certificateSignature();
+  const googleOn = !!googleSetup(s);
   const recent = await db.emailLog.findMany({ select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 15 });
   return (
     <>
-      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email, certificates and the careers page." />
+      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email, certificates, the careers page and sign-in." />
       <div className="card max-w-xl">
         <ActionForm action={updateSettings} className="space-y-4">
           <Field label="Working time per day">
@@ -334,6 +344,77 @@ export default async function SettingsPage() {
               <input name="careersContactEmail" type="email" defaultValue={s.careersContactEmail ?? ""} className="input" placeholder="careers@eduboticsglobal.com" />
             </Field>
             <SubmitButton>Save careers page</SubmitButton>
+          </ActionForm>
+        </div>
+      </section>
+
+      <section id="sign-in" className="mt-8 max-w-xl scroll-mt-6">
+        <div className="card space-y-4">
+          <h2 className="font-semibold">Sign-in safety</h2>
+          <p className="text-sm text-slate-600">
+            After too many wrong passwords in a row an account is locked for a while, so nobody can keep guessing. An admin can unlock it
+            sooner from Users. Passwords need at least 8 characters with a letter and a number, and new or reset passwords are temporary:
+            the person picks their own at the next sign-in.
+          </p>
+          <ActionForm action={updateSafetySettings} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Lock after wrong passwords">
+                <input name="loginMaxAttempts" type="number" min={3} max={20} defaultValue={s.loginMaxAttempts} className="input" />
+              </Field>
+              <Field label="Locked for (minutes)">
+                <input name="loginLockMinutes" type="number" min={1} max={1440} defaultValue={s.loginLockMinutes} className="input" />
+              </Field>
+              <Field label="Sign out after unused (hours)">
+                <input name="sessionIdleHours" type="number" min={1} max={168} defaultValue={s.sessionIdleHours} className="input" />
+              </Field>
+            </div>
+            <p className="text-xs text-slate-500">Everyone also signs in again at least once a week. Sensitive actions are kept in Admin → Activity log.</p>
+            <SubmitButton>Save sign-in safety</SubmitButton>
+          </ActionForm>
+        </div>
+      </section>
+
+      <section id="google" className="mt-8 max-w-xl scroll-mt-6">
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Google sign-in</h2>
+            {googleOn ? <Badge color="green">On</Badge> : <Badge>Off</Badge>}
+          </div>
+          <p className="text-sm text-slate-600">
+            Adds &ldquo;Sign in with Google&rdquo; to the sign-in page, for people whose Google email matches their login here. Password
+            sign-in keeps working. Google only sends people back to an <strong>https://</strong> address, so this needs the app on a web
+            address first (the office Wi-Fi address won&apos;t do). Step-by-step setup is in <span className="font-mono text-xs">docs/google-sign-in.md</span>.
+          </p>
+          <ActionForm action={updateGoogleSettings} className="space-y-3">
+            <Field label="App address" className="block">
+              <input name="appAddress" defaultValue={s.appAddress ?? ""} className="input" placeholder="https://one.eduboticsglobal.com" />
+            </Field>
+            {s.appAddress && (
+              <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                In Google Cloud, add this as an authorised redirect URI:
+                <div className="mt-1 font-mono text-slate-900 select-all">{callbackUrl(s.appAddress)}</div>
+              </div>
+            )}
+            <Field label="Client ID" className="block">
+              <input name="googleClientId" defaultValue={s.googleClientId ?? ""} className="input" placeholder="1234567890-abc.apps.googleusercontent.com" />
+            </Field>
+            <Field label="Client secret" className="block">
+              <input
+                name="googleClientSecret"
+                type="password"
+                autoComplete="off"
+                className="input"
+                placeholder={s.googleClientSecret ? "Saved. Type a new one to replace it." : "GOCSPX-…"}
+              />
+            </Field>
+            <Field label="Only allow Google accounts on this domain (optional)" className="block">
+              <input name="googleDomain" defaultValue={s.googleDomain ?? ""} className="input" placeholder="eduboticsglobal.com" />
+              <span className="mt-1 block text-xs text-slate-500">Leave blank to allow any Google account (including gmail.com) whose email has a login here.</span>
+            </Field>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" name="googleEnabled" defaultChecked={s.googleEnabled} /> Google sign-in is on
+            </label>
+            <SubmitButton>Save Google sign-in</SubmitButton>
           </ActionForm>
         </div>
       </section>

@@ -64,6 +64,7 @@ async function main() {
         name: process.env.SEED_ADMIN_NAME ?? "Admin",
         role: "ADMIN",
         passwordHash: await bcrypt.hash(password, 10),
+        mustChangePassword: true, // the starting password is in docker-compose.yml for anyone to read
       },
     });
     console.log(`Created admin login ${email}.`);

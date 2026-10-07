@@ -1,4 +1,5 @@
 import { requireUser, isAdmin, isManagerOrAdmin } from "@/lib/auth";
+import Link from "next/link";
 import { NavLink } from "@/components/nav-link";
 import { Sidebar } from "@/components/sidebar";
 import { humanize } from "@/lib/format";
@@ -196,6 +197,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <div className="space-y-0.5">
               <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Admin</div>
               <NavLink href="/admin/users">Users</NavLink>
+              <NavLink href="/admin/activity">Activity log</NavLink>
               <NavLink href="/hr/departments">Departments</NavLink>
               <NavLink href="/hr/leave-types">Leave types</NavLink>
               <NavLink href="/admin/settings">Settings</NavLink>
@@ -205,9 +207,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <div className="mt-4 border-t border-white/10 pt-3 text-sm">
           <div className="font-medium">{user.name}</div>
           <div className="text-xs text-slate-400">{humanize(user.role)}</div>
-          <form action={logout} className="mt-2">
-            <button className="text-xs text-slate-300 hover:text-white">Sign out</button>
-          </form>
+          <div className="mt-2 flex items-center gap-3">
+            <Link href="/account" className="text-xs text-slate-300 hover:text-white">
+              My account
+            </Link>
+            <form action={logout}>
+              <button className="text-xs text-slate-300 hover:text-white">Sign out</button>
+            </form>
+          </div>
         </div>
       </Sidebar>
       <main className="min-w-0 flex-1 p-4 md:p-8">{children}</main>

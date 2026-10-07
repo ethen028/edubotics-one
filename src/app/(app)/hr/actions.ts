@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { hashPassword, isAdmin, requireUser } from "@/lib/auth";
+import { passwordProblem } from "@/lib/passwords";
 import { countLeaveDays, parseDateOnly } from "@/lib/leave";
 import { getLeaveBalances } from "@/lib/leave-balance";
 import { getSettings } from "@/lib/settings";
@@ -72,7 +73,8 @@ export async function createEmployee(_: FormState, formData: FormData): Promise<
   const createLogin = formData.get("createLogin") === "on";
   const password = String(formData.get("password") ?? "");
   const role = z.enum(["ADMIN", "MANAGER", "EMPLOYEE"]).catch("EMPLOYEE").parse(formData.get("role"));
-  if (createLogin && password.length < 8) return { error: "Temporary password must be at least 8 characters." };
+  const weak = createLogin ? passwordProblem(password, { email: parsed.data.workEmail, name: `${parsed.data.firstName} ${parsed.data.lastName}` }) : null;
+  if (weak) return { error: `Temporary password: ${weak}` };
 
   let id: string;
   try {
@@ -81,7 +83,7 @@ export async function createEmployee(_: FormState, formData: FormData): Promise<
     const employee = await db.$transaction(async (tx) => {
       const user = passwordHash
         ? await tx.user.create({
-            data: { email: data.workEmail, name: `${data.firstName} ${data.lastName}`, passwordHash, role },
+            data: { email: data.workEmail, name: `${data.firstName} ${data.lastName}`, passwordHash, role, mustChangePassword: true },
           })
         : null;
       const created = await tx.employee.create({ data: { ...data, userId: user?.id } });

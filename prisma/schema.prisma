@@ -23,8 +23,16 @@ model User {
   role         Role      @default(EMPLOYEE)
   active       Boolean   @default(true)
   employee     Employee?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+
+  // Sign-in and safety
+  mustChangePassword Boolean       @default(false) // set for temporary passwords; asked for a new one at the next sign-in
+  passwordChangedAt  DateTime?
+  lastLoginAt        DateTime?
+  googleSub          String?       @unique // the Google account linked on first Google sign-in
+  sessions           Session[]
+  activityLog        ActivityLog[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   ownedLeads            Lead[]                 @relation("LeadOwner")
   ownedOrganizations    Organization[]         @relation("OrgOwner")
@@ -275,6 +283,18 @@ model CompanySettings {
   careersEnabled      Boolean @default(false)
   careersIntro        String?
   careersContactEmail String?
+
+  // Sign-in and safety
+  loginMaxAttempts Int @default(5) // wrong passwords in a row before the account is locked
+  loginLockMinutes Int @default(15) // how long it stays locked (an admin can unlock sooner)
+  sessionIdleHours Int @default(12) // signed out after this long without using the app
+
+  // Google sign-in: off until an admin fills in a Google client and switches it on.
+  googleEnabled      Boolean @default(false)
+  googleClientId     String?
+  googleClientSecret String? // encrypted with the session secret, see src/lib/secret-box.ts
+  googleDomain       String? // e.g. eduboticsglobal.com: only Google accounts on this domain may sign in
+  appAddress         String? // the https address people open the app at; Google sends them back here
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -2245,4 +2265,55 @@ model ExitTask {
   createdAt DateTime     @default(now())
 
   @@index([exitId])
+}
+
+// ─── Sign-in and safety ────────────────────────────────────────────────────
+
+enum SignInMethod {
+  PASSWORD
+  GOOGLE
+}
+
+/// One signed-in browser. The cookie only names the session; ending the row signs that browser out.
+model Session {
+  id         String       @id @default(cuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method     SignInMethod @default(PASSWORD)
+  createdAt  DateTime     @default(now())
+  lastSeenAt DateTime     @default(now())
+  endedAt    DateTime?
+  ip         String?
+  userAgent  String?
+
+  @@index([userId, endedAt])
+}
+
+/// Every password sign-in try, by the email typed (whether or not it has a login), to lock after repeated
+/// wrong passwords. An admin unlock or password reset is stored as a successful row, which clears the count.
+model LoginAttempt {
+  id    String   @id @default(cuid())
+  email String
+  ip    String?
+  ok    Boolean
+  at    DateTime @default(now())
+
+  @@index([email, at])
+  @@index([ip, at])
+}
+
+/// Sensitive actions (sign-ins, logins and roles, settings, payroll, money, exits, deletions), for admins to look back on.
+model ActivityLog {
+  id      String   @id @default(cuid())
+  at      DateTime @default(now())
+  userId  String?
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  area    String // see ACTIVITY_AREAS in src/lib/activity.ts
+  action  String // e.g. "sign-in.failed", "invoice.cancelled"
+  summary String
+  ip      String?
+
+  @@index([at])
+  @@index([userId, at])
+  @@index([area, at])
 }
