@@ -20,6 +20,7 @@ import { TimesheetBadge } from "./timesheets/badge";
 import { invoicesWithBalance } from "./invoices/data";
 import { PendingAcks } from "./notices/ui";
 import { HelpdeskHomeCard } from "./helpdesk/home-card";
+import { ChecklistsHomeCard } from "./checklists/home-card";
 
 export const metadata = { title: "Home" };
 
@@ -353,6 +354,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
 
         <div className="space-y-6">
+          <ChecklistsHomeCard user={user} />
           {(mySessions.length > 0 || myLogsDue > 0 || allLogsDue > 0) && (
             <section className="card">
               <div className="mb-2 flex items-center justify-between">
