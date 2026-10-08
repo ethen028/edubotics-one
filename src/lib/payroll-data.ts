@@ -4,6 +4,7 @@ import { db } from "./db";
 import { getSettings } from "./settings";
 import { countLeaveDays } from "./leave";
 import { calculateSlip, employedDaysIn, monthRange, type Manual } from "./payroll";
+import { dayRate, settlementAmounts } from "./exit-math";
 
 const num = (d: Prisma.Decimal | number | null | undefined) => Number(d ?? 0);
 
@@ -47,6 +48,18 @@ export function claimsDueFor(employeeId: string, month: string) {
   });
 }
 
+/**
+ * The agreed final settlement of someone whose last working day falls in this month, or null.
+ * Day counts are paid at the rate of the salary in force that month.
+ */
+export async function settlementFor(employeeId: string, month: string, structure: { basic: number; hra: number; specialAllowance: number }, lopDivisor: number) {
+  const { start, end } = monthRange(month);
+  const exit = await db.employeeExit.findFirst({
+    where: { employeeId, stage: { in: ["ON_NOTICE", "LEFT"] }, settlementAgreedAt: { not: null }, lastWorkingDay: { gte: start, lte: end } },
+  });
+  return exit && settlementAmounts(exit, dayRate(structure, lopDivisor));
+}
+
 /** Computes a payslip for one employee, or null when they have no salary or weren't employed that month. */
 export async function draftSlip(
   employee: { id: string; dateOfJoining: Date; dateOfExit: Date | null },
@@ -65,5 +78,6 @@ export async function draftSlip(
     manual: { otherEarnings: 0, professionalTax: 0, tds: 0, otherDeductions: 0, ...opts.manual },
     rules: settings,
     reimbursements: opts.reimbursements,
+    settlement: await settlementFor(employee.id, month, structure, settings.lopDivisor),
   });
 }

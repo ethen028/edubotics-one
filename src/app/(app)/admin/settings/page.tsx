@@ -46,6 +46,10 @@ export default async function SettingsPage() {
             </div>
             <p className="mt-1 text-xs text-slate-500">Weekly offs aren&apos;t counted as leave days or absences.</p>
           </Field>
+          <Field label="Notice period when someone resigns (days)">
+            <input name="noticePeriodDays" type="number" min={0} max={180} defaultValue={s.noticePeriodDays} className="input w-24" />
+            <p className="mt-1 text-xs text-slate-500">The exit page shows any shortfall, which you can recover in the final settlement or let go.</p>
+          </Field>
           <fieldset className="space-y-3 border-t border-slate-100 pt-4">
             <legend className="pt-4 font-semibold">Payroll</legend>
             <Field label="Loss of pay per day = monthly gross ÷">

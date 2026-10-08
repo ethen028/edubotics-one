@@ -9,6 +9,8 @@ export type PayrollRules = {
   tdsEnabled: boolean;
 };
 export type Manual = { otherEarnings: number; professionalTax: number; tds: number; otherDeductions: number };
+/** Final settlement amounts for someone leaving this month (see lib/exit-math). */
+export type FinalSettlement = { leaveEncashment: number; noticePay: number; gratuity: number; noticeRecovery: number; exitRecovery: number };
 
 /** Statutory rates used when the switches are turned on (employee share). */
 export const PF_RATE = 0.12;
@@ -26,6 +28,7 @@ export const monthlyGross = (s: Structure) => s.basic + s.hra + s.specialAllowan
  * - LOP per day = full monthly gross ÷ lopDivisor (30 by default, as in Edubotics HR V1.2).
  * - PF and ESI are worked out only when switched on; PT and TDS are entered by hand when switched on.
  * - Approved expense claims are paid back on top of net salary; they are not earnings, so no LOP or ESI applies.
+ * - A final settlement (leave encashment, notice pay, gratuity, recoveries) is added in full, with no LOP or ESI on it.
  */
 export function calculateSlip(args: {
   structure: Structure;
@@ -35,6 +38,7 @@ export function calculateSlip(args: {
   manual: Manual;
   rules: PayrollRules;
   reimbursements?: number;
+  settlement?: FinalSettlement | null;
 }) {
   const { structure, daysInMonth, employedDays, rules, manual } = args;
   const lopDays = Math.min(Math.max(0, args.lopDays), employedDays);
@@ -43,17 +47,24 @@ export function calculateSlip(args: {
   const hra = rupees(structure.hra * factor);
   const specialAllowance = rupees(structure.specialAllowance * factor);
   const otherEarnings = rupees(manual.otherEarnings);
-  const gross = basic + hra + specialAllowance + otherEarnings;
-  const lopDeduction = Math.min(gross, rupees((monthlyGross(structure) / rules.lopDivisor) * lopDays));
+  const fs = args.settlement;
+  const leaveEncashment = rupees(fs?.leaveEncashment ?? 0);
+  const noticePay = rupees(fs?.noticePay ?? 0);
+  const gratuity = rupees(fs?.gratuity ?? 0);
+  const noticeRecovery = rupees(fs?.noticeRecovery ?? 0);
+  const exitRecovery = rupees(fs?.exitRecovery ?? 0);
+  const salaryGross = basic + hra + specialAllowance + otherEarnings;
+  const gross = salaryGross + leaveEncashment + noticePay + gratuity;
+  const lopDeduction = Math.min(salaryGross, rupees((monthlyGross(structure) / rules.lopDivisor) * lopDays));
 
   const paidShare = employedDays ? (employedDays - lopDays) / employedDays : 0;
   const pf = rules.pfEnabled ? rupees(PF_RATE * Math.min(basic * paidShare, PF_WAGE_CEILING)) : 0;
   const esi =
-    rules.esiEnabled && monthlyGross(structure) <= ESI_GROSS_LIMIT ? Math.ceil(ESI_RATE * (gross - lopDeduction)) : 0;
+    rules.esiEnabled && monthlyGross(structure) <= ESI_GROSS_LIMIT ? Math.ceil(ESI_RATE * (salaryGross - lopDeduction)) : 0;
   const professionalTax = rules.ptEnabled ? rupees(manual.professionalTax) : 0;
   const tds = rules.tdsEnabled ? rupees(manual.tds) : 0;
   const otherDeductions = rupees(manual.otherDeductions);
-  const totalDeductions = lopDeduction + pf + esi + professionalTax + tds + otherDeductions;
+  const totalDeductions = lopDeduction + pf + esi + professionalTax + tds + otherDeductions + noticeRecovery + exitRecovery;
   const reimbursements = Math.round((args.reimbursements ?? 0) * 100) / 100;
 
   return {
@@ -71,6 +82,12 @@ export function calculateSlip(args: {
     professionalTax,
     tds,
     otherDeductions,
+    finalSettlement: !!fs,
+    leaveEncashment,
+    noticePay,
+    gratuity,
+    noticeRecovery,
+    exitRecovery,
     totalDeductions,
     reimbursements,
     net: Math.max(0, gross - totalDeductions) + reimbursements,
@@ -102,7 +119,21 @@ export const RUN_COLOR = { DRAFT: "amber", FINALIZED: "blue", PAID: "green" } as
 
 type Money = { toString(): string };
 type SlipAmounts = Record<
-  "basic" | "hra" | "specialAllowance" | "otherEarnings" | "lopDeduction" | "pf" | "esi" | "professionalTax" | "tds" | "otherDeductions",
+  | "basic"
+  | "hra"
+  | "specialAllowance"
+  | "otherEarnings"
+  | "leaveEncashment"
+  | "noticePay"
+  | "gratuity"
+  | "lopDeduction"
+  | "pf"
+  | "esi"
+  | "professionalTax"
+  | "tds"
+  | "otherDeductions"
+  | "noticeRecovery"
+  | "exitRecovery",
   Money
 >;
 
@@ -114,8 +145,11 @@ export function payslipParts(p: SlipAmounts) {
       ["HRA", p.hra],
       ["Special allowance", p.specialAllowance],
       ["Other earnings", p.otherEarnings],
+      ["Leave encashment", p.leaveEncashment],
+      ["Notice pay", p.noticePay],
+      ["Gratuity", p.gratuity],
     ] as [string, Money][]
-  ).filter(([k, v]) => k !== "Other earnings" || Number(v) > 0);
+  ).filter(([, v], i) => i < 3 || Number(v) > 0);
   const deductions = (
     [
       ["Loss of pay", p.lopDeduction],
@@ -124,6 +158,8 @@ export function payslipParts(p: SlipAmounts) {
       ["Professional tax", p.professionalTax],
       ["TDS", p.tds],
       ["Other deductions", p.otherDeductions],
+      ["Notice period not served", p.noticeRecovery],
+      ["Recoveries on leaving", p.exitRecovery],
     ] as [string, Money][]
   ).filter(([, v]) => Number(v) > 0);
   return { earnings, deductions };

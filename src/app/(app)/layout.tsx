@@ -170,6 +170,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             )}
             {isManagerOrAdmin(user) && <NavLink href="/hr/onboarding">Onboarding</NavLink>}
             {isManagerOrAdmin(user) && <NavLink href="/hr/training">Training</NavLink>}
+            {isManagerOrAdmin(user) && <NavLink href="/hr/exits">Exits</NavLink>}
             <NavLink href="/hr/reviews">
               <span className="flex items-center justify-between">
                 Performance reviews
