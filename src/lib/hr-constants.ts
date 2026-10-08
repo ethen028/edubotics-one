@@ -23,6 +23,7 @@ export const DOCUMENT_TYPES = [
   "Educational certificate",
   "Offer letter",
   "Experience letter",
+  "Resume",
   "Other",
 ] as const;
 

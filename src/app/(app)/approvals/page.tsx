@@ -5,12 +5,19 @@ import { pendingApprovals } from "@/lib/approvals";
 import { formatTime } from "@/lib/attendance";
 import { progress } from "@/lib/projects";
 import { Badge, Empty, PageHeader } from "@/components/ui";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, formatINR } from "@/lib/format";
 import { addDays } from "@/lib/week";
 import { decideLeave } from "../hr/actions";
 import { decideCorrection } from "../hr/attendance/actions";
 import { decideTimesheet } from "../timesheets/actions";
 import { decideProject } from "../projects/actions";
+import { decideStockRequest } from "../inventory/actions";
+import { requestNo } from "@/lib/inventory";
+import { decideClaim } from "../expenses/actions";
+import { CATEGORY_LABEL, VEHICLE_LABEL } from "@/lib/expenses";
+import { decidePurchaseOrder } from "../purchases/actions";
+import { poNo } from "@/lib/purchase-math";
+import { formatINR2 } from "../purchases/ui";
 
 export const metadata = { title: "Approvals" };
 
@@ -42,7 +49,7 @@ function Decide({ action, sendBack }: { action: (formData: FormData) => Promise<
 
 export default async function ApprovalsPage() {
   const user = await requireUser(["ADMIN", "MANAGER"]);
-  const { leave, corrections, timesheets, projects, total } = await pendingApprovals(user);
+  const { leave, corrections, timesheets, claims, projects, stock, purchases, total } = await pendingApprovals(user);
 
   return (
     <>
@@ -65,10 +72,55 @@ export default async function ApprovalsPage() {
                 {p.name}
               </Link>
               <div className="mt-0.5 text-slate-500">
-                Owner {p.owner.name} · {progress(p.tasks)}% of tasks done · asked {formatDateTime(p.updatedAt)}
+                Owner {p.owner.name} · {progress(p.tasks)}% complete · asked {formatDateTime(p.updatedAt)}
               </div>
             </div>
             <Decide action={decideProject.bind(null, p.id)} sendBack />
+          </div>
+        ))}
+      </Section>
+
+      <Section title="Kit and part requests" count={stock.length}>
+        {stock.map((r) => {
+          const short = r.lines.filter((l) => l.item.onHand < l.quantity);
+          return (
+            <div key={r.id} className="card flex flex-wrap items-start justify-between gap-4">
+              <div className="text-sm">
+                <Link href={`/inventory/requests/${r.id}`} className="link">
+                  {requestNo(r.number)}
+                </Link>{" "}
+                · <span className="font-medium">{r.requester.name}</span>
+                {r.project && <> · {r.project.name}</>}
+                {r.neededBy && <> · needed {formatDate(r.neededBy)}</>}
+                <div className="mt-1">{r.lines.map((l) => `${l.quantity} ${l.item.unit} ${l.item.name}`).join(" · ")}</div>
+                <div className="mt-0.5 text-slate-500">{r.purpose}</div>
+                {short.length > 0 && (
+                  <div className="mt-1 text-xs font-medium text-red-600">
+                    Short in stock: {short.map((l) => `${l.item.name} (${l.item.onHand} left)`).join(", ")}
+                  </div>
+                )}
+              </div>
+              <Decide action={decideStockRequest.bind(null, r.id)} />
+            </div>
+          );
+        })}
+      </Section>
+
+      <Section title="Purchase orders" count={purchases.length}>
+        {purchases.map((o) => (
+          <div key={o.id} className="card flex flex-wrap items-start justify-between gap-4">
+            <div className="text-sm">
+              <Link href={`/purchases/${o.id}`} className="link">
+                {poNo(o.number)}
+              </Link>{" "}
+              · <span className="font-medium">{o.requester.name}</span> · {o.vendor.name} ·{" "}
+              <span className="font-medium">{formatINR2(o.total)}</span>
+              {o.project && <> · {o.project.name}</>}
+              {o.expectedBy && <> · needed {formatDate(o.expectedBy)}</>}
+              <div className="mt-1">{o.lines.map((l) => `${l.quantity} ${l.unit} ${l.description}`).join(" · ")}</div>
+              <div className="mt-0.5 text-slate-500">{o.purpose}</div>
+            </div>
+            <Decide action={decidePurchaseOrder.bind(null, o.id)} />
           </div>
         ))}
       </Section>
@@ -96,6 +148,53 @@ export default async function ApprovalsPage() {
             </div>
           );
         })}
+      </Section>
+
+      <Section title="Expense claims" count={claims.length}>
+        {claims.map((c) => (
+          <div key={c.id} className="card flex flex-wrap items-start justify-between gap-4">
+            <div className="text-sm">
+              <span className="font-medium">
+                {c.employee.firstName} {c.employee.lastName}
+              </span>{" "}
+              · {formatDate(c.date)} · {CATEGORY_LABEL[c.category]}
+              {c.vehicle && `, ${VEHICLE_LABEL[c.vehicle as keyof typeof VEHICLE_LABEL] ?? c.vehicle} ${Number(c.distanceKm)} km`} ·{" "}
+              <b>{formatINR(c.amount)}</b>
+              <div className="mt-0.5">{c.description}</div>
+              <div className="mt-1 flex flex-wrap gap-x-2 text-slate-500">
+                <span>{[c.project?.name, c.organization?.name].filter(Boolean).join(" · ")}</span>
+                {c.receipt ? (
+                  <a href={`/api/expenses/${c.id}/receipt`} target="_blank" className="link">
+                    View receipt
+                  </a>
+                ) : (
+                  <span className="text-amber-700">No receipt</span>
+                )}
+              </div>
+            </div>
+            <form action={decideClaim.bind(null, c.id)} className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-1 text-xs text-slate-500">
+                Approve ₹
+                <input
+                  name="approvedAmount"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  max={Number(c.amount)}
+                  defaultValue={Number(c.amount)}
+                  className="input w-24"
+                />
+              </label>
+              <input name="note" placeholder="Note (optional)" className="input w-44" />
+              <button name="decision" value="APPROVED" className="btn-primary btn-sm">
+                Approve
+              </button>
+              <button name="decision" value="REJECTED" formNoValidate className="btn-danger btn-sm">
+                Reject
+              </button>
+            </form>
+          </div>
+        ))}
       </Section>
 
       <Section title="Leave" count={leave.length}>

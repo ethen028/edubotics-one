@@ -2,14 +2,24 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { pendingApprovals } from "@/lib/approvals";
+import { myPendingAcks } from "@/lib/notices";
 import { daysFromNow, todayIST } from "@/lib/time";
 import { mondayOf } from "@/lib/week";
 import { OPEN_PROJECT_STAGES, progress, projectScope } from "@/lib/projects";
+import { needsLogWhere, timeRange } from "@/lib/operations";
+import { myOpenInterviews } from "@/lib/recruitment";
 import { Badge, Stat } from "@/components/ui";
 import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
+import { lowStockItems, outstanding, requestNo } from "@/lib/inventory";
+import { onOrderByItem, settledByBill } from "@/lib/purchases";
+import { round2 } from "@/lib/purchase-math";
+import { formatINR2 } from "./purchases/ui";
 import { OPEN_STAGES } from "./crm/constants";
 import { PriorityBadge, ProgressBar, StageBadge } from "./projects/ui";
 import { TimesheetBadge } from "./timesheets/badge";
+import { invoicesWithBalance } from "./invoices/data";
+import { PendingAcks } from "./notices/ui";
+import { HelpdeskHomeCard } from "./helpdesk/home-card";
 
 export const metadata = { title: "Home" };
 
@@ -31,8 +41,27 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
   const weekStart = mondayOf(today);
 
-  const [myTasks, projects, myWeek, approvals, myPendingLeave, myFollowUps, onLeaveToday, holidays, pipeline, wonThisMonth] =
-    await Promise.all([
+  const [
+    myTasks,
+    projects,
+    myWeek,
+    approvals,
+    myPendingLeave,
+    myFollowUps,
+    onLeaveToday,
+    holidays,
+    pipeline,
+    wonThisMonth,
+    lowStock,
+    itemsOut,
+    mySessions,
+    myLogsDue,
+    allLogsDue,
+    billsDue,
+    interviews,
+    toAcknowledge,
+    notices,
+  ] = await Promise.all([
       db.projectTask.findMany({
         where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" }, onHold: false } },
         include: { project: { select: { id: true, name: true } } },
@@ -40,7 +69,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       db.project.findMany({
         where: { ...projectScope(user), stage: { in: [...OPEN_PROJECT_STAGES] } },
         include: {
-          tasks: { select: { status: true } },
+          tasks: { select: { status: true, progress: true } },
           milestones: { where: { doneAt: null }, orderBy: { dueDate: { sort: "asc", nulls: "last" } }, take: 1 },
         },
         orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],
@@ -66,13 +95,56 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       db.holiday.findMany({ where: { date: { gte: today } }, orderBy: { date: "asc" }, take: 4 }),
       db.deal.aggregate({ where: { stage: { in: [...OPEN_STAGES] } }, _sum: { value: true }, _count: true }),
       db.deal.aggregate({ where: { stage: "WON", closedAt: { gte: monthStart } }, _sum: { value: true }, _count: true }),
+      admin ? lowStockItems() : [],
+      // Kits and parts out on issued requests: everyone's for admins, otherwise the user's own.
+      db.stockRequest.findMany({
+        where: { status: "ISSUED", ...(admin ? {} : { requesterId: user.id }) },
+        include: { requester: { select: { name: true } }, lines: { include: { item: { select: { returnable: true } } } } },
+        orderBy: { returnBy: { sort: "asc", nulls: "last" } },
+      }),
+      db.programmeSession.findMany({
+        where: { trainerId: user.id, date: today, status: { not: "CANCELLED" } },
+        include: { programme: { select: { organization: { select: { name: true } } } } },
+        orderBy: { startTime: "asc" },
+      }),
+      db.programmeSession.count({ where: { trainerId: user.id, ...needsLogWhere(today) } }),
+      manager ? db.programmeSession.count({ where: needsLogWhere(today) }) : 0,
+      // Vendor bills overdue or due within a week.
+      admin
+        ? db.vendorBill.findMany({
+            where: { status: "OPEN", dueDate: { lte: new Date(today.getTime() + 7 * 86_400_000) } },
+            include: { vendor: { select: { name: true } } },
+            orderBy: { dueDate: "asc" },
+          })
+        : [],
+      myOpenInterviews(user.id),
+      myPendingAcks(user),
+      db.notice.findMany({
+        where: { kind: "ANNOUNCEMENT", archivedAt: null, OR: [{ showUntil: null }, { showUntil: { gte: today } }] },
+        include: { author: { select: { name: true } } },
+        orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+        take: 3,
+      }),
     ]);
+  const [onOrder, billSettled] = await Promise.all([
+    lowStock.length ? onOrderByItem(lowStock.map((i) => i.id)) : new Map<string, number>(),
+    billsDue.length ? settledByBill(billsDue.map((b) => b.id)) : new Map<string, number>(),
+  ]);
+  const billsToPay = billsDue
+    .map((b) => ({ ...b, balance: round2(Number(b.total) - (billSettled.get(b.id) ?? 0)) }))
+    .filter((b) => b.balance > 0);
 
-  // Overdue first, then nearest due date, then priority.
+  const overdueInvoices = admin
+    ? (await invoicesWithBalance({ status: "ISSUED", dueDate: { lt: today } })).filter((i) => i.balance > 0)
+    : [];
+
+  // Update requests first, then overdue and nearest due date, then priority.
   myTasks.sort((a, b) => {
+    const ra = a.updateRequestedAt ? 0 : 1;
+    const rb = b.updateRequestedAt ? 0 : 1;
     const da = a.dueDate?.getTime() ?? Infinity;
     const dbb = b.dueDate?.getTime() ?? Infinity;
-    return da - dbb || PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    return ra - rb || da - dbb || PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
   });
   const focus = myTasks[0];
   const dueToday = myTasks.filter((t) => t.dueDate && t.dueDate <= today).length;
@@ -92,6 +164,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           You don&apos;t have access to that page.
         </div>
       )}
+
+      <PendingAcks notices={toAcknowledge} />
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -126,6 +200,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 {focus.dueDate && ` · due ${formatDate(focus.dueDate)}`}
                 {focus.dueDate && focus.dueDate < today && " (overdue)"}
               </p>
+              {focus.updateRequestedAt && (
+                <p className="mt-1 text-sm font-medium text-amber-200">Your project owner asked for an update on this.</p>
+              )}
             </div>
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -136,8 +213,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             </span>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link href={`/projects/${focus.project.id}`} className="btn bg-white text-brand-900 hover:bg-brand-50">
-              Open project
+            <Link href={`/projects/${focus.project.id}/tasks/${focus.id}`} className="btn bg-white text-brand-900 hover:bg-brand-50">
+              {focus.updateRequestedAt ? "Post update" : "Open task"}
             </Link>
             <Link href="/work" className="btn text-white ring-1 ring-white/30 hover:bg-white/10">
               All my work ({myTasks.length})
@@ -158,11 +235,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       </div>
 
       {admin && (
-        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
           <Stat label={`Open pipeline (${pipeline._count} deals)`} value={formatINR(pipeline._sum.value ?? 0)} href="/crm/deals" />
           <Stat label={`Won this month (${wonThisMonth._count})`} value={formatINR(wonThisMonth._sum.value ?? 0)} />
           <Stat label="Projects on track" value={`${projects.length - lateProjects} / ${projects.length}`} href="/projects" />
           <Stat label="On leave today" value={onLeaveToday.length} href="/hr/employees" />
+          <Stat
+            label={`School payments overdue (${overdueInvoices.length})`}
+            value={formatINR(overdueInvoices.reduce((s, i) => s + i.balance, 0))}
+            href="/invoices/dues"
+          />
         </div>
       )}
 
@@ -185,8 +267,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{t.title}</div>
-                      <div className="truncate text-xs text-slate-500">{t.project.name}</div>
+                      <Link href={`/projects/${t.project.id}/tasks/${t.id}`} className="block truncate font-medium hover:underline">
+                        {t.title}
+                      </Link>
+                      <div className="truncate text-xs text-slate-500">
+                        {t.project.name}
+                        {t.updateRequestedAt && <span className="font-medium text-amber-700"> · update requested</span>}
+                      </div>
                     </div>
                     <PriorityBadge priority={t.priority} />
                     <span
@@ -266,6 +353,89 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
 
         <div className="space-y-6">
+          {(mySessions.length > 0 || myLogsDue > 0 || allLogsDue > 0) && (
+            <section className="card">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-semibold">My school sessions today</h2>
+                <Link href="/operations" className="link text-sm">
+                  Open
+                </Link>
+              </div>
+              {mySessions.length === 0 ? (
+                <p className="text-sm text-slate-500">No classes today.</p>
+              ) : (
+                <ul className="space-y-1.5 text-sm">
+                  {mySessions.map((s) => (
+                    <li key={s.id}>
+                      <Link href={`/operations/sessions/${s.id}`} className="hover:underline">
+                        <span className="text-slate-500">{timeRange(s.startTime, s.durationMins).split(" – ")[0]}</span>{" "}
+                        {s.programme.organization.name}
+                        {s.classGroup && ` · ${s.classGroup}`}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {myLogsDue > 0 && <p className="mt-2 text-sm font-medium text-red-600">{myLogsDue} of your sessions need a log.</p>}
+              {allLogsDue > myLogsDue && (
+                <p className="mt-1 text-xs text-slate-500">{allLogsDue} logs due across all schools.</p>
+              )}
+            </section>
+          )}
+          {interviews.length > 0 && (
+            <section className="card">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-semibold">Your interviews</h2>
+                <Link href="/recruitment/interviews" className="link text-sm">
+                  All
+                </Link>
+              </div>
+              <ul className="space-y-2 text-sm">
+                {interviews.slice(0, 5).map((i) => (
+                  <li key={i.id}>
+                    <Link href={`/recruitment/candidates/${i.candidate.id}`} className="hover:underline">
+                      <b>{i.candidate.name}</b> <span className="text-slate-500">· {i.round}</span>
+                    </Link>
+                    <div className="text-xs text-slate-500">
+                      {i.candidate.job.title} ·{" "}
+                      {i.scheduledAt < now ? (
+                        <span className="font-medium text-amber-700">feedback due</span>
+                      ) : (
+                        formatDateTime(i.scheduledAt)
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <section className="card">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">Notice board</h2>
+              <Link href="/notices" className="link text-sm">
+                All
+              </Link>
+            </div>
+            {notices.length === 0 ? (
+              <p className="text-sm text-slate-500">No announcements.</p>
+            ) : (
+              <ul className="space-y-3 text-sm">
+                {notices.map((n) => (
+                  <li key={n.id}>
+                    <Link href={`/notices/${n.id}`} className="font-medium hover:underline">
+                      {n.pinned && "📌 "}
+                      {n.title}
+                    </Link>
+                    <p className="line-clamp-2 text-slate-600">{n.body}</p>
+                    <p className="text-xs text-slate-400">
+                      {n.author.name} · {formatDate(n.createdAt)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <HelpdeskHomeCard user={user} />
           {manager ? (
             <section className="card">
               <div className="mb-3 flex items-center justify-between">
@@ -280,8 +450,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 <ul className="space-y-1.5 text-sm">
                   {approvals.projects.length > 0 && <li>Projects · {approvals.projects.length}</li>}
                   {approvals.timesheets.length > 0 && <li>Timesheets · {approvals.timesheets.length}</li>}
+                  {approvals.claims.length > 0 && <li>Expense claims · {approvals.claims.length}</li>}
                   {approvals.leave.length > 0 && <li>Leave · {approvals.leave.length}</li>}
                   {approvals.corrections.length > 0 && <li>Missed punch-outs · {approvals.corrections.length}</li>}
+                  {approvals.stock.length > 0 && <li>Kit and part requests · {approvals.stock.length}</li>}
+                  {approvals.purchases.length > 0 && <li>Purchase orders · {approvals.purchases.length}</li>}
                 </ul>
               )}
             </section>
@@ -297,6 +470,84 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <Link href="/timesheets" className="link mt-2 inline-block text-sm">
                 Open timesheet
               </Link>
+            </section>
+          )}
+          {admin && lowStock.length > 0 && (
+            <section className="card">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-semibold">Low stock</h2>
+                <Link href="/inventory?view=low" className="link text-sm">
+                  All
+                </Link>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {lowStock.slice(0, 6).map((i) => (
+                  <li key={i.id} className="flex justify-between gap-2">
+                    <Link href={`/inventory/${i.id}`} className="truncate hover:underline">
+                      {i.name}
+                    </Link>
+                    <span className="shrink-0 text-right">
+                      <span className={i.onHand === 0 ? "font-medium text-red-600" : "text-amber-700"}>
+                        {i.onHand} {i.unit}
+                      </span>
+                      {onOrder.get(i.id) ? (
+                        <span className="ml-2 text-xs text-slate-500">{onOrder.get(i.id)} on order</span>
+                      ) : (
+                        <Link href={`/purchases/new?item=${i.id}&qty=${Math.max(1, i.reorderLevel * 2 - i.onHand)}`} className="link ml-2 text-xs">
+                          Order
+                        </Link>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {billsToPay.length > 0 && (
+            <section className="card">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-semibold">Vendor bills to pay</h2>
+                <Link href="/purchases/payables" className="link text-sm">
+                  All
+                </Link>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {billsToPay.slice(0, 6).map((b) => (
+                  <li key={b.id} className="flex justify-between gap-2">
+                    <Link href={`/purchases/bills/${b.id}`} className="truncate hover:underline">
+                      {b.vendor.name} · {b.billNo}
+                    </Link>
+                    <span className={`shrink-0 ${b.dueDate < today ? "font-medium text-red-600" : "text-slate-600"}`}>
+                      {formatINR2(b.balance)} · {b.dueDate < today ? "late" : `due ${formatDate(b.dueDate)}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {itemsOut.length > 0 && (
+            <section className="card">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-semibold">{admin ? "Kits out" : "Kits with you"}</h2>
+                <Link href="/inventory/requests?status=ISSUED" className="link text-sm">
+                  All
+                </Link>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {itemsOut.slice(0, 6).map((r) => {
+                  const late = r.returnBy && r.returnBy < today;
+                  return (
+                    <li key={r.id} className="flex justify-between gap-2">
+                      <Link href={`/inventory/requests/${r.id}`} className="truncate hover:underline">
+                        {requestNo(r.number)} · {admin ? r.requester.name : `${r.lines.reduce((n, l) => n + outstanding(l), 0)} items`}
+                      </Link>
+                      <span className={late ? "font-medium text-red-600" : "text-slate-500"}>
+                        {r.returnBy ? `${late ? "overdue " : "back "}${formatDate(r.returnBy)}` : ""}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
             </section>
           )}
           <section className="card">

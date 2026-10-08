@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    // Employee documents are uploaded through server actions (5 MB per file).
-    serverActions: { bodySizeLimit: "6mb" },
+    // Employee documents (5 MB) and project files (10 MB each, 25 MB per update) are uploaded through server actions.
+    serverActions: { bodySizeLimit: "26mb" },
   },
 };
 

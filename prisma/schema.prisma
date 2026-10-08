@@ -26,31 +26,63 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  ownedLeads         Lead[]         @relation("LeadOwner")
-  ownedOrganizations Organization[] @relation("OrgOwner")
-  ownedContacts      Contact[]      @relation("ContactOwner")
-  ownedDeals         Deal[]         @relation("DealOwner")
-  activities         Activity[]     @relation("ActivityAssignee")
-  createdActivities  Activity[]     @relation("ActivityCreator")
-  uploadedDocuments  EmployeeDocument[] @relation("DocUploader")
-  reviewedDocuments  EmployeeDocument[] @relation("DocReviewer")
-  payrollRuns        PayrollRun[]
-  ownedProjects      Project[]      @relation("ProjectOwner")
-  projectMembers     ProjectMember[]
-  assignedTasks      ProjectTask[]  @relation("TaskAssignee")
-  createdTasks       ProjectTask[]  @relation("TaskCreator")
-  decidedProjects    Project[]      @relation("ProjectApprover")
-  decidedTimesheets  Timesheet[]    @relation("TimesheetApprover")
+  ownedLeads            Lead[]               @relation("LeadOwner")
+  ownedOrganizations    Organization[]       @relation("OrgOwner")
+  ownedContacts         Contact[]            @relation("ContactOwner")
+  ownedDeals            Deal[]               @relation("DealOwner")
+  activities            Activity[]           @relation("ActivityAssignee")
+  createdActivities     Activity[]           @relation("ActivityCreator")
+  uploadedDocuments     EmployeeDocument[]   @relation("DocUploader")
+  reviewedDocuments     EmployeeDocument[]   @relation("DocReviewer")
+  payrollRuns           PayrollRun[]
+  ownedProjects         Project[]            @relation("ProjectOwner")
+  projectMembers        ProjectMember[]
+  assignedTasks         ProjectTask[]        @relation("TaskAssignee")
+  createdTasks          ProjectTask[]        @relation("TaskCreator")
+  decidedProjects       Project[]            @relation("ProjectApprover")
+  decidedTimesheets     Timesheet[]          @relation("TimesheetApprover")
+  stockRequests         StockRequest[]       @relation("StockRequester")
+  decidedStockReqs      StockRequest[]       @relation("StockApprover")
+  stockMovements        StockMovement[]
+  coordinatedProgrammes Programme[]          @relation("ProgrammeCoordinator")
+  programmeTrainers     ProgrammeTrainer[]
+  trainerSessions       ProgrammeSession[]   @relation("SessionTrainer")
+  loggedSessions        ProgrammeSession[]   @relation("SessionLogger")
+  projectUpdates        ProjectUpdate[]
+  projectFiles          ProjectFile[]
+  decidedClaims         ExpenseClaim[]       @relation("ClaimApprover")
+  createdInvoices       Invoice[]            @relation("InvoiceCreator")
+  recordedPayments      InvoicePayment[]
+  purchaseOrders        PurchaseOrder[]      @relation("PORequester")
+  decidedPurchases      PurchaseOrder[]      @relation("POApprover")
+  purchaseReceipts      PurchaseReceipt[]
+  vendorBills           VendorBill[]
+  vendorPayments        VendorPayment[]
+  hiringJobs            JobOpening[]         @relation("JobHiringManager")
+  createdJobs           JobOpening[]         @relation("JobCreator")
+  addedCandidates       Candidate[]          @relation("CandidateCreator")
+  candidateFiles        CandidateFile[]
+  interviewsTaken       Interview[]          @relation("Interviewer")
+  interviewsBooked      Interview[]          @relation("InterviewScheduler")
+  createdOffers         Offer[]
+  notices               Notice[]
+  noticeAcks            NoticeAck[]
+  helpdeskRequests      HelpdeskTicket[]     @relation("TicketRequester")
+  helpdeskAssigned      HelpdeskTicket[]     @relation("TicketAssignee")
+  helpdeskComments      HelpdeskComment[]
+  helpdeskFiles         HelpdeskAttachment[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
 
 model Department {
-  id        String     @id @default(cuid())
-  name      String     @unique
+  id        String       @id @default(cuid())
+  name      String       @unique
   employees Employee[]
   projects  Project[]
-  createdAt DateTime   @default(now())
+  createdAt DateTime     @default(now())
+  jobs      JobOpening[]
+  offers    Offer[]
 }
 
 enum EmploymentType {
@@ -68,35 +100,35 @@ enum EmployeeStatus {
 }
 
 model Employee {
-  id               String         @id @default(cuid())
-  code             String         @unique // e.g. EBG-001
+  id               String                 @id @default(cuid())
+  code             String                 @unique // e.g. EBG-001
   firstName        String
   lastName         String
-  workEmail        String         @unique
+  workEmail        String                 @unique
   personalEmail    String?
   phone            String?
   designation      String
   departmentId     String?
-  department       Department?    @relation(fields: [departmentId], references: [id])
+  department       Department?            @relation(fields: [departmentId], references: [id])
   managerId        String?
-  manager          Employee?      @relation("Reports", fields: [managerId], references: [id])
-  reports          Employee[]     @relation("Reports")
-  employmentType   EmploymentType @default(FULL_TIME)
-  status           EmployeeStatus @default(ACTIVE)
-  dateOfJoining    DateTime       @db.Date
-  dateOfExit       DateTime?      @db.Date
-  dateOfBirth      DateTime?      @db.Date
+  manager          Employee?              @relation("Reports", fields: [managerId], references: [id])
+  reports          Employee[]             @relation("Reports")
+  employmentType   EmploymentType         @default(FULL_TIME)
+  status           EmployeeStatus         @default(ACTIVE)
+  dateOfJoining    DateTime               @db.Date
+  dateOfExit       DateTime?              @db.Date
+  dateOfBirth      DateTime?              @db.Date
   gender           String?
   bloodGroup       String?
   address          String?
   city             String?
-  state            String?        @default("Kerala")
+  state            String?                @default("Kerala")
   emergencyName    String?
   emergencyPhone   String?
-  userId           String?        @unique
-  user             User?          @relation(fields: [userId], references: [id])
-  leaveRequests    LeaveRequest[] @relation("LeaveApplicant")
-  approvedRequests LeaveRequest[] @relation("LeaveApprover")
+  userId           String?                @unique
+  user             User?                  @relation(fields: [userId], references: [id])
+  leaveRequests    LeaveRequest[]         @relation("LeaveApplicant")
+  approvedRequests LeaveRequest[]         @relation("LeaveApprover")
   attendance       AttendanceSession[]
   attendanceMarks  AttendanceMark[]
   corrections      AttendanceCorrection[]
@@ -107,8 +139,11 @@ model Employee {
   salaries         SalaryStructure[]
   payslips         Payslip[]
   timesheets       Timesheet[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  expenseClaims    ExpenseClaim[]
+  hiredFrom        Candidate?             @relation("HiredAs")
+  offersToReport   Offer[]                @relation("OfferManager")
 }
 
 model LeaveType {
@@ -150,9 +185,9 @@ model LeaveRequest {
 }
 
 model Holiday {
-  id       String   @id @default(cuid())
-  date     DateTime @unique @db.Date
-  name     String
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  name      String
   optional  Boolean  @default(false) // restricted holiday
   tentative Boolean  @default(false) // date depends on the moon or isn't notified yet
 }
@@ -160,17 +195,41 @@ model Holiday {
 // ─── Company settings (single row, id = 1) ─────────────────────────────────
 
 model CompanySettings {
-  id                 Int   @id @default(1)
-  workMinutesPerDay  Int   @default(540) // 9 hours, as in Edubotics HR V1.2
-  overtimeAfterMins  Int   @default(30) // OD once a day runs this far past the target
-  weeklyOffDays      Int[] @default([0, 6]) // 0 = Sunday … 6 = Saturday
+  id                Int   @id @default(1)
+  workMinutesPerDay Int   @default(540) // 9 hours, as in Edubotics HR V1.2
+  overtimeAfterMins Int   @default(30) // OD once a day runs this far past the target
+  weeklyOffDays     Int[] @default([0, 6]) // 0 = Sunday … 6 = Saturday
 
   // Payroll. Deductions start switched off (Edubotics deducts none today).
-  lopDivisor   Int     @default(30) // LOP per day = monthly gross ÷ this, as in HR V1.2
-  pfEnabled    Boolean @default(false)
-  esiEnabled   Boolean @default(false)
-  ptEnabled    Boolean @default(false)
-  tdsEnabled   Boolean @default(false)
+  lopDivisor Int     @default(30) // LOP per day = monthly gross ÷ this, as in HR V1.2
+  pfEnabled  Boolean @default(false)
+  esiEnabled Boolean @default(false)
+  ptEnabled  Boolean @default(false)
+  tdsEnabled Boolean @default(false)
+
+  // Expense claims: own-vehicle travel paid per km. 0 = enter the amount by hand.
+  twoWheelerRatePerKm Decimal @default(0) @db.Decimal(6, 2)
+  carRatePerKm        Decimal @default(0) @db.Decimal(6, 2)
+
+  // Invoicing. Printed at the top of every invoice; edit under Admin → Settings.
+  companyName      String  @default("Edubotics Global")
+  companyAddress   String  @default("Edappally, Kochi, Kerala")
+  companyState     String  @default("Kerala") // decides CGST + SGST (same state) or IGST
+  companyPhone     String?
+  companyEmail     String?
+  gstin            String?
+  pan              String?
+  gstEnabled       Boolean @default(true) // off = plain invoices with no tax
+  defaultGstRate   Int     @default(18)
+  defaultSac       String? @default("999293") // commercial training and coaching services
+  invoicePrefix    String  @default("EBG") // EBG/26-27/001
+  paymentTermsDays Int     @default(15)
+  bankName         String?
+  bankAccountName  String?
+  bankAccountNo    String?
+  bankIfsc         String?
+  upiId            String?
+  invoiceNote      String? // printed at the bottom, e.g. "Please quote the invoice number when paying."
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -300,19 +359,20 @@ enum AssetStatus {
 }
 
 model Asset {
-  id           String      @id @default(cuid())
-  code         String      @unique // EDU-LAP-021
+  id           String           @id @default(cuid())
+  code         String           @unique // EDU-LAP-021
   name         String
   category     String // Laptop, Access card, Lab kit, Phone…
   serialNo     String?
-  purchaseDate DateTime?   @db.Date
-  status       AssetStatus @default(AVAILABLE)
+  purchaseDate DateTime?        @db.Date
+  status       AssetStatus      @default(AVAILABLE)
   employeeId   String?
-  employee     Employee?   @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  employee     Employee?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   assignedAt   DateTime?
   notes        String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  tickets      HelpdeskTicket[]
 }
 
 // ─── Training ──────────────────────────────────────────────────────────────
@@ -381,28 +441,30 @@ model PayrollRun {
 }
 
 model Payslip {
-  id               String     @id @default(cuid())
+  id               String         @id @default(cuid())
   runId            String
-  run              PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run              PayrollRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
   employeeId       String
-  employee         Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee         Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   daysInMonth      Int
-  paidDays         Decimal    @db.Decimal(5, 1) // days employed in the month, minus LOP
-  lopDays          Decimal    @default(0) @db.Decimal(5, 1)
-  basic            Decimal    @db.Decimal(12, 2) // earned amounts, after proration
-  hra              Decimal    @db.Decimal(12, 2)
-  specialAllowance Decimal    @db.Decimal(12, 2)
-  otherEarnings    Decimal    @default(0) @db.Decimal(12, 2) // bonus, reimbursement…
-  gross            Decimal    @db.Decimal(12, 2)
-  lopDeduction     Decimal    @default(0) @db.Decimal(12, 2)
-  pf               Decimal    @default(0) @db.Decimal(12, 2)
-  esi              Decimal    @default(0) @db.Decimal(12, 2)
-  professionalTax  Decimal    @default(0) @db.Decimal(12, 2)
-  tds              Decimal    @default(0) @db.Decimal(12, 2)
-  otherDeductions  Decimal    @default(0) @db.Decimal(12, 2)
-  totalDeductions  Decimal    @db.Decimal(12, 2)
-  net              Decimal    @db.Decimal(12, 2)
+  paidDays         Decimal        @db.Decimal(5, 1) // days employed in the month, minus LOP
+  lopDays          Decimal        @default(0) @db.Decimal(5, 1)
+  basic            Decimal        @db.Decimal(12, 2) // earned amounts, after proration
+  hra              Decimal        @db.Decimal(12, 2)
+  specialAllowance Decimal        @db.Decimal(12, 2)
+  otherEarnings    Decimal        @default(0) @db.Decimal(12, 2) // bonus, reimbursement…
+  gross            Decimal        @db.Decimal(12, 2)
+  lopDeduction     Decimal        @default(0) @db.Decimal(12, 2)
+  pf               Decimal        @default(0) @db.Decimal(12, 2)
+  esi              Decimal        @default(0) @db.Decimal(12, 2)
+  professionalTax  Decimal        @default(0) @db.Decimal(12, 2)
+  tds              Decimal        @default(0) @db.Decimal(12, 2)
+  otherDeductions  Decimal        @default(0) @db.Decimal(12, 2)
+  totalDeductions  Decimal        @db.Decimal(12, 2)
+  net              Decimal        @db.Decimal(12, 2)
   note             String?
+  reimbursements   Decimal        @default(0) @db.Decimal(12, 2) // approved expense claims, paid on top of salary
+  expenseClaims    ExpenseClaim[]
 
   @@unique([runId, employeeId])
 }
@@ -421,26 +483,30 @@ enum OrgType {
 }
 
 model Organization {
-  id         String     @id @default(cuid())
-  name       String
-  type       OrgType    @default(SCHOOL)
-  board      String? // CBSE, ICSE, State, IB… for schools
-  phone      String?
-  email      String?
-  website    String?
-  address    String?
-  city       String?
-  district   String?
-  state      String?    @default("Kerala")
-  notes      String?
-  ownerId    String?
-  owner      User?      @relation("OrgOwner", fields: [ownerId], references: [id])
-  contacts   Contact[]
-  deals      Deal[]
-  activities Activity[]
-  projects   Project[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id            String         @id @default(cuid())
+  name          String
+  type          OrgType        @default(SCHOOL)
+  board         String? // CBSE, ICSE, State, IB… for schools
+  phone         String?
+  email         String?
+  website       String?
+  address       String?
+  city          String?
+  district      String?
+  state         String?        @default("Kerala")
+  notes         String?
+  ownerId       String?
+  owner         User?          @relation("OrgOwner", fields: [ownerId], references: [id])
+  contacts      Contact[]
+  deals         Deal[]
+  activities    Activity[]
+  projects      Project[]
+  programmes    Programme[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  expenseClaims ExpenseClaim[]
+  gstin         String? // printed on invoices; schools usually have none
+  invoices      Invoice[]
 
   @@index([name])
 }
@@ -458,8 +524,10 @@ model Contact {
   notes          String?
   deals          Deal[]
   activities     Activity[]
+  programmes     Programme[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  invoices       Invoice[]
 }
 
 enum LeadStatus {
@@ -533,6 +601,7 @@ model Deal {
   projects       Project[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  invoices       Invoice[]
 
   @@index([stage])
 }
@@ -594,33 +663,41 @@ enum ProjectKind {
 }
 
 model Project {
-  id             String        @id @default(cuid())
+  id             String          @id @default(cuid())
   name           String
-  kind           ProjectKind   @default(CLIENT_PROJECT)
+  kind           ProjectKind     @default(CLIENT_PROJECT)
   description    String?
-  stage          ProjectStage  @default(CREATE)
-  onHold         Boolean       @default(false)
-  startDate      DateTime?     @db.Date
-  dueDate        DateTime?     @db.Date
+  stage          ProjectStage    @default(CREATE)
+  onHold         Boolean         @default(false)
+  startDate      DateTime?       @db.Date
+  dueDate        DateTime?       @db.Date
   completedAt    DateTime?
   ownerId        String
-  owner          User          @relation("ProjectOwner", fields: [ownerId], references: [id])
+  owner          User            @relation("ProjectOwner", fields: [ownerId], references: [id])
   departmentId   String?
-  department     Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  department     Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   dealId         String?
-  deal           Deal?         @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  deal           Deal?           @relation(fields: [dealId], references: [id], onDelete: SetNull)
   approvalNote   String? // the approver's note, or why it was sent back
   decidedById    String?
-  decidedBy      User?         @relation("ProjectApprover", fields: [decidedById], references: [id])
+  decidedBy      User?           @relation("ProjectApprover", fields: [decidedById], references: [id])
   decidedAt      DateTime?
   members        ProjectMember[]
   milestones     Milestone[]
   tasks          ProjectTask[]
   timeEntries    TimeEntry[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  stockRequests  StockRequest[]
+  stockMovements StockMovement[]
+  programmes     Programme[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  updates        ProjectUpdate[]
+  files          ProjectFile[]
+  expenseClaims  ExpenseClaim[]
+  invoices       Invoice[]
+  purchaseOrders PurchaseOrder[]
 
   @@index([stage])
 }
@@ -664,27 +741,75 @@ enum Priority {
 }
 
 model ProjectTask {
-  id          String      @id @default(cuid())
-  projectId   String
-  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  milestoneId String?
-  milestone   Milestone?  @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
-  title       String
-  description String?
-  status      WorkStatus  @default(TODO)
-  priority    Priority    @default(MEDIUM)
-  dueDate     DateTime?   @db.Date
-  completedAt DateTime?
-  assigneeId  String?
-  assignee    User?       @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  createdById String
-  createdBy   User        @relation("TaskCreator", fields: [createdById], references: [id])
-  timeEntries TimeEntry[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id                String          @id @default(cuid())
+  projectId         String
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestoneId       String?
+  milestone         Milestone?      @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  title             String
+  description       String?
+  status            WorkStatus      @default(TODO)
+  priority          Priority        @default(MEDIUM)
+  progress          Int             @default(0) // 0–100, set by the assignee when they post an update (Task Flow)
+  dueDate           DateTime?       @db.Date
+  completedAt       DateTime?
+  /// Set when the owner asks the assignee for an update; cleared when the assignee posts one.
+  updateRequestedAt DateTime?
+  assigneeId        String?
+  assignee          User?           @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdById       String
+  createdBy         User            @relation("TaskCreator", fields: [createdById], references: [id])
+  timeEntries       TimeEntry[]
+  updates           ProjectUpdate[]
+  files             ProjectFile[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   @@index([assigneeId, status])
   @@index([projectId])
+}
+
+/// A progress report on a project or one of its tasks: a note, a progress change and/or files (from Task Flow).
+model ProjectUpdate {
+  id           String        @id @default(cuid())
+  projectId    String
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId       String?
+  task         ProjectTask?  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User          @relation(fields: [authorId], references: [id])
+  note         String?
+  progressFrom Int?
+  progressTo   Int?
+  statusTo     WorkStatus?
+  /// The owner asking for an update, rather than reporting one.
+  isRequest    Boolean       @default(false)
+  files        ProjectFile[]
+  createdAt    DateTime      @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([taskId])
+}
+
+/// A file attached to a project, kept in the database like employee documents.
+model ProjectFile {
+  id           String         @id @default(cuid())
+  projectId    String
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId       String?
+  task         ProjectTask?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  updateId     String?
+  update       ProjectUpdate? @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String
+  uploadedBy   User           @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime       @default(now())
+
+  @@index([projectId])
+  @@index([taskId])
 }
 
 // ─── Timesheets ────────────────────────────────────────────────────────────
@@ -714,18 +839,834 @@ model Timesheet {
   @@unique([employeeId, weekStart])
 }
 
+enum DailyWorkStatus {
+  COMPLETED
+  IN_PROGRESS
+  PENDING
+  BLOCKED
+}
+
 model TimeEntry {
-  id          String       @id @default(cuid())
+  id          String           @id @default(cuid())
   timesheetId String
-  timesheet   Timesheet    @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
-  date        DateTime     @db.Date
+  timesheet   Timesheet        @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+  date        DateTime         @db.Date
   projectId   String?
-  project     Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
   taskId      String?
-  task        ProjectTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  hours       Decimal      @db.Decimal(4, 2)
+  task        ProjectTask?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  hours       Decimal          @db.Decimal(4, 2)
   note        String? // what was done; required when no project is picked
-  createdAt   DateTime     @default(now())
+  // Daily work log (Task Flow's worksheet): optional clock times, a headline, how it went and remarks.
+  startTime   String? // "09:30"
+  endTime     String? // "18:30"
+  title       String?
+  workStatus  DailyWorkStatus?
+  remarks     String?
+  createdAt   DateTime         @default(now())
+  // WorkPulse: entries can be corrected while the week is open; the team view shows they were changed.
+  editCount   Int              @default(0)
+  editedAt    DateTime?
 
   @@index([timesheetId, date])
+}
+
+// ─── Inventory ─────────────────────────────────────────────────────────────
+// Kits, parts and consumables counted by quantity. Equipment tracked one by one
+// and issued to a person (laptops, access cards) stays in HR → Assets.
+
+/// One stocked thing: a robotics kit, a sensor, a pack of jumper wires.
+model StockItem {
+  id           String              @id @default(cuid())
+  sku          String              @unique // EB-KIT-ARD-01
+  name         String
+  category     String // see INVENTORY_CATEGORIES
+  unit         String              @default("pcs") // pcs, kit, set, pack, m
+  location     String? // shelf, cupboard, branch
+  returnable   Boolean             @default(true) // kits come back after a programme; consumables don't
+  onHand       Int                 @default(0) // kept in step with StockMovement
+  reorderLevel Int                 @default(0) // low-stock alert at or below this
+  unitCost     Decimal?            @db.Decimal(10, 2)
+  notes        String?
+  active       Boolean             @default(true)
+  movements    StockMovement[]
+  requestLines StockRequestLine[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  poLines      PurchaseOrderLine[]
+
+  @@index([category])
+}
+
+enum StockMovementType {
+  RECEIVE // bought or built, adds stock
+  ISSUE // handed out against a request
+  RETURN // came back from a request
+  ADJUST // stock count correction (either way)
+  WRITE_OFF // lost, damaged or used up
+}
+
+/// Every change to onHand, so the count can be traced.
+model StockMovement {
+  id        String            @id @default(cuid())
+  itemId    String
+  item      StockItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type      StockMovementType
+  quantity  Int // signed: + into stock, - out of stock
+  note      String?
+  requestId String?
+  request   StockRequest?     @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  projectId String?
+  project   Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  byId      String
+  by        User              @relation(fields: [byId], references: [id])
+  createdAt DateTime          @default(now())
+  receiptId String? // received against a purchase order
+  receipt   PurchaseReceipt?  @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+
+  @@index([itemId, createdAt])
+}
+
+enum StockRequestStatus {
+  PENDING // waiting for approval
+  APPROVED // approved, not yet handed out
+  REJECTED
+  CANCELLED
+  ISSUED // handed out; returnable items still out
+  CLOSED // everything returned, used up or written off
+}
+
+/// Someone asks for kits or parts, usually for a project. Approved in the Approvals inbox, then issued from stock.
+model StockRequest {
+  id           String             @id @default(cuid())
+  number       Int                @unique @default(autoincrement()) // shown as REQ-0001
+  requesterId  String
+  requester    User               @relation("StockRequester", fields: [requesterId], references: [id])
+  projectId    String?
+  project      Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  purpose      String
+  neededBy     DateTime?          @db.Date
+  returnBy     DateTime?          @db.Date
+  status       StockRequestStatus @default(PENDING)
+  decidedById  String?
+  decidedBy    User?              @relation("StockApprover", fields: [decidedById], references: [id])
+  decidedAt    DateTime?
+  decisionNote String?
+  issuedAt     DateTime?
+  closedAt     DateTime?
+  lines        StockRequestLine[]
+  movements    StockMovement[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([status])
+  @@index([requesterId])
+}
+
+model StockRequestLine {
+  id         String       @id @default(cuid())
+  requestId  String
+  request    StockRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       StockItem    @relation(fields: [itemId], references: [id])
+  quantity   Int // asked for
+  issued     Int          @default(0)
+  returned   Int          @default(0)
+  writtenOff Int          @default(0) // lost, damaged or used up
+
+  @@unique([requestId, itemId])
+}
+
+// ─── Operations: school programme delivery ─────────────────────────────────
+
+enum ProgrammeStatus {
+  PLANNED
+  RUNNING
+  PAUSED
+  COMPLETED
+}
+
+/// One school's programme for an academic year: the classes taught, who teaches them, and how many sessions.
+model Programme {
+  id              String             @id @default(cuid())
+  name            String // "Robotics & Coding"
+  organizationId  String
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  contactId       String? // the school's coordinator
+  contact         Contact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  projectId       String? // the delivery project, when one was started from a won deal
+  project         Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  academicYear    String? // "2026-27"
+  grades          String? // "Grades 3 to 8"
+  students        Int?
+  sessionsPlanned Int? // contracted sessions for the year, for progress
+  startDate       DateTime?          @db.Date
+  endDate         DateTime?          @db.Date
+  status          ProgrammeStatus    @default(PLANNED)
+  coordinatorId   String // Edubotics person responsible for this school
+  coordinator     User               @relation("ProgrammeCoordinator", fields: [coordinatorId], references: [id])
+  notes           String?
+  trainers        ProgrammeTrainer[]
+  sessions        ProgrammeSession[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([organizationId])
+}
+
+/// A trainer assigned to a school, and which classes they take there.
+model ProgrammeTrainer {
+  id          String    @id @default(cuid())
+  programmeId String
+  programme   Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classes     String? // "Grades 3 to 5"
+  createdAt   DateTime  @default(now())
+
+  @@unique([programmeId, userId])
+}
+
+enum SessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED // called off in advance (school event, exam, holiday)
+  MISSED // should have happened and didn't
+}
+
+/// One class period at a school. The trainer logs it afterwards.
+model ProgrammeSession {
+  id              String        @id @default(cuid())
+  programmeId     String
+  programme       Programme     @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  date            DateTime      @db.Date
+  startTime       String // "10:30", India time
+  durationMins    Int           @default(60)
+  classGroup      String? // "Grade 5 A"
+  topic           String? // planned lesson
+  trainerId       String?
+  trainer         User?         @relation("SessionTrainer", fields: [trainerId], references: [id], onDelete: SetNull)
+  status          SessionStatus @default(SCHEDULED)
+  // Session log, filled in by the trainer afterwards.
+  studentsPresent Int?
+  covered         String? // what was actually taught
+  notes           String?
+  issues          String? // kit problems, behaviour, anything the coordinator should follow up
+  loggedById      String?
+  loggedBy        User?         @relation("SessionLogger", fields: [loggedById], references: [id], onDelete: SetNull)
+  loggedAt        DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([programmeId, date])
+  @@index([trainerId, date])
+  @@index([date])
+}
+
+// ─── Expense claims ────────────────────────────────────────────────────────
+
+enum ExpenseCategory {
+  TRAVEL
+  FOOD
+  LODGING
+  KITS_MATERIALS // parts or materials bought for a session or project
+  PRINTING
+  PHONE_INTERNET
+  OTHER
+}
+
+enum ClaimStatus {
+  SUBMITTED // waiting for the manager or an admin
+  APPROVED // to be paid: in the next payroll, or by hand
+  REJECTED
+  PAID
+}
+
+/// Money an employee spent for work and wants back. Approved claims ride on the next payroll run.
+model ExpenseClaim {
+  id             String          @id @default(cuid())
+  employeeId     String
+  employee       Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date           DateTime        @db.Date // when the money was spent
+  category       ExpenseCategory
+  description    String // what it was for, e.g. "Kakkanad ↔ Choice School, robotics class"
+  amount         Decimal         @db.Decimal(12, 2) // claimed
+  approvedAmount Decimal?        @db.Decimal(12, 2) // what will be paid; may be less than claimed
+  distanceKm     Decimal?        @db.Decimal(7, 1) // own-vehicle travel
+  vehicle        String? // TWO_WHEELER or CAR, for own-vehicle travel
+  projectId      String?
+  project        Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  organizationId String?
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  receipt        ExpenseReceipt?
+  status         ClaimStatus     @default(SUBMITTED)
+  decidedById    String?
+  decidedBy      User?           @relation("ClaimApprover", fields: [decidedById], references: [id])
+  decidedAt      DateTime?
+  decisionNote   String?
+  payslipId      String? // set while the claim is on a payroll run
+  payslip        Payslip?        @relation(fields: [payslipId], references: [id], onDelete: SetNull)
+  paidOn         DateTime?       @db.Date
+  paidNote       String? // how it was paid when not through payroll, e.g. "UPI"
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([employeeId, date])
+  @@index([status])
+}
+
+/// The bill or photo of it, kept apart so lists don't load file bytes (5 MB cap).
+model ExpenseReceipt {
+  id       String       @id @default(cuid())
+  claimId  String       @unique
+  claim    ExpenseClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  fileName String
+  mimeType String
+  size     Int
+  data     Bytes
+}
+
+// ─── Invoicing ─────────────────────────────────────────────────────────────
+
+enum InvoiceStatus {
+  DRAFT // editable, no number yet
+  ISSUED // numbered and sent to the school; paid or not is worked out from payments
+  CANCELLED // keeps its number, as GST requires; amounts no longer count
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  UPI
+  CHEQUE
+  CASH
+  OTHER
+}
+
+/// A bill to a school or other institution. Amounts are stored when saved so printed invoices never change.
+model Invoice {
+  id             String           @id @default(cuid())
+  fy             String? // financial year of the issue date, "26-27"
+  seq            Int? // running number within the financial year
+  number         String?          @unique // EBG/26-27/001, given when issued
+  status         InvoiceStatus    @default(DRAFT)
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  contactId      String?
+  contact        Contact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  dealId         String?
+  deal           Deal?            @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  projectId      String?
+  project        Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  billToName     String
+  billToAddress  String?
+  billToGstin    String?
+  placeOfSupply  String // state; same as the company's → CGST + SGST, else IGST
+  issueDate      DateTime         @db.Date
+  dueDate        DateTime         @db.Date
+  subtotal       Decimal          @db.Decimal(14, 2)
+  cgst           Decimal          @default(0) @db.Decimal(14, 2)
+  sgst           Decimal          @default(0) @db.Decimal(14, 2)
+  igst           Decimal          @default(0) @db.Decimal(14, 2)
+  total          Decimal          @db.Decimal(14, 2)
+  notes          String?
+  issuedAt       DateTime?
+  cancelledAt    DateTime?
+  cancelReason   String?
+  createdById    String
+  createdBy      User             @relation("InvoiceCreator", fields: [createdById], references: [id])
+  lines          InvoiceLine[]
+  payments       InvoicePayment[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([fy, seq])
+  @@index([organizationId])
+  @@index([status, dueDate])
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  position    Int
+  description String
+  sac         String? // SAC/HSN code
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  gstRate     Decimal @default(0) @db.Decimal(5, 2) // percent
+  amount      Decimal @db.Decimal(14, 2) // quantity × unit price, before tax
+
+  @@index([invoiceId])
+}
+
+/// Money received against an invoice. TDS the school withheld also settles the invoice.
+model InvoicePayment {
+  id           String        @id @default(cuid())
+  invoiceId    String
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  receivedOn   DateTime      @db.Date
+  amount       Decimal       @db.Decimal(14, 2) // received in the bank or in hand
+  tds          Decimal       @default(0) @db.Decimal(14, 2) // withheld by the school as income tax
+  method       PaymentMethod @default(BANK_TRANSFER)
+  reference    String? // UTR, cheque number…
+  note         String?
+  recordedById String
+  recordedBy   User          @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime      @default(now())
+
+  @@index([invoiceId])
+}
+
+// ─── Purchases ─────────────────────────────────────────────────────────────
+// Buying from suppliers: vendors, purchase orders approved in the Approvals inbox,
+// goods received into stock, the vendor's bill and what has been paid on it.
+
+model Vendor {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  state       String          @default("Kerala") // decides CGST + SGST or IGST
+  gstin       String?
+  pan         String?
+  paymentDays Int             @default(30) // bill due this many days after the bill date
+  bankDetails String? // account, IFSC or UPI ID, for paying them
+  notes       String?
+  active      Boolean         @default(true)
+  orders      PurchaseOrder[]
+  bills       VendorBill[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+enum PurchaseOrderStatus {
+  PENDING // waiting for approval
+  APPROVED // approved, not yet sent to the vendor
+  ORDERED // sent to the vendor, waiting for delivery
+  PART_RECEIVED
+  RECEIVED // everything arrived
+  CLOSED // closed with some lines short
+  REJECTED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id           String              @id @default(cuid())
+  number       Int                 @unique @default(autoincrement()) // shown as PO-0001
+  vendorId     String
+  vendor       Vendor              @relation(fields: [vendorId], references: [id])
+  requesterId  String
+  requester    User                @relation("PORequester", fields: [requesterId], references: [id])
+  projectId    String?
+  project      Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  purpose      String
+  expectedBy   DateTime?           @db.Date
+  interState   Boolean             @default(false) // vendor outside Kerala: IGST instead of CGST + SGST
+  subtotal     Decimal             @db.Decimal(12, 2) // before GST
+  tax          Decimal             @db.Decimal(12, 2)
+  total        Decimal             @db.Decimal(12, 2)
+  status       PurchaseOrderStatus @default(PENDING)
+  decidedById  String?
+  decidedBy    User?               @relation("POApprover", fields: [decidedById], references: [id])
+  decidedAt    DateTime?
+  decisionNote String?
+  orderedAt    DateTime?
+  closedAt     DateTime?
+  lines        PurchaseOrderLine[]
+  receipts     PurchaseReceipt[]
+  bills        VendorBill[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([status])
+  @@index([vendorId])
+}
+
+/// One thing bought. Linked to a stock item when it goes into inventory; free text for anything else.
+model PurchaseOrderLine {
+  id          String                @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        StockItem?            @relation(fields: [itemId], references: [id])
+  description String
+  quantity    Int
+  unit        String                @default("pcs")
+  unitPrice   Decimal               @db.Decimal(12, 2) // before GST
+  gstRate     Int                   @default(18)
+  received    Int                   @default(0)
+  receipts    PurchaseReceiptLine[]
+}
+
+/// A delivery from the vendor (goods received note). Stock items go into inventory.
+model PurchaseReceipt {
+  id         String                @id @default(cuid())
+  orderId    String
+  order      PurchaseOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  receivedOn DateTime              @db.Date
+  note       String?
+  byId       String
+  by         User                  @relation(fields: [byId], references: [id])
+  lines      PurchaseReceiptLine[]
+  movements  StockMovement[]
+  createdAt  DateTime              @default(now())
+}
+
+model PurchaseReceiptLine {
+  id        String            @id @default(cuid())
+  receiptId String
+  receipt   PurchaseReceipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  lineId    String
+  line      PurchaseOrderLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  quantity  Int
+}
+
+enum VendorBillStatus {
+  OPEN
+  CANCELLED
+}
+
+/// The vendor's invoice to us. Paid in one or more payments; what's left shows under Payables.
+model VendorBill {
+  id        String           @id @default(cuid())
+  vendorId  String
+  vendor    Vendor           @relation(fields: [vendorId], references: [id])
+  orderId   String?
+  order     PurchaseOrder?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  billNo    String // the vendor's invoice number
+  billDate  DateTime         @db.Date
+  dueDate   DateTime         @db.Date
+  subtotal  Decimal          @db.Decimal(12, 2)
+  tax       Decimal          @db.Decimal(12, 2) // GST on the bill (input credit)
+  total     Decimal          @db.Decimal(12, 2)
+  notes     String?
+  status    VendorBillStatus @default(OPEN)
+  byId      String
+  by        User             @relation(fields: [byId], references: [id])
+  file      VendorBillFile?
+  payments  VendorPayment[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([vendorId, billNo])
+  @@index([dueDate])
+}
+
+/// Photo or PDF of the vendor's bill, kept apart so lists don't load the bytes.
+model VendorBillFile {
+  id       String     @id @default(cuid())
+  billId   String     @unique
+  bill     VendorBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  fileName String
+  mimeType String
+  size     Int
+  data     Bytes
+}
+
+model VendorPayment {
+  id        String     @id @default(cuid())
+  billId    String
+  bill      VendorBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  paidOn    DateTime   @db.Date
+  amount    Decimal    @db.Decimal(12, 2) // money sent
+  tds       Decimal    @default(0) @db.Decimal(12, 2) // income tax held back and paid to the government
+  method    String // BANK_TRANSFER, UPI, CHEQUE, CASH, OTHER
+  reference String? // UTR, cheque number
+  note      String?
+  byId      String
+  by        User       @relation(fields: [byId], references: [id])
+  createdAt DateTime   @default(now())
+
+  @@index([billId])
+}
+
+// ─── Recruitment ───────────────────────────────────────────────────────────
+
+enum JobStatus {
+  OPEN
+  ON_HOLD
+  FILLED // every opening has a hire
+  CLOSED // stopped without filling
+}
+
+model JobOpening {
+  id              String         @id @default(cuid())
+  title           String // Robotics Trainer, Sales Executive…
+  departmentId    String?
+  department      Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  employmentType  EmploymentType @default(FULL_TIME)
+  location        String?        @default("Kochi")
+  positions       Int            @default(1) // how many people to hire
+  salaryRange     String? // shown to the team only, e.g. "₹18,000–25,000 a month"
+  description     String?
+  status          JobStatus      @default(OPEN)
+  hiringManagerId String?
+  hiringManager   User?          @relation("JobHiringManager", fields: [hiringManagerId], references: [id], onDelete: SetNull)
+  createdById     String
+  createdBy       User           @relation("JobCreator", fields: [createdById], references: [id])
+  closedAt        DateTime?
+  candidates      Candidate[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([status])
+}
+
+enum CandidateStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+  WITHDRAWN // the candidate pulled out
+}
+
+model Candidate {
+  id              String          @id @default(cuid())
+  jobId           String
+  job             JobOpening      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name            String
+  email           String?
+  phone           String?
+  city            String?
+  source          String          @default("Other") // Referral, LinkedIn, Naukri, Walk-in…
+  referredBy      String?
+  currentRole     String? // current job or course, e.g. "B.Tech ECE, final year"
+  experienceYears Decimal?        @db.Decimal(4, 1)
+  expectedSalary  Decimal?        @db.Decimal(12, 2) // monthly, INR
+  noticePeriod    String?
+  notes           String?
+  stage           CandidateStage  @default(APPLIED)
+  closedReason    String? // why rejected or withdrawn
+  employeeId      String?         @unique // set when hired and moved into HR
+  employee        Employee?       @relation("HiredAs", fields: [employeeId], references: [id], onDelete: SetNull)
+  createdById     String
+  createdBy       User            @relation("CandidateCreator", fields: [createdById], references: [id])
+  files           CandidateFile[]
+  interviews      Interview[]
+  offers          Offer[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([jobId, stage])
+  @@index([email])
+  @@index([phone])
+}
+
+/// Resumes and other files, kept in Postgres like employee documents (5 MB cap each).
+model CandidateFile {
+  id           String    @id @default(cuid())
+  candidateId  String
+  candidate    Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  kind         String    @default("Resume") // Resume, Portfolio, Certificate, Other
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime  @default(now())
+
+  @@index([candidateId])
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  DONE // feedback given
+  CANCELLED
+  NO_SHOW
+}
+
+enum Recommendation {
+  STRONG_YES
+  YES
+  NO
+  STRONG_NO
+}
+
+model Interview {
+  id             String          @id @default(cuid())
+  candidateId    String
+  candidate      Candidate       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  round          String // Phone screen, Technical, Demo class, HR / final
+  scheduledAt    DateTime
+  mode           String          @default("In person") // In person, Video call, Phone
+  location       String? // room, address or meeting link
+  interviewerId  String
+  interviewer    User            @relation("Interviewer", fields: [interviewerId], references: [id])
+  status         InterviewStatus @default(SCHEDULED)
+  rating         Int? // 1–5
+  recommendation Recommendation?
+  feedback       String?
+  feedbackAt     DateTime?
+  scheduledById  String
+  scheduledBy    User            @relation("InterviewScheduler", fields: [scheduledById], references: [id])
+  createdAt      DateTime        @default(now())
+
+  @@index([interviewerId, scheduledAt])
+  @@index([candidateId])
+}
+
+enum OfferStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+/// Salary uses the same parts as payroll, so a hire's salary record is filled in from the accepted offer.
+model Offer {
+  id               String         @id @default(cuid())
+  candidateId      String
+  candidate        Candidate      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  designation      String
+  departmentId     String?
+  department       Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  managerId        String? // who they will report to
+  manager          Employee?      @relation("OfferManager", fields: [managerId], references: [id], onDelete: SetNull)
+  employmentType   EmploymentType @default(FULL_TIME)
+  basic            Decimal        @db.Decimal(12, 2) // monthly
+  hra              Decimal        @default(0) @db.Decimal(12, 2)
+  specialAllowance Decimal        @default(0) @db.Decimal(12, 2)
+  joiningDate      DateTime       @db.Date
+  respondBy        DateTime?      @db.Date
+  probationMonths  Int            @default(6)
+  notes            String? // extra terms printed on the letter
+  status           OfferStatus    @default(DRAFT)
+  sentAt           DateTime?
+  respondedAt      DateTime?
+  createdById      String
+  createdBy        User           @relation(fields: [createdById], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([candidateId])
+}
+
+// ─── Notice board ──────────────────────────────────────────────────────────
+
+enum NoticeKind {
+  ANNOUNCEMENT
+  POLICY
+}
+
+/// A company announcement or policy posted by an admin or manager. Everyone with a login can read it.
+model Notice {
+  id          String      @id @default(cuid())
+  kind        NoticeKind
+  title       String
+  body        String
+  category    String? // policies: Leave, Conduct, Travel…
+  pinned      Boolean     @default(false)
+  requiresAck Boolean     @default(false)
+  ackDueDate  DateTime?   @db.Date
+  showUntil   DateTime?   @db.Date // announcements drop off Home after this day
+  /// Bumped when a policy changes and everyone must acknowledge again; older acknowledgements stop counting.
+  version     Int         @default(1)
+  authorId    String
+  author      User        @relation(fields: [authorId], references: [id])
+  attachment  NoticeFile?
+  acks        NoticeAck[]
+  archivedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([kind, archivedAt])
+}
+
+/// The policy document or poster attached to a notice (PDF or image, up to 5 MB).
+model NoticeFile {
+  id       String @id @default(cuid())
+  noticeId String @unique
+  notice   Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  fileName String
+  mimeType String
+  size     Int
+  data     Bytes
+}
+
+model NoticeAck {
+  id       String   @id @default(cuid())
+  noticeId String
+  notice   Notice   @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version  Int // the notice version that was acknowledged
+  ackedAt  DateTime @default(now())
+
+  @@unique([noticeId, userId])
+}
+
+// ─── Helpdesk ──────────────────────────────────────────────────────────────
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED // withdrawn by the person who raised it
+}
+
+/// A request from any staff member to the admin team: equipment, ID card, repairs, letters…
+model HelpdeskTicket {
+  id              String               @id @default(cuid())
+  number          Int                  @unique @default(autoincrement()) // shown as HD-001
+  title           String
+  description     String
+  category        String // see HELPDESK_CATEGORIES
+  priority        Priority             @default(MEDIUM)
+  status          TicketStatus         @default(OPEN)
+  requesterId     String
+  requester       User                 @relation("TicketRequester", fields: [requesterId], references: [id])
+  assigneeId      String?
+  assignee        User?                @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assetId         String? // the laptop, kit or card this is about, from HR Assets
+  asset           Asset?               @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  resolution      String? // what was done, written when it is marked done
+  doneAt          DateTime?
+  requesterUnread Boolean              @default(false) // someone else changed it since the requester last looked
+  comments        HelpdeskComment[]
+  attachments     HelpdeskAttachment[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([requesterId, status])
+  @@index([status, assigneeId])
+}
+
+/// A reply on a request, or a line in its history ("Moved to In progress").
+model HelpdeskComment {
+  id        String         @id @default(cuid())
+  ticketId  String
+  ticket    HelpdeskTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User           @relation(fields: [authorId], references: [id])
+  body      String?
+  event     String? // system note, e.g. "Assigned to Anu" or "Marked done"
+  createdAt DateTime       @default(now())
+
+  attachments HelpdeskAttachment[]
+
+  @@index([ticketId, createdAt])
+}
+
+/// Photos and PDFs on a request, stored in Postgres like employee documents (5 MB each).
+model HelpdeskAttachment {
+  id           String           @id @default(cuid())
+  ticketId     String
+  ticket       HelpdeskTicket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  commentId    String?
+  comment      HelpdeskComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String
+  uploadedBy   User             @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime         @default(now())
+
+  @@index([ticketId])
 }

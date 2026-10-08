@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { isAdmin, requireUser } from "@/lib/auth";
+import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
-import { formatDate, humanize } from "@/lib/format";
+import { formatDate, formatINR, humanize } from "@/lib/format";
+import { payableOf } from "@/lib/expenses";
 import { todayIST } from "@/lib/time";
 import {
   PROJECT_STAGES,
@@ -24,15 +25,30 @@ import {
   deleteProject,
   deleteTask,
   moveStage,
+  postProjectUpdate,
   removeMember,
   setTaskStatus,
   toggleHold,
   toggleMilestone,
   updateProject,
 } from "../actions";
+import { outstanding, requestNo } from "@/lib/inventory";
+import { RequestBadge } from "../../inventory/ui";
 import { ProjectForm } from "../forms";
 import { projectFormOptions } from "../data";
-import { PriorityBadge, ProgressBar, StageBadge, StageRail, WORK_STATUSES, WorkBadge } from "../ui";
+import {
+  FileList,
+  PriorityBadge,
+  ProgressBar,
+  StageBadge,
+  StageRail,
+  TaskStatusBadge,
+  UpdateFeed,
+  UpdateRequestedBadge,
+  WORK_STATUSES,
+  updateInclude,
+} from "../ui";
+import { ProgrammeBadge } from "../../operations/ui";
 
 export default async function ProjectPage({ params }: PageProps<"/projects/[id]">) {
   const user = await requireUser();
@@ -44,21 +60,37 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
       department: true,
       organization: { select: { id: true, name: true } },
       deal: { select: { id: true, title: true } },
+      programmes: { select: { id: true, name: true, status: true, organization: { select: { name: true } } } },
       decidedBy: { select: { name: true } },
       members: { include: { user: { select: { id: true, name: true } } }, orderBy: { createdAt: "asc" } },
       milestones: { orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }] },
       tasks: {
-        include: { assignee: { select: { id: true, name: true } }, milestone: { select: { title: true } } },
+        include: {
+          assignee: { select: { id: true, name: true } },
+          milestone: { select: { title: true } },
+          _count: { select: { files: true } },
+        },
         orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
       },
+      stockRequests: {
+        where: { status: { notIn: ["CANCELLED", "REJECTED"] } },
+        include: { lines: { include: { item: { select: { name: true, returnable: true } } } } },
+        orderBy: { createdAt: "desc" },
+      },
+      updates: { include: updateInclude, orderBy: { createdAt: "desc" }, take: 15 },
+      files: { include: { uploadedBy: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
     },
   });
   if (!project) notFound();
 
-  const [canEdit, canApprove, hours, options] = await Promise.all([
+  const [canEdit, canApprove, hours, expenses, options] = await Promise.all([
     canEditProject(user, project),
     canApproveProject(user, project),
     db.timeEntry.aggregate({ where: { projectId: id }, _sum: { hours: true } }),
+    db.expenseClaim.findMany({
+      where: { projectId: id, status: { not: "REJECTED" } },
+      select: { amount: true, approvedAmount: true },
+    }),
     canEditProject(user, project) ? projectFormOptions(project.dealId) : null,
   ]);
   const today = todayIST();
@@ -104,6 +136,11 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             <Link href="/projects" className="btn-secondary">
               All projects
             </Link>
+            {isManagerOrAdmin(user) && project.organization && (
+              <Link href={`/invoices/new?project=${project.id}`} className="btn-secondary">
+                Create invoice
+              </Link>
+            )}
             {canEdit && project.stage !== "COMPLETE" && (
               <form action={toggleHold.bind(null, project.id)}>
                 <button className="btn-secondary">{project.onHold ? "Resume" : "Put on hold"}</button>
@@ -208,11 +245,17 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
           <div className="text-xs text-slate-500">
             {project.dueDate ? `Due ${formatDate(project.dueDate)}` : "No due date"} · owner {project.owner.name}
           </div>
+          {expenses.length > 0 && (
+            <div className="text-xs text-slate-500">
+              Expenses claimed {formatINR(expenses.reduce((s, c) => s + payableOf(c), 0))}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <section className="card min-w-0 lg:col-span-2">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+        <section className="card">
           <h2 className="mb-3 font-semibold">Tasks</h2>
           {project.tasks.length === 0 ? (
             <Empty>No tasks yet.</Empty>
@@ -221,15 +264,27 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
               {project.tasks.map((t) => {
                 const late = t.status !== "DONE" && t.dueDate && t.dueDate < today;
                 const canMove = canEdit || t.assignee?.id === user.id;
+                const tPct = t.status === "DONE" ? 100 : t.progress;
                 return (
                   <li key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm">
-                    <div className="min-w-0 flex-1">
-                      <div className={t.status === "DONE" ? "text-slate-400 line-through" : "font-medium"}>{t.title}</div>
+                    <div className="min-w-0 flex-1 basis-full sm:basis-0">
+                      <Link
+                        href={`/projects/${project.id}/tasks/${t.id}`}
+                        className={t.status === "DONE" ? "text-slate-400 line-through hover:underline" : "font-medium hover:underline"}
+                      >
+                        {t.title}
+                      </Link>{" "}
+                      {t.updateRequestedAt && <UpdateRequestedBadge />}
                       <div className="text-xs text-slate-500">
                         {t.assignee?.name ?? "Unassigned"}
                         {t.milestone && ` · ${t.milestone.title}`}
+                        {t._count.files > 0 && ` · 📎 ${t._count.files}`}
                         {t.description && ` · ${t.description}`}
                       </div>
+                    </div>
+                    <div className="flex w-24 items-center gap-1.5" title={`${tPct}% complete`}>
+                      <ProgressBar value={tPct} className="flex-1" />
+                      <span className="w-8 text-right text-xs text-slate-500 tabular-nums">{tPct}%</span>
                     </div>
                     <PriorityBadge priority={t.priority} />
                     <span className={`text-xs ${late ? "font-medium text-red-600" : "text-slate-500"}`}>
@@ -247,7 +302,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                         <button className="btn-secondary btn-sm">Set</button>
                       </form>
                     ) : (
-                      <WorkBadge status={t.status} />
+                      <TaskStatusBadge status={t.status} dueDate={t.dueDate} today={today} />
                     )}
                     {canEdit && (
                       <form action={deleteTask.bind(null, t.id)}>
@@ -308,6 +363,19 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
           )}
         </section>
 
+        <section className="card">
+          <h2 className="mb-3 font-semibold">Updates</h2>
+          <ActionForm action={postProjectUpdate.bind(null, project.id)} className="mb-4 space-y-2">
+            <textarea name="note" rows={2} className="input" placeholder="Share progress, blockers or meeting notes with the team" />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <input type="file" name="files" multiple className="text-xs text-slate-500" />
+              <SubmitButton className="btn-secondary btn-sm">Post</SubmitButton>
+            </div>
+          </ActionForm>
+          <UpdateFeed updates={project.updates} projectId={project.id} showTask />
+        </section>
+        </div>
+
         <div className="space-y-6">
           <section className="card">
             <h2 className="mb-3 font-semibold">Team ({project.members.length})</h2>
@@ -340,6 +408,70 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                 <SubmitButton className="btn-secondary btn-sm">Add to team</SubmitButton>
               </ActionForm>
             )}
+          </section>
+
+          {(project.programmes.length > 0 || (project.kind === "SCHOOL_PROGRAMME" && isManagerOrAdmin(user))) && (
+            <section className="card">
+              <h2 className="mb-3 font-semibold">School sessions</h2>
+              {project.programmes.length === 0 ? (
+                <p className="text-sm text-slate-500">Set up the school&apos;s timetable and trainers under Operations.</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {project.programmes.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-2">
+                      <Link href={`/operations/programmes/${p.id}`} className="link">
+                        {p.organization.name} · {p.name}
+                      </Link>
+                      <ProgrammeBadge status={p.status} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {isManagerOrAdmin(user) && (
+                <Link href={`/operations/programmes/new?project=${project.id}`} className="btn-secondary btn-sm mt-3">
+                  {project.programmes.length ? "Add another school" : "Set up school sessions"}
+                </Link>
+              )}
+            </section>
+          )}
+
+          <section className="card">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">Kits and parts</h2>
+              {project.stage !== "COMPLETE" && (
+                <Link href={`/inventory/requests/new?project=${project.id}`} className="link text-sm">
+                  Request
+                </Link>
+              )}
+            </div>
+            {project.stockRequests.length === 0 ? (
+              <p className="text-sm text-slate-500">Nothing requested from inventory.</p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {project.stockRequests.map((r) => {
+                  const out = r.lines.reduce((n, l) => n + outstanding(l), 0);
+                  return (
+                    <li key={r.id}>
+                      <div className="flex items-center justify-between gap-2">
+                        <Link href={`/inventory/requests/${r.id}`} className="link">
+                          {requestNo(r.number)}
+                        </Link>
+                        <RequestBadge status={r.status} />
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {r.lines.map((l) => `${l.quantity} × ${l.item.name}`).join(", ")}
+                        {out > 0 && ` · ${out} still out`}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          <section className="card">
+            <h2 className="mb-3 font-semibold">Files ({project.files.length})</h2>
+            <FileList files={project.files} canDelete={(f) => canEdit || f.uploadedById === user.id} />
           </section>
 
           <section className="card">

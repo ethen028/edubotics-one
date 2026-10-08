@@ -3,11 +3,21 @@ import { NavLink } from "@/components/nav-link";
 import { Sidebar } from "@/components/sidebar";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
+import { lowStockItems } from "@/lib/inventory";
+import { db } from "@/lib/db";
+import { myPendingAcks } from "@/lib/notices";
+import { helpdeskCounts } from "@/lib/helpdesk";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const approvals = await pendingApprovals(user);
+  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk] = await Promise.all([
+    pendingApprovals(user),
+    isAdmin(user) ? lowStockItems() : [],
+    db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
+    myPendingAcks(user),
+    helpdeskCounts(user),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -25,12 +35,34 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <nav className="flex-1 space-y-4 overflow-y-auto">
           <div className="space-y-0.5">
             <NavLink href="/">Home</NavLink>
+            <NavLink href="/notices">
+              <span className="flex items-center justify-between">
+                Notice board
+                {toAcknowledge.length > 0 && (
+                  <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950">
+                    {toAcknowledge.length}
+                  </span>
+                )}
+              </span>
+            </NavLink>
           </div>
           <div className="space-y-0.5">
             <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Work</div>
             <NavLink href="/work">My work</NavLink>
             <NavLink href="/projects">Projects</NavLink>
             <NavLink href="/timesheets">Timesheet</NavLink>
+            <NavLink href="/expenses" exact>
+              Expenses
+            </NavLink>
+            {isManagerOrAdmin(user) && <NavLink href="/expenses/team">Team expenses</NavLink>}
+            <NavLink href="/helpdesk">
+              <span className="flex items-center justify-between">
+                Helpdesk
+                {helpdesk.total > 0 && (
+                  <span className="rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950">{helpdesk.total}</span>
+                )}
+              </span>
+            </NavLink>
             {isManagerOrAdmin(user) && (
               <NavLink href="/approvals">
                 <span className="flex items-center justify-between">
@@ -45,6 +77,37 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             )}
           </div>
           <div className="space-y-0.5">
+            <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Inventory</div>
+            <NavLink href="/inventory" exact>
+              <span className="flex items-center justify-between">
+                Stock
+                {lowStock.length > 0 && (
+                  <span className="rounded-full bg-red-400 px-1.5 text-[11px] font-semibold text-red-950" title="Low or out of stock">
+                    {lowStock.length}
+                  </span>
+                )}
+              </span>
+            </NavLink>
+            <NavLink href="/inventory/requests">Requests</NavLink>
+          </div>
+          <div className="space-y-0.5">
+            <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Operations</div>
+            <NavLink href="/operations" exact>
+              School sessions
+            </NavLink>
+            <NavLink href="/operations/schedule">Week schedule</NavLink>
+            <NavLink href="/operations/programmes">School programmes</NavLink>
+            {isManagerOrAdmin(user) && <NavLink href="/operations/reports">Delivery reports</NavLink>}
+          </div>
+          <div className="space-y-0.5">
+            <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Purchases</div>
+            <NavLink href="/purchases" exact>
+              Purchase orders
+            </NavLink>
+            <NavLink href="/purchases/vendors">Vendors</NavLink>
+            {isAdmin(user) && <NavLink href="/purchases/payables">Payables</NavLink>}
+          </div>
+          <div className="space-y-0.5">
             <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">CRM</div>
             <NavLink href="/crm/leads">Leads</NavLink>
             <NavLink href="/crm/deals">Deals</NavLink>
@@ -52,6 +115,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <NavLink href="/crm/contacts">Contacts</NavLink>
             <NavLink href="/crm/activities">Follow-ups</NavLink>
           </div>
+          {isManagerOrAdmin(user) && (
+            <div className="space-y-0.5">
+              <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Billing</div>
+              <NavLink href="/invoices" exact>
+                Invoices
+              </NavLink>
+              <NavLink href="/invoices/dues">Payments due</NavLink>
+            </div>
+          )}
           <div className="space-y-0.5">
             <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">HR</div>
             {user.employee && <NavLink href={`/hr/employees/${user.employee.id}`}>My profile</NavLink>}
@@ -63,6 +135,17 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               People
             </NavLink>
             {isManagerOrAdmin(user) && <NavLink href="/hr/attendance/register">Attendance register</NavLink>}
+            {isManagerOrAdmin(user) && <NavLink href="/recruitment">Recruitment</NavLink>}
+            {(isManagerOrAdmin(user) || myInterviews > 0) && (
+              <NavLink href="/recruitment/interviews">
+                <span className="flex items-center justify-between">
+                  My interviews
+                  {myInterviews > 0 && (
+                    <span className="rounded-full bg-white/15 px-1.5 text-[11px] font-semibold">{myInterviews}</span>
+                  )}
+                </span>
+              </NavLink>
+            )}
             {isManagerOrAdmin(user) && <NavLink href="/hr/onboarding">Onboarding</NavLink>}
             {isManagerOrAdmin(user) && <NavLink href="/hr/training">Training</NavLink>}
             {isAdmin(user) && <NavLink href="/hr/assets">Assets</NavLink>}
