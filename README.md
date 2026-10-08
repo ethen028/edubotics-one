@@ -54,6 +54,8 @@ Next.js 16 (App Router, server actions) · TypeScript · Tailwind CSS 4 · Postg
 
 One office computer can run the whole app with Docker Desktop, and staff on the same Wi-Fi use it from their browsers. Plain step-by-step guide: [docs/run-on-your-computer.md](docs/run-on-your-computer.md).
 
+The public careers page (`/careers`) and how to put just that page on the internet later: [docs/careers-page.md](docs/careers-page.md).
+
 ## Run locally
 
 Requires Node 22+ and PostgreSQL 14+.

@@ -1,7 +1,7 @@
 import type { Candidate, JobOpening } from "@prisma/client";
 import { ActionForm, SubmitButton, type FormState } from "@/components/action-form";
 import { Field, Options } from "@/components/ui";
-import { humanize } from "@/lib/format";
+import { humanize, toDateInput } from "@/lib/format";
 import { CANDIDATE_SOURCES } from "@/lib/recruitment";
 
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
@@ -59,7 +59,7 @@ export function JobForm({
           </select>
         </Field>
       </div>
-      <Field label="What the role involves and who you're looking for">
+      <Field label="What the role involves and who you're looking for (shown on the careers page when listed)">
         <textarea
           name="description"
           rows={5}
@@ -68,6 +68,22 @@ export function JobForm({
           placeholder="Teach robotics and coding to grades 1–8 at partner schools. B.Tech/B.Sc with Arduino basics; Malayalam and English."
         />
       </Field>
+      <div className="grid gap-4 rounded-lg bg-brand-50 p-3 sm:grid-cols-2">
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="onCareersPage" defaultChecked={job?.onCareersPage ?? false} className="mt-1" />
+          <span>
+            <span className="font-medium">Show on the careers page</span>
+            <span className="block text-xs text-slate-500">
+              Candidates can then apply online. Only the title, department, type, location, description and closing date are shown; never
+              the salary range or hiring manager.
+            </span>
+          </span>
+        </label>
+        <Field label="Apply by (optional)">
+          <input name="applyBy" type="date" defaultValue={toDateInput(job?.applyBy)} className="input" />
+          <span className="mt-1 block text-xs text-slate-500">After this day the job drops off the careers page.</span>
+        </Field>
+      </div>
       <SubmitButton>{job ? "Save job" : "Open job"}</SubmitButton>
     </ActionForm>
   );

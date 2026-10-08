@@ -8,18 +8,20 @@ import { db } from "@/lib/db";
 import { myPendingAcks } from "@/lib/notices";
 import { helpdeskCounts } from "@/lib/helpdesk";
 import { myReviewTodos } from "@/lib/reviews";
+import { newOnlineApplications } from "@/lib/careers";
 import { myChecklistsNow } from "@/lib/checklists";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk, reviewTodos, checklists] = await Promise.all([
+  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk, reviewTodos, onlineApplications, checklists] = await Promise.all([
     pendingApprovals(user),
     isAdmin(user) ? lowStockItems() : [],
     db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
     myPendingAcks(user),
     helpdeskCounts(user),
     myReviewTodos(user),
+    isManagerOrAdmin(user) ? newOnlineApplications() : 0,
     myChecklistsNow(user.id),
   ]);
   const overdueChecklists = checklists.open.some((e) => e.status === "OVERDUE");
@@ -157,7 +159,21 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               People
             </NavLink>
             {isManagerOrAdmin(user) && <NavLink href="/hr/attendance/register">Attendance register</NavLink>}
-            {isManagerOrAdmin(user) && <NavLink href="/recruitment">Recruitment</NavLink>}
+            {isManagerOrAdmin(user) && (
+              <NavLink href="/recruitment">
+                <span className="flex items-center justify-between">
+                  Recruitment
+                  {onlineApplications > 0 && (
+                    <span
+                      className="rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950"
+                      title="New applications from the careers page"
+                    >
+                      {onlineApplications}
+                    </span>
+                  )}
+                </span>
+              </NavLink>
+            )}
             {(isManagerOrAdmin(user) || myInterviews > 0) && (
               <NavLink href="/recruitment/interviews">
                 <span className="flex items-center justify-between">

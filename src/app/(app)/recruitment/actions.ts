@@ -68,6 +68,15 @@ const jobSchema = z.object({
   salaryRange: optional,
   description: optional,
   hiringManagerId: optional,
+  onCareersPage: z
+    .literal("on")
+    .optional()
+    .transform((v) => v === "on"),
+  applyBy: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), "pick a date")
+    .transform((v) => (v ? parseDateOnly(v) : null)),
 });
 
 export async function createJob(_: FormState, formData: FormData): Promise<FormState> {
@@ -421,7 +430,8 @@ export async function hireCandidate(candidateId: string, _: FormState, formData:
             size: f.size,
             data: f.data,
             status: "VERIFIED" as const,
-            uploadedById: f.uploadedById,
+            // Careers-page resumes have no staff uploader; the admin hiring them files it.
+            uploadedById: f.uploadedById ?? user.id,
             reviewedById: user.id,
             reviewedAt: new Date(),
           })),
