@@ -35,6 +35,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <nav className="flex-1 space-y-4 overflow-y-auto">
           <div className="space-y-0.5">
             <NavLink href="/">Home</NavLink>
+            {isAdmin(user) && <NavLink href="/dashboard">Owner dashboard</NavLink>}
             <NavLink href="/notices">
               <span className="flex items-center justify-between">
                 Notice board
