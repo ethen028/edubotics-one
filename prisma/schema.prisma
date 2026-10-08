@@ -72,6 +72,10 @@ model User {
   helpdeskAssigned      HelpdeskTicket[]     @relation("TicketAssignee")
   helpdeskComments      HelpdeskComment[]
   helpdeskFiles         HelpdeskAttachment[]
+  checklistTemplates    ChecklistTemplate[]
+  checklistAssignments  ChecklistAssignee[]
+  checklistRuns         ChecklistRun[]       @relation("ChecklistRunner")
+  checklistTicks        ChecklistTick[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -1042,27 +1046,28 @@ enum SessionStatus {
 
 /// One class period at a school. The trainer logs it afterwards.
 model ProgrammeSession {
-  id              String        @id @default(cuid())
+  id              String         @id @default(cuid())
   programmeId     String
-  programme       Programme     @relation(fields: [programmeId], references: [id], onDelete: Cascade)
-  date            DateTime      @db.Date
+  programme       Programme      @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  date            DateTime       @db.Date
   startTime       String // "10:30", India time
-  durationMins    Int           @default(60)
+  durationMins    Int            @default(60)
   classGroup      String? // "Grade 5 A"
   topic           String? // planned lesson
   trainerId       String?
-  trainer         User?         @relation("SessionTrainer", fields: [trainerId], references: [id], onDelete: SetNull)
-  status          SessionStatus @default(SCHEDULED)
+  trainer         User?          @relation("SessionTrainer", fields: [trainerId], references: [id], onDelete: SetNull)
+  status          SessionStatus  @default(SCHEDULED)
   // Session log, filled in by the trainer afterwards.
   studentsPresent Int?
   covered         String? // what was actually taught
   notes           String?
   issues          String? // kit problems, behaviour, anything the coordinator should follow up
   loggedById      String?
-  loggedBy        User?         @relation("SessionLogger", fields: [loggedById], references: [id], onDelete: SetNull)
+  loggedBy        User?          @relation("SessionLogger", fields: [loggedById], references: [id], onDelete: SetNull)
   loggedAt        DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  checklistRuns   ChecklistRun[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([programmeId, date])
   @@index([trainerId, date])
@@ -1748,4 +1753,107 @@ model HelpdeskAttachment {
   createdAt    DateTime         @default(now())
 
   @@index([ticketId])
+}
+
+// ---------- Daily checklists ----------
+
+enum ChecklistFrequency {
+  DAILY // every working day (Admin > Settings weekly offs and holidays skipped)
+  WEEKLY // once a week, due on `weekday`
+  MONTHLY // once a month, due on `dayOfMonth` (0 = last working day)
+  SESSION // before each school session, for its trainer
+}
+
+enum ChecklistAudience {
+  EVERYONE
+  ROLE
+  PEOPLE
+}
+
+model ChecklistTemplate {
+  id          String              @id @default(cuid())
+  title       String
+  description String?
+  frequency   ChecklistFrequency
+  weekday     Int? // WEEKLY: 0 = Sunday … 6 = Saturday
+  dayOfMonth  Int? // MONTHLY: 1-28, or 0 for the last working day
+  dueTime     String? // "10:00" India time; end of day when empty. SESSION: the class start time
+  audience    ChecklistAudience   @default(PEOPLE) // who it's for (SESSION: always the session's trainer)
+  role        Role? // when audience is ROLE
+  startsOn    DateTime            @db.Date // nothing before this counts as missed
+  endsOn      DateTime?           @db.Date // switched off: nothing after this is due, history stays
+  createdById String
+  createdBy   User                @relation(fields: [createdById], references: [id])
+  items       ChecklistItem[]
+  assignees   ChecklistAssignee[]
+  runs        ChecklistRun[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model ChecklistItem {
+  id         String            @id @default(cuid())
+  templateId String
+  template   ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  label      String
+  needsPhoto Boolean           @default(false)
+  position   Int
+  archivedAt DateTime? // removed from the list but kept for past ticks
+  ticks      ChecklistTick[]
+
+  @@index([templateId])
+}
+
+model ChecklistAssignee {
+  templateId String
+  template   ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, userId])
+}
+
+/// One person's copy of a checklist for one day, week, month or school session. Created on the first tick.
+model ChecklistRun {
+  id          String            @id @default(cuid())
+  templateId  String
+  template    ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User              @relation("ChecklistRunner", fields: [userId], references: [id], onDelete: Cascade)
+  periodKey   String // "2026-10-07", or "session:<id>"
+  dueDate     DateTime          @db.Date
+  sessionId   String?
+  session     ProgrammeSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  completedAt DateTime?
+  ticks       ChecklistTick[]
+  createdAt   DateTime          @default(now())
+
+  @@unique([templateId, userId, periodKey])
+  @@index([userId, dueDate])
+  @@index([dueDate])
+}
+
+model ChecklistTick {
+  id         String          @id @default(cuid())
+  runId      String
+  run        ChecklistRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       ChecklistItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  note       String?
+  tickedById String
+  tickedBy   User            @relation(fields: [tickedById], references: [id])
+  tickedAt   DateTime        @default(now())
+  photo      ChecklistPhoto?
+
+  @@unique([runId, itemId])
+}
+
+model ChecklistPhoto {
+  id       String        @id @default(cuid())
+  tickId   String        @unique
+  tick     ChecklistTick @relation(fields: [tickId], references: [id], onDelete: Cascade)
+  fileName String
+  mimeType String
+  size     Int
+  data     Bytes
 }
