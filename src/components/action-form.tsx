@@ -29,11 +29,19 @@ export function ActionForm({
   );
 }
 
-export function SubmitButton({ children, className = "btn-primary" }: { children: ReactNode; className?: string }) {
+export function SubmitButton({
+  children,
+  className = "btn-primary",
+  pendingLabel = "Saving…",
+}: {
+  children: ReactNode;
+  className?: string;
+  pendingLabel?: string;
+}) {
   const { pending } = useFormStatus();
   return (
     <button type="submit" disabled={pending} className={className}>
-      {pending ? "Saving…" : children}
+      {pending ? pendingLabel : children}
     </button>
   );
 }

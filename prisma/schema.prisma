@@ -72,6 +72,7 @@ model User {
   helpdeskAssigned      HelpdeskTicket[]     @relation("TicketAssignee")
   helpdeskComments      HelpdeskComment[]
   helpdeskFiles         HelpdeskAttachment[]
+  sentEmails            EmailLog[]
   checklistTemplates    ChecklistTemplate[]
   checklistAssignments  ChecklistAssignee[]
   checklistRuns         ChecklistRun[]       @relation("ChecklistRunner")
@@ -237,6 +238,19 @@ model CompanySettings {
   invoiceNote      String? // printed at the bottom, e.g. "Please quote the invoice number when paying."
   quoteValidDays   Int     @default(30) // a new quote is valid this many days
   quoteTerms       String? // starting terms on every new quote, e.g. "50% advance, balance on completion"
+
+  // Email: the company's own mail account (e.g. Google Workspace or Gmail with an app password).
+  // Nothing is sent until a test email from Admin → Settings goes through (mailVerifiedAt).
+  smtpHost        String?
+  smtpPort        Int       @default(587)
+  smtpSecure      Boolean   @default(false) // true for port 465; 587 upgrades with STARTTLS
+  smtpUser        String?
+  smtpPassword    String? // encrypted with the session secret, see src/lib/secret-box.ts
+  mailFromName    String?
+  mailFromAddress String?
+  mailReplyTo     String?
+  mailBccSelf     Boolean   @default(true) // a copy of every email to the from address, for the sent record
+  mailVerifiedAt  DateTime? // cleared whenever the account details change
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -472,6 +486,7 @@ model Payslip {
   note             String?
   reimbursements   Decimal        @default(0) @db.Decimal(12, 2) // approved expense claims, paid on top of salary
   expenseClaims    ExpenseClaim[]
+  emails           EmailLog[]
 
   @@unique([runId, employeeId])
 }
@@ -1189,6 +1204,7 @@ model Invoice {
   createdBy      User             @relation("InvoiceCreator", fields: [createdById], references: [id])
   lines          InvoiceLine[]
   payments       InvoicePayment[]
+  emails         EmailLog[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -1277,6 +1293,7 @@ model Quote {
   createdBy      User         @relation("QuoteCreator", fields: [createdById], references: [id])
   lines          QuoteLine[]
   invoices       Invoice[]
+  emails         EmailLog[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -1588,6 +1605,7 @@ model Interview {
   feedbackAt     DateTime?
   scheduledById  String
   scheduledBy    User            @relation("InterviewScheduler", fields: [scheduledById], references: [id])
+  emails         EmailLog[]
   createdAt      DateTime        @default(now())
 
   @@index([interviewerId, scheduledAt])
@@ -1753,6 +1771,49 @@ model HelpdeskAttachment {
   createdAt    DateTime         @default(now())
 
   @@index([ticketId])
+}
+
+// ─── Emails ────────────────────────────────────────────────────────────────
+// Every email the app sends, sent or failed, so each invoice, quote, payslip and interview shows its history.
+
+enum EmailKind {
+  TEST
+  INVOICE
+  PAYMENT_REMINDER
+  QUOTE
+  PAYSLIP
+  INTERVIEW_INVITE
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+}
+
+model EmailLog {
+  id          String      @id @default(cuid())
+  kind        EmailKind
+  status      EmailStatus
+  to          String // comma-separated
+  cc          String?
+  subject     String
+  attachments String[] // file names, e.g. "Invoice EBG-26-27-001.pdf"
+  error       String? // why it failed, as the mail server said
+  invoices    Invoice[] // one for an invoice email, every unpaid one for a school's reminder
+  quoteId     String?
+  quote       Quote?      @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  payslipId   String?
+  payslip     Payslip?    @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+  interviewId String?
+  interview   Interview?  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  sentById    String
+  sentBy      User        @relation(fields: [sentById], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@index([kind, createdAt])
+  @@index([quoteId])
+  @@index([payslipId])
+  @@index([interviewId])
 }
 
 // ---------- Daily checklists ----------

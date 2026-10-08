@@ -13,6 +13,10 @@ import { InvoiceDocument } from "../document";
 import { InvoiceForm } from "../invoice-form";
 import { invoiceFormOptions } from "../data";
 import { cancelInvoice, deleteDraft, deletePayment, issueInvoice, recordPayment, updateInvoice } from "../actions";
+import { emailInvoice } from "../../emails/actions";
+import { EmailComposer, EmailHistory, emailLogSelect } from "@/components/email";
+import { mailSetup } from "@/lib/mail";
+import { invoiceEmail, reminderEmail } from "@/lib/email-templates";
 
 export const metadata = { title: "Invoice" };
 
@@ -24,8 +28,9 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
     include: {
       lines: { orderBy: { position: "asc" } },
       payments: { include: { recordedBy: { select: { name: true } } }, orderBy: { receivedOn: "asc" } },
-      organization: { select: { id: true, name: true } },
+      organization: { select: { id: true, name: true, email: true } },
       contact: { select: { name: true, phone: true, email: true } },
+      emails: { select: emailLogSelect, orderBy: { createdAt: "desc" } },
       deal: { select: { id: true, title: true } },
       project: { select: { id: true, name: true } },
       createdBy: { select: { name: true } },
@@ -39,6 +44,12 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
   const settled = settledAmount(invoice.payments);
   const balance = Number(invoice.total) - settled;
   const state = payState(invoice, settled, today);
+  const daysLate = Math.round((today.getTime() - invoice.dueDate.getTime()) / 86400000);
+  const facts = { number: invoice.number ?? "", issueDate: invoice.issueDate, dueDate: invoice.dueDate, total: invoice.total, balance, daysLate };
+  const reminding = state === "OVERDUE";
+  const emailDraft = reminding
+    ? reminderEmail([facts], invoice.contact?.name ?? null, user.name, settings)
+    : invoiceEmail(facts, invoice.contact?.name ?? null, user.name, settings);
 
   return (
     <>
@@ -78,6 +89,11 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
                 <form action={deleteDraft.bind(null, invoice.id)}>
                   <button className="btn-danger">Delete draft</button>
                 </form>
+              )}
+              {!isDraft && (
+                <a href={`/invoices/${invoice.id}/pdf`} target="_blank" className="btn-secondary">
+                  PDF
+                </a>
               )}
               <PrintButton />
             </div>
@@ -167,6 +183,21 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
               )}
             </section>
           )}
+
+          {invoice.status === "ISSUED" && (balance > 0 || invoice.emails.length === 0) && (
+            <EmailComposer
+              title={reminding ? "Send a payment reminder" : "Email this invoice"}
+              action={emailInvoice.bind(null, invoice.id)}
+              hidden={{ kind: reminding ? "PAYMENT_REMINDER" : "INVOICE" }}
+              draft={{ to: invoice.contact?.email ?? invoice.organization.email ?? "", ...emailDraft }}
+              attachments={[`Invoice ${invoice.number?.replace(/\//g, "-")}.pdf`]}
+              setup={mailSetup(settings)}
+              admin={isAdmin(user)}
+              submitLabel={reminding ? "Send reminder" : "Send invoice"}
+            />
+          )}
+
+          <EmailHistory emails={invoice.emails} />
 
           {invoice.payments.length > 0 && (
             <section className="card p-0">

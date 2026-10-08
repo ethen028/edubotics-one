@@ -9,6 +9,9 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize, toDateInput } from "@/lib/format";
 import { deleteRun, finalizeRun, markPaid, recalculateRun, removeSlip, reopenRun, updateSlip } from "../actions";
+import { emailPayslip, emailRunPayslips } from "../../emails/actions";
+import { MailNotReady } from "@/components/email";
+import { mailSetup } from "@/lib/mail";
 
 export default async function PayrollRunPage({ params }: PageProps<"/payroll/[month]">) {
   await requireUser(["ADMIN"]);
@@ -24,7 +27,11 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
       where: { month },
       include: {
         payslips: {
-          include: { employee: true, _count: { select: { expenseClaims: true } } },
+          include: {
+            employee: true,
+            _count: { select: { expenseClaims: true } },
+            emails: { select: { status: true, createdAt: true, error: true, to: true }, orderBy: { createdAt: "desc" }, take: 1 },
+          },
           orderBy: { employee: { firstName: "asc" } },
         },
       },
@@ -36,6 +43,8 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
   if (!run) notFound();
   const draft = run.status === "DRAFT";
   const sum = (k: "gross" | "totalDeductions" | "reimbursements" | "net") => run.payslips.reduce((s, p) => s + Number(p[k]), 0);
+  const setup = mailSetup(settings);
+  const notEmailed = run.payslips.filter((p) => p.emails[0]?.status !== "SENT").length;
   const deductionsOn = [settings.pfEnabled && "PF", settings.esiEnabled && "ESI", settings.ptEnabled && "PT", settings.tdsEnabled && "TDS"].filter(Boolean);
 
   return (
@@ -114,6 +123,23 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
         )}
       </div>
 
+      {!draft && (
+        <div className="mb-6 max-w-2xl">
+          {setup !== "READY" ? (
+            <MailNotReady setup={setup} admin />
+          ) : notEmailed > 0 ? (
+            <ActionForm action={emailRunPayslips.bind(null, run.id)} className="flex flex-wrap items-center gap-3">
+              <SubmitButton pendingLabel="Sending payslips…">
+                Email payslips to {notEmailed === run.payslips.length ? "everyone" : `the ${notEmailed} not sent yet`}
+              </SubmitButton>
+              <span className="text-xs text-slate-500">Each person gets their own payslip as a PDF at their work email.</span>
+            </ActionForm>
+          ) : (
+            <p className="text-sm text-emerald-700">Everyone has been emailed their payslip.</p>
+          )}
+        </div>
+      )}
+
       <div className="card overflow-x-auto p-0">
         <table className="table">
           <thead>
@@ -125,6 +151,7 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
               <th className="text-right">Deductions</th>
               <th className="text-right">Expense claims</th>
               <th className="text-right">Net pay</th>
+              {!draft && <th>Emailed</th>}
               <th></th>
             </tr>
           </thead>
@@ -192,6 +219,28 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
                   )}
                 </td>
                 <td className="text-right font-semibold">{formatINR(p.net)}</td>
+                {!draft && (
+                  <td className="text-xs">
+                    {p.emails[0]?.status === "SENT" ? (
+                      <span className="text-emerald-700" title={`To ${p.emails[0].to}`}>
+                        {formatDate(p.emails[0].createdAt)}
+                      </span>
+                    ) : p.emails[0] ? (
+                      <span className="text-red-700" title={p.emails[0].error ?? undefined}>
+                        Failed: {p.emails[0].error}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Not yet</span>
+                    )}
+                    {setup === "READY" && (
+                      <ActionForm action={emailPayslip.bind(null, p.id)} className="mt-1">
+                        <SubmitButton className="text-xs text-brand-700 hover:underline" pendingLabel="Sending…">
+                          {p.emails[0]?.status === "SENT" ? "Send again" : "Send"}
+                        </SubmitButton>
+                      </ActionForm>
+                    )}
+                  </td>
+                )}
                 <td className="whitespace-nowrap">
                   <Link href={`/payroll/payslip/${p.id}`} className="link text-sm">
                     Payslip

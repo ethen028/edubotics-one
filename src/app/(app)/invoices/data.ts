@@ -69,9 +69,11 @@ export async function invoicesWithBalance(where: Prisma.InvoiceWhereInput = {}) 
   const invoices = await db.invoice.findMany({
     where,
     include: {
-      organization: { select: { id: true, name: true, phone: true } },
-      contact: { select: { name: true, phone: true } },
+      organization: { select: { id: true, name: true, phone: true, email: true } },
+      contact: { select: { name: true, phone: true, email: true } },
       payments: { select: { amount: true, tds: true, receivedOn: true } },
+      // The last payment reminder that went out, for the Payments due page.
+      emails: { where: { status: "SENT", kind: "PAYMENT_REMINDER" }, select: { createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
     },
     orderBy: [{ issueDate: "desc" }, { seq: "desc" }, { createdAt: "desc" }],
   });

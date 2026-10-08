@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { PageHeader } from "@/components/ui";
+import { getSettings } from "@/lib/settings";
+import { mailSetup } from "@/lib/mail";
+import { interviewEmail, interviewTime } from "@/lib/email-templates";
 import { formatDate, formatINR } from "@/lib/format";
 import { OPEN_STAGES, candidateAccess, canOffer } from "@/lib/recruitment";
 import { CandidateForm } from "../../forms";
@@ -36,7 +39,10 @@ export default async function CandidatePage({ params }: PageProps<"/recruitment/
       interviews: {
         // Interviewers see only their own rounds, so earlier feedback doesn't sway them.
         where: recruiter ? {} : { interviewerId: user.id },
-        include: { interviewer: { select: { name: true } } },
+        include: {
+          interviewer: { select: { name: true, email: true } },
+          emails: { select: { id: true, status: true, to: true, createdAt: true, error: true }, orderBy: { createdAt: "asc" } },
+        },
         orderBy: { scheduledAt: "asc" },
       },
       offers: {
@@ -74,6 +80,38 @@ export default async function CandidatePage({ params }: PageProps<"/recruitment/
         })
       : [],
   ]);
+
+  const settings = recruiter ? await getSettings() : null;
+  const invites = settings
+    ? {
+        setup: mailSetup(settings),
+        admin,
+        drafts: Object.fromEntries(
+          candidate.interviews
+            .filter((i) => i.status === "SCHEDULED")
+            .map((i) => [
+              i.id,
+              {
+                to: candidate.email ?? "",
+                cc: i.interviewer.email,
+                ...interviewEmail(
+                  {
+                    round: i.round,
+                    when: interviewTime(i.scheduledAt),
+                    mode: i.mode,
+                    location: i.location,
+                    interviewer: i.interviewer.name,
+                    jobTitle: candidate.job.title,
+                  },
+                  candidate.name,
+                  user.name,
+                  settings,
+                ),
+              },
+            ]),
+        ),
+      }
+    : undefined;
 
   return (
     <>
@@ -134,7 +172,7 @@ export default async function CandidatePage({ params }: PageProps<"/recruitment/
         <div className="min-w-0 space-y-6 xl:col-span-3">
           <section className="card">
             <h2 className="mb-3 font-semibold">{recruiter ? "Interviews" : "Your interview"}</h2>
-            <InterviewList interviews={candidate.interviews} userId={user.id} recruiter={recruiter} admin={admin} />
+            <InterviewList interviews={candidate.interviews} userId={user.id} recruiter={recruiter} admin={admin} invites={invites} />
             {recruiter && inRunning && candidate.stage !== "OFFER" && (
               <ScheduleInterviewForm candidateId={candidate.id} users={users} userId={user.id} />
             )}

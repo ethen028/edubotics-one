@@ -99,3 +99,32 @@ export function employedDaysIn(month: string, joined: Date, exited: Date | null)
 }
 
 export const RUN_COLOR = { DRAFT: "amber", FINALIZED: "blue", PAID: "green" } as const;
+
+type Money = { toString(): string };
+type SlipAmounts = Record<
+  "basic" | "hra" | "specialAllowance" | "otherEarnings" | "lopDeduction" | "pf" | "esi" | "professionalTax" | "tds" | "otherDeductions",
+  Money
+>;
+
+/** The earnings and deductions lines printed on a payslip, on screen and in the PDF. */
+export function payslipParts(p: SlipAmounts) {
+  const earnings = (
+    [
+      ["Basic", p.basic],
+      ["HRA", p.hra],
+      ["Special allowance", p.specialAllowance],
+      ["Other earnings", p.otherEarnings],
+    ] as [string, Money][]
+  ).filter(([k, v]) => k !== "Other earnings" || Number(v) > 0);
+  const deductions = (
+    [
+      ["Loss of pay", p.lopDeduction],
+      ["Provident fund", p.pf],
+      ["ESI", p.esi],
+      ["Professional tax", p.professionalTax],
+      ["TDS", p.tds],
+      ["Other deductions", p.otherDeductions],
+    ] as [string, Money][]
+  ).filter(([, v]) => Number(v) > 0);
+  return { earnings, deductions };
+}
