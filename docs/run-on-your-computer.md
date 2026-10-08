@@ -4,7 +4,7 @@ This runs Edubotics One on one office computer, with no hosting. Anyone on the s
 
 **Good to know before you start**
 - The computer that runs it must stay **on and awake** during office hours. If it is off, nobody can open the app.
-- All data lives on that computer. Make a backup every week (see step 8).
+- All data lives on that computer. It backs itself up every day; keep a copy off the computer too (see step 8).
 - It only works inside the office network, not from home.
 
 ---
@@ -69,19 +69,15 @@ Nothing to do. When the computer starts and Docker Desktop opens, Edubotics One 
 
 To stop it, run `docker compose stop` in the folder. To start it again, run `docker compose up -d`.
 
-## 8. Back up (once a week)
+## 8. Backups
 
-In the command window, inside the folder, run:
+Edubotics One backs itself up every day at 5 PM into a `backups` folder inside this folder, and keeps a month of them. Admins see the backups, and a **Back up now** button, under **Admin > Backups**.
 
-```
-docker compose exec db pg_dump -U edubotics edubotics > backup.sql
-```
-
-This writes `backup.sql` in the folder. Copy it to Google Drive or a USB drive. Keep a few weeks of copies.
+A backup on the same computer won't help if the computer is lost, so also keep a copy somewhere else: either name a second folder (a synced Google Drive or OneDrive folder) as explained in `docs/backups.md`, or press **Download** on a backup once a week and save it to a USB drive. The same guide explains how to bring a backup back.
 
 ## 9. Getting a newer version
 
-When there is an update, download the ZIP again (step 2) and unzip it over the old folder, or into a new one. Then run step 4 again. Your data is kept: it lives inside Docker, not in the folder.
+When there is an update, download the ZIP again (step 2) and unzip it over the old folder, or into a new one. Then run step 4 again. Your data is kept: it lives inside Docker, not in the folder. If you unzip into a new folder, move the `backups` folder (and your `.env` file, if you made one) across from the old one.
 
 ---
 

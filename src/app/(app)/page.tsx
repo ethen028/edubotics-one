@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { backupProblem } from "@/lib/backups";
 import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { pendingApprovals } from "@/lib/approvals";
 import { myPendingAcks } from "@/lib/notices";
@@ -38,6 +39,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const user = await requireUser();
   const { denied } = (await searchParams) as Record<string, string | undefined>;
   const admin = isAdmin(user);
+  const backupIssue = admin ? await backupProblem() : null;
   const manager = isManagerOrAdmin(user);
 
   const now = new Date();
@@ -208,6 +210,19 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           )}
         </div>
       </div>
+
+      {backupIssue && (
+        <div
+          className={`mb-6 rounded-lg border px-3 py-2 text-sm ${
+            backupIssue.level === "red" ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          Backups: {backupIssue.text}{" "}
+          <Link href="/admin/backups" className="font-medium underline">
+            Open Backups
+          </Link>
+        </div>
+      )}
 
       {focus && (
         <section className="mb-6 rounded-2xl bg-brand-900 p-5 text-white shadow-lg">

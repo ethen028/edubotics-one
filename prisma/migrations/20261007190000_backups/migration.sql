@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "CompanySettings" ADD COLUMN     "backupHour" INTEGER NOT NULL DEFAULT 17,
+ADD COLUMN     "backupKeepDays" INTEGER NOT NULL DEFAULT 30,
+ADD COLUMN     "backupKeepMonths" INTEGER NOT NULL DEFAULT 12,
+ADD COLUMN     "backupsEnabled" BOOLEAN NOT NULL DEFAULT true;

@@ -215,6 +215,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Admin</div>
               <NavLink href="/admin/users">Users</NavLink>
               <NavLink href="/admin/activity">Activity log</NavLink>
+              <NavLink href="/admin/backups">Backups</NavLink>
               <NavLink href="/hr/departments">Departments</NavLink>
               <NavLink href="/hr/leave-types">Leave types</NavLink>
               <NavLink href="/admin/settings">Settings</NavLink>

@@ -34,8 +34,35 @@ services:
       SEED_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@edubotics.local}
       SEED_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-edubotics2026}
       SEED_ADMIN_NAME: ${ADMIN_NAME:-Admin}
+      # Daily backups (Admin → Backups, docs/backups.md). The folders are set in .env; see .env.example.
+      BACKUP_DIR: /backups
+      BACKUP_FOLDER_SHOWN: ${BACKUP_FOLDER:-the "backups" folder inside the Edubotics One folder}
+      BACKUP_COPY_DIR: ${BACKUP_COPY_FOLDER:+/backup-copy}
+      BACKUP_COPY_FOLDER_SHOWN: ${BACKUP_COPY_FOLDER:-}
     volumes:
       - app-data:/data
+      - ${BACKUP_FOLDER:-./backups}:/backups
+      # Without a second folder this is the same backups folder again, and the app doesn't copy to it.
+      - ${BACKUP_COPY_FOLDER:-./backups}:/backup-copy
+
+  # Makes the daily backups the app asks for, with the same PostgreSQL as the database.
+  # To restore one: docker compose stop app, then docker compose run --rm backup restore <file>.
+  backup:
+    build:
+      context: .
+      dockerfile: docker/backup.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: edubotics
+      PGPASSWORD: edubotics
+      PGDATABASE: edubotics
+    volumes:
+      - ${BACKUP_FOLDER:-./backups}:/backups
+      - ${BACKUP_COPY_FOLDER:-./backups}:/backup-copy
 
 volumes:
   db-data:
