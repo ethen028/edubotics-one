@@ -8,18 +8,21 @@ import { db } from "@/lib/db";
 import { myPendingAcks } from "@/lib/notices";
 import { helpdeskCounts } from "@/lib/helpdesk";
 import { myReviewTodos } from "@/lib/reviews";
+import { myChecklistsNow } from "@/lib/checklists";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk, reviewTodos] = await Promise.all([
+  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk, reviewTodos, checklists] = await Promise.all([
     pendingApprovals(user),
     isAdmin(user) ? lowStockItems() : [],
     db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
     myPendingAcks(user),
     helpdeskCounts(user),
     myReviewTodos(user),
+    myChecklistsNow(user.id),
   ]);
+  const overdueChecklists = checklists.open.some((e) => e.status === "OVERDUE");
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -37,6 +40,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <nav className="flex-1 space-y-4 overflow-y-auto">
           <div className="space-y-0.5">
             <NavLink href="/">Home</NavLink>
+            {isAdmin(user) && <NavLink href="/dashboard">Owner dashboard</NavLink>}
             <NavLink href="/notices">
               <span className="flex items-center justify-between">
                 Notice board
@@ -53,6 +57,19 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <NavLink href="/work">My work</NavLink>
             <NavLink href="/projects">Projects</NavLink>
             <NavLink href="/timesheets">Timesheet</NavLink>
+            <NavLink href="/checklists">
+              <span className="flex items-center justify-between">
+                Checklists
+                {checklists.open.length > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 text-[11px] font-semibold ${overdueChecklists ? "bg-red-400 text-red-950" : "bg-amber-400 text-amber-950"}`}
+                    title={overdueChecklists ? "Some are overdue" : "To tick off"}
+                  >
+                    {checklists.open.length}
+                  </span>
+                )}
+              </span>
+            </NavLink>
             <NavLink href="/expenses" exact>
               Expenses
             </NavLink>
