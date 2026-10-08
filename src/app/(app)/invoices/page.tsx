@@ -12,7 +12,7 @@ const FILTERS: [string, string, (s: PayState) => boolean][] = [
   ["unpaid", "Unpaid", (s) => s === "DUE" || s === "PART_PAID" || s === "OVERDUE"],
   ["overdue", "Overdue", (s) => s === "OVERDUE"],
   ["draft", "Drafts", (s) => s === "DRAFT"],
-  ["paid", "Paid", (s) => s === "PAID"],
+  ["paid", "Paid or credited", (s) => s === "PAID" || s === "CREDITED"],
   ["all", "All", () => true],
 ];
 
@@ -44,6 +44,9 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
           <>
             <Link href="/invoices/dues" className="btn-secondary">
               Payments due
+            </Link>
+            <Link href="/credit-notes" className="btn-secondary">
+              Credit notes
             </Link>
             <a href={`/invoices/export`} download className="btn-secondary">
               Download spreadsheet
@@ -113,7 +116,10 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
                     {i.state === "OVERDUE" && <div className="text-xs">{i.daysLate} days late</div>}
                   </td>
                   <td className="text-right whitespace-nowrap">{formatMoney(i.total)}</td>
-                  <td className="text-right whitespace-nowrap">{i.balance > 0 ? formatMoney(i.balance) : "—"}</td>
+                  <td className="text-right whitespace-nowrap">
+                    {i.balance > 0 ? formatMoney(i.balance) : "—"}
+                    {i.owedBack > 0 && <div className="text-xs text-purple-700">{formatMoney(i.owedBack)} to refund</div>}
+                  </td>
                   <td>
                     <Badge color={payStateColor[i.state]}>{payStateLabel[i.state]}</Badge>
                   </td>

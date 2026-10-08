@@ -139,6 +139,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               <NavLink href="/invoices" exact>
                 Invoices
               </NavLink>
+              <NavLink href="/credit-notes">Credit notes</NavLink>
               <NavLink href="/invoices/dues">Payments due</NavLink>
             </div>
           )}

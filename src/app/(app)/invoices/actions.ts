@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
 import { getSettings } from "@/lib/settings";
 import { GST_RATES, INDIAN_STATES, PAYMENT_METHODS, computeTotals, financialYear, invoiceNumber, settledAmount } from "@/lib/invoices";
+import { invoiceMoney } from "@/lib/credit-notes";
 import type { FormState } from "@/components/action-form";
 
 const BILLING_ROLES = ["ADMIN", "MANAGER"] as const;
@@ -195,9 +196,10 @@ export async function cancelInvoice(id: string, _: FormState, formData: FormData
   await requireUser(["ADMIN"]);
   const reason = String(formData.get("reason") ?? "").trim();
   if (!reason) return { error: "Say why it's being cancelled." };
-  const invoice = await db.invoice.findUnique({ where: { id }, include: { payments: true } });
+  const invoice = await db.invoice.findUnique({ where: { id }, include: { payments: true, creditNotes: { where: { status: "ISSUED" } } } });
   if (!invoice || invoice.status !== "ISSUED") return { error: "Only an issued invoice can be cancelled." };
   if (invoice.payments.length > 0) return { error: "Remove the payments recorded against it first." };
+  if (invoice.creditNotes.length > 0) return { error: "It has a credit note against it. Cancel the credit note first, or credit the rest instead." };
   await db.invoice.update({ where: { id }, data: { status: "CANCELLED", cancelledAt: new Date(), cancelReason: reason } });
   refresh(id);
   return { ok: "Invoice cancelled." };
@@ -220,9 +222,9 @@ export async function recordPayment(invoiceId: string, _: FormState, formData: F
   if (!parsed.success) return { error: firstError(parsed.error) };
   const p = parsed.data;
   if (p.amount + p.tds <= 0) return { error: "Enter the amount received." };
-  const invoice = await db.invoice.findUnique({ where: { id: invoiceId }, include: { payments: true } });
+  const invoice = await db.invoice.findUnique({ where: { id: invoiceId }, include: { payments: true, creditNotes: true } });
   if (!invoice || invoice.status !== "ISSUED") return { error: "Payments can only be recorded on an issued invoice." };
-  const balance = Number(invoice.total) - settledAmount(invoice.payments);
+  const { balance } = invoiceMoney(invoice.total, settledAmount(invoice.payments), invoice.creditNotes);
   if (p.amount + p.tds > balance + 0.005) return { error: `That's more than the ${balance.toFixed(2)} still due. Check the amount.` };
   await db.invoicePayment.create({ data: { ...p, invoiceId, recordedById: user.id } });
   refresh(invoiceId);

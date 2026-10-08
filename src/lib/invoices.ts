@@ -111,20 +111,25 @@ export function invoiceNumber(prefix: string, fy: string, seq: number) {
 }
 
 /** Where an issued invoice stands, from its total and what has come in. */
-export type PayState = "DRAFT" | "CANCELLED" | "PAID" | "PART_PAID" | "OVERDUE" | "DUE";
+export type PayState = "DRAFT" | "CANCELLED" | "CREDITED" | "PAID" | "PART_PAID" | "OVERDUE" | "DUE";
 
-export function payState(inv: { status: string; total: unknown; dueDate: Date }, settled: number, today: Date): PayState {
+/**
+ * `settled` is payments plus TDS; `credited` is what issued credit notes take off, less any money
+ * refunded on them. An invoice credited in full with nothing paid reads as Credited, not Paid.
+ */
+export function payState(inv: { status: string; total: unknown; dueDate: Date }, settled: number, today: Date, credited = 0): PayState {
   if (inv.status === "DRAFT") return "DRAFT";
   if (inv.status === "CANCELLED") return "CANCELLED";
-  const balance = round2(Number(inv.total) - settled);
-  if (balance <= 0) return "PAID";
+  const balance = round2(Number(inv.total) - settled - credited);
+  if (balance <= 0) return credited > 0 && settled <= 0 ? "CREDITED" : "PAID";
   if (inv.dueDate < today) return "OVERDUE";
-  return settled > 0 ? "PART_PAID" : "DUE";
+  return settled > 0 || credited > 0 ? "PART_PAID" : "DUE";
 }
 
 export const payStateLabel: Record<PayState, string> = {
   DRAFT: "Draft",
   CANCELLED: "Cancelled",
+  CREDITED: "Credited in full",
   PAID: "Paid",
   PART_PAID: "Part paid",
   OVERDUE: "Overdue",
@@ -134,6 +139,7 @@ export const payStateLabel: Record<PayState, string> = {
 export const payStateColor: Record<PayState, "gray" | "blue" | "green" | "amber" | "red" | "purple"> = {
   DRAFT: "gray",
   CANCELLED: "gray",
+  CREDITED: "purple",
   PAID: "green",
   PART_PAID: "amber",
   OVERDUE: "red",

@@ -5,6 +5,7 @@ import { getSettings } from "../settings";
 import { formatDate } from "../format";
 import { monthLabel, payslipParts } from "../payroll";
 import { CATEGORY_LABEL, payableOf } from "../expenses";
+import { creditNoteNotes } from "../credit-notes";
 import type { Attachment } from "../mail";
 import { BillingPdf } from "./billing";
 import { PayslipPdf } from "./payslip";
@@ -39,6 +40,33 @@ export async function invoicePdf(id: string): Promise<Attachment | null> {
     />,
   );
   return { filename: `Invoice ${fileSafe(invoice.number ?? "draft")}.pdf`, content, contentType: "application/pdf" };
+}
+
+export async function creditNotePdf(id: string): Promise<Attachment | null> {
+  const [note, settings] = await Promise.all([
+    db.creditNote.findUnique({ where: { id }, include: { lines: { orderBy: { position: "asc" } }, invoice: true } }),
+    getSettings(),
+  ]);
+  if (!note) return null;
+  const content = await renderToBuffer(
+    <BillingPdf
+      doc={{ ...note.invoice, ...note, notes: creditNoteNotes(note) }}
+      lines={note.lines}
+      settings={settings}
+      title="Credit note"
+      partyLabel="Issued to"
+      watermark={note.status === "CANCELLED" ? "cancelled" : null}
+      meta={[
+        ["Credit note no.", note.number],
+        ["Date", formatDate(note.issueDate)],
+        ["Against invoice", note.invoice.number ?? ""],
+        ["Invoice date", formatDate(note.invoice.issueDate)],
+      ]}
+      paymentDetails={false}
+      footer="This is a computer-generated credit note."
+    />,
+  );
+  return { filename: `Credit note ${fileSafe(note.number)}.pdf`, content, contentType: "application/pdf" };
 }
 
 export async function quotePdf(id: string): Promise<Attachment | null> {
