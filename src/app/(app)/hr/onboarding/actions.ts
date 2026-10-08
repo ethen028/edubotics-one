@@ -8,6 +8,7 @@ import { canManage } from "@/lib/team";
 import { parseDateOnly } from "@/lib/leave";
 import { DOCUMENT_TYPES, MAX_DOCUMENT_BYTES, TASK_CATEGORIES, checklistRows, sniffMime } from "@/lib/hr-constants";
 import type { FormState } from "@/components/action-form";
+import { logActivity } from "@/lib/activity";
 
 function refresh(employeeId: string) {
   revalidatePath(`/hr/employees/${employeeId}`);
@@ -117,10 +118,11 @@ export async function deleteDocument(documentId: string) {
   const user = await requireUser();
   const doc = await db.employeeDocument.findUniqueOrThrow({
     where: { id: documentId },
-    select: { employeeId: true, status: true },
+    select: { employeeId: true, status: true, fileName: true, employee: { select: { firstName: true, lastName: true } } },
   });
   const ownUnverified = user.employee?.id === doc.employeeId && doc.status !== "VERIFIED";
   if (!isAdmin(user) && !ownUnverified) throw new Error("Not allowed");
   await db.employeeDocument.delete({ where: { id: documentId } });
+  await logActivity(user, "DELETED", "document.deleted", `Deleted document ${doc.fileName} from ${doc.employee.firstName} ${doc.employee.lastName}'s profile`);
   refresh(doc.employeeId);
 }

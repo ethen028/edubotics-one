@@ -10,6 +10,7 @@ import { PROJECT_STAGES, canApproveProject, canEditProject, canUpdateTask, proje
 import { readFiles } from "@/lib/project-files";
 import { nextTaskState, recordTaskUpdate } from "@/lib/task-updates";
 import type { FormState } from "@/components/action-form";
+import { logActivity } from "@/lib/activity";
 
 const optional = z
   .string()
@@ -97,8 +98,9 @@ export async function updateProject(id: string, _: FormState, formData: FormData
 }
 
 export async function deleteProject(id: string) {
-  await requireUser(["ADMIN"]);
-  await db.project.delete({ where: { id } });
+  const admin = await requireUser(["ADMIN"]);
+  const project = await db.project.delete({ where: { id } });
+  await logActivity(admin, "DELETED", "project.deleted", `Deleted project ${project.name}`);
   refresh();
   redirect("/projects");
 }

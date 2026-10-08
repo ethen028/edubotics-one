@@ -11,6 +11,7 @@ import { getSettings } from "@/lib/settings";
 import { GST_RATES, INDIAN_STATES, PAYMENT_METHODS, computeTotals, financialYear, invoiceNumber, settledAmount } from "@/lib/invoices";
 import { invoiceMoney } from "@/lib/credit-notes";
 import type { FormState } from "@/components/action-form";
+import { logActivity } from "@/lib/activity";
 
 const BILLING_ROLES = ["ADMIN", "MANAGER"] as const;
 
@@ -194,7 +195,7 @@ export async function issueInvoice(id: string) {
 }
 
 export async function cancelInvoice(id: string, _: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const reason = String(formData.get("reason") ?? "").trim();
   if (!reason) return { error: "Say why it's being cancelled." };
   const invoice = await db.invoice.findUnique({ where: { id }, include: { payments: true, creditNotes: { where: { status: "ISSUED" } } } });
@@ -202,6 +203,7 @@ export async function cancelInvoice(id: string, _: FormState, formData: FormData
   if (invoice.payments.length > 0) return { error: "Remove the payments recorded against it first." };
   if (invoice.creditNotes.length > 0) return { error: "It has a credit note against it. Cancel the credit note first, or credit the rest instead." };
   await db.invoice.update({ where: { id }, data: { status: "CANCELLED", cancelledAt: new Date(), cancelReason: reason } });
+  await logActivity(admin, "MONEY", "invoice.cancelled", `Cancelled invoice ${invoice.number}: ${reason}`);
   refresh(id);
   return { ok: "Invoice cancelled." };
 }
@@ -233,7 +235,8 @@ export async function recordPayment(invoiceId: string, _: FormState, formData: F
 }
 
 export async function deletePayment(id: string) {
-  await requireUser(["ADMIN"]);
-  const payment = await db.invoicePayment.delete({ where: { id } });
+  const admin = await requireUser(["ADMIN"]);
+  const payment = await db.invoicePayment.delete({ where: { id }, include: { invoice: { select: { number: true } } } });
+  await logActivity(admin, "MONEY", "invoice.payment-deleted", `Removed a payment of ₹${payment.amount} from invoice ${payment.invoice.number}`);
   refresh(payment.invoiceId);
 }

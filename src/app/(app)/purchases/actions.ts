@@ -14,6 +14,7 @@ import { STOCK_UNITS } from "@/lib/inventory";
 import { canApproveOrder, RECEIVABLE_STATUSES, BILLABLE_STATUSES, settledByBill } from "@/lib/purchases";
 import { COMPANY_STATE, GST_RATES, INDIAN_STATES, PAYMENT_METHODS, orderTotals, poNo, round2 } from "@/lib/purchase-math";
 import type { FormState } from "@/components/action-form";
+import { logActivity } from "@/lib/activity";
 
 const optional = z
   .string()
@@ -366,10 +367,11 @@ export async function createBill(_: FormState, formData: FormData): Promise<Form
 }
 
 export async function cancelBill(id: string) {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const bill = await db.vendorBill.findUniqueOrThrow({ where: { id }, include: { _count: { select: { payments: true } } } });
   if (bill._count.payments > 0) throw new Error("Remove the payments first");
   await db.vendorBill.update({ where: { id }, data: { status: "CANCELLED" } });
+  await logActivity(admin, "MONEY", "bill.cancelled", `Cancelled vendor bill ${bill.billNo}`);
   refresh({ billId: id, vendorId: bill.vendorId });
 }
 
@@ -405,7 +407,8 @@ export async function recordPayment(billId: string, _: FormState, formData: Form
 }
 
 export async function deletePayment(id: string) {
-  await requireUser(["ADMIN"]);
-  const payment = await db.vendorPayment.delete({ where: { id }, include: { bill: { select: { vendorId: true } } } });
+  const admin = await requireUser(["ADMIN"]);
+  const payment = await db.vendorPayment.delete({ where: { id }, include: { bill: { select: { vendorId: true, billNo: true } } } });
+  await logActivity(admin, "MONEY", "bill.payment-deleted", `Removed a payment of ₹${payment.amount} from vendor bill ${payment.bill.billNo}`);
   refresh({ billId: payment.billId, vendorId: payment.bill.vendorId });
 }

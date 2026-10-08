@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
 import type { FormState } from "@/components/action-form";
+import { logActivity } from "@/lib/activity";
 
 const optional = z
   .string()
@@ -36,6 +37,7 @@ function refresh() {
 async function requireAdminToDelete() {
   const user = await requireUser();
   if (!isAdmin(user)) throw new Error("Only admins can delete CRM records");
+  return user;
 }
 
 // ─── Leads ─────────────────────────────────────────────────────────────────
@@ -77,8 +79,9 @@ export async function updateLead(id: string, _: FormState, formData: FormData): 
 }
 
 export async function deleteLead(id: string) {
-  await requireAdminToDelete();
-  await db.lead.delete({ where: { id } });
+  const admin = await requireAdminToDelete();
+  const lead = await db.lead.delete({ where: { id } });
+  await logActivity(admin, "DELETED", "lead.deleted", `Deleted lead ${lead.name}`);
   refresh();
   redirect("/crm/leads");
 }
@@ -175,14 +178,15 @@ export async function updateOrganization(id: string, _: FormState, formData: For
 }
 
 export async function deleteOrganization(id: string) {
-  await requireAdminToDelete();
+  const user = await requireAdminToDelete();
   // School programmes keep their session history, so they block deleting the school.
   if (await db.programme.count({ where: { organizationId: id } }))
     throw new Error("This institution has school programmes. Delete those first under Operations.");
   // Invoices are tax records, so a billed institution stays.
   if (await db.invoice.count({ where: { organizationId: id } }))
     throw new Error("This institution has invoices, so it can't be deleted.");
-  await db.organization.delete({ where: { id } });
+  const org = await db.organization.delete({ where: { id } });
+  await logActivity(user, "DELETED", "institution.deleted", `Deleted institution ${org.name}`);
   refresh();
   redirect("/crm/organizations");
 }
@@ -218,8 +222,9 @@ export async function updateContact(id: string, _: FormState, formData: FormData
 }
 
 export async function deleteContact(id: string) {
-  await requireAdminToDelete();
-  await db.contact.delete({ where: { id } });
+  const admin = await requireAdminToDelete();
+  const contact = await db.contact.delete({ where: { id } });
+  await logActivity(admin, "DELETED", "contact.deleted", `Deleted contact ${contact.name}`);
   refresh();
   redirect("/crm/contacts");
 }
@@ -282,8 +287,9 @@ export async function moveDeal(id: string, formData: FormData) {
 }
 
 export async function deleteDeal(id: string) {
-  await requireAdminToDelete();
-  await db.deal.delete({ where: { id } });
+  const admin = await requireAdminToDelete();
+  const deal = await db.deal.delete({ where: { id } });
+  await logActivity(admin, "DELETED", "deal.deleted", `Deleted deal ${deal.title}`);
   refresh();
   redirect("/crm/deals");
 }

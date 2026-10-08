@@ -10,6 +10,8 @@ import { getSettings } from "@/lib/settings";
 import { mailSetup, parseAddresses, sendEmail } from "@/lib/mail";
 import { seal } from "@/lib/secret-box";
 import { sniffMime } from "@/lib/hr-constants";
+import { changedSettings, logActivity } from "@/lib/activity";
+import { appAddressProblem } from "@/lib/google-sign-in";
 
 const text = (max: number) =>
   z
@@ -51,7 +53,7 @@ const invoiceSettings = z.object({
 });
 
 export async function updateSettings(_: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const parsed = z
     .object({
       hours: z.coerce.number().int().min(1).max(16),
@@ -93,7 +95,10 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
     ...invoicing.data,
     gstEnabled: on("gstEnabled"),
   };
+  const before = await getSettings();
   await db.companySettings.upsert({ where: { id: 1 }, update: data, create: { id: 1, ...data } });
+  const changed = changedSettings(before, data);
+  if (changed) await logActivity(admin, "SETTINGS", "settings.company", `Changed settings: ${changed}`);
   revalidatePath("/", "layout");
   return { ok: "Settings saved." };
 }
@@ -121,7 +126,7 @@ const mailSchema = z.object({
 
 /** Saves the mail account. Changing the server, login or sender switches sending off until a test goes through. */
 export async function updateMailSettings(_: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const parsed = mailSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -147,6 +152,8 @@ export async function updateMailSettings(_: FormState, formData: FormData): Prom
       ...(accountChanged ? { mailVerifiedAt: null } : {}),
     },
   });
+  const changed = changedSettings(before, { ...d, smtpPassword, mailBccSelf: formData.get("mailBccSelf") === "on" });
+  if (changed) await logActivity(admin, "SETTINGS", "settings.email", `Changed the email account: ${changed}`);
   revalidatePath("/", "layout");
   if (!d.smtpHost) return { ok: "Saved. Email stays off until a mail server is filled in." };
   return { ok: accountChanged || !before.mailVerifiedAt ? "Saved. Now send a test email to switch sending on." : "Saved." };
@@ -181,7 +188,7 @@ export async function sendTestEmail(_: FormState, formData: FormData): Promise<F
 
 /** The public careers page: on or off, the welcome text and an email for candidates' questions. */
 export async function updateCareersSettings(_: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const parsed = z
     .object({
       careersIntro: text(1500),
@@ -190,7 +197,11 @@ export async function updateCareersSettings(_: FormState, formData: FormData): P
     .safeParse({ careersIntro: formData.get("careersIntro") ?? "", careersContactEmail: formData.get("careersContactEmail") ?? "" });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const careersEnabled = formData.get("careersEnabled") === "on";
+  const before = await getSettings();
   await db.companySettings.update({ where: { id: 1 }, data: { ...parsed.data, careersEnabled } });
+  if (before.careersEnabled !== careersEnabled) {
+    await logActivity(admin, "SETTINGS", "settings.careers", `Switched the careers page ${careersEnabled ? "on" : "off"}`);
+  }
   revalidatePath("/admin/settings");
   revalidatePath("/recruitment", "layout");
   return {
@@ -204,7 +215,7 @@ const MAX_SIGNATURE_BYTES = 1024 * 1024;
 
 /** Who signs workshop certificates, and an optional scan of their signature (PNG or JPG). */
 export async function updateCertificateSettings(_: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const parsed = z
     .object({ certSignatoryName: text(100), certSignatoryTitle: text(100) })
     .safeParse({ certSignatoryName: formData.get("certSignatoryName") ?? "", certSignatoryTitle: formData.get("certSignatoryTitle") ?? "" });
@@ -223,6 +234,68 @@ export async function updateCertificateSettings(_: FormState, formData: FormData
     where: { id: 1 },
     data: { ...parsed.data, ...(signature ?? {}), ...(remove && !signature ? { certSignature: null, certSignatureType: null } : {}) },
   });
+  await logActivity(admin, "SETTINGS", "settings.signatory", `Changed the certificate and letter signatory${signature ? " and signature picture" : remove ? " (signature picture removed)" : ""}`);
   revalidatePath("/admin/settings");
   return { ok: "Saved. New and reprinted certificates use this." };
+}
+
+// ─── Sign-in and safety ────────────────────────────────────────────────────
+
+/** Wrong-password lock and how long a sign-in lasts without use. */
+export async function updateSafetySettings(_: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireUser(["ADMIN"]);
+  const parsed = z
+    .object({
+      loginMaxAttempts: z.coerce.number().int().min(3, "Allow at least 3 wrong passwords.").max(20, "Lock after at most 20 wrong passwords."),
+      loginLockMinutes: z.coerce.number().int().min(1, "Lock for at least a minute.").max(24 * 60, "Lock for at most a day."),
+      sessionIdleHours: z.coerce.number().int().min(1, "Sign out after at least an hour.").max(168, "Sign out after at most 168 hours (a week)."),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const before = await getSettings();
+  await db.companySettings.update({ where: { id: 1 }, data: parsed.data });
+  const changed = changedSettings(before, parsed.data);
+  if (changed) await logActivity(admin, "SETTINGS", "settings.safety", `Changed sign-in safety: ${changed}`);
+  revalidatePath("/admin/settings");
+  return { ok: "Saved." };
+}
+
+/** The Google client for "Sign in with Google". It only switches on with everything filled in. */
+export async function updateGoogleSettings(_: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireUser(["ADMIN"]);
+  const parsed = z
+    .object({
+      googleClientId: text(200).refine((v) => !v || /^[\w.-]+\.apps\.googleusercontent\.com$/.test(v), "The client ID ends in .apps.googleusercontent.com."),
+      googleDomain: text(100).transform((v) => v?.toLowerCase().replace(/^@/, "") ?? null),
+      appAddress: text(200).transform((v) => v?.replace(/\/+$/, "") ?? null),
+    })
+    .safeParse({
+      googleClientId: formData.get("googleClientId") ?? "",
+      googleDomain: formData.get("googleDomain") ?? "",
+      appAddress: formData.get("appAddress") ?? "",
+    });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+  if (d.googleDomain && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d.googleDomain)) return { error: "Enter the company domain like eduboticsglobal.com." };
+  if (d.appAddress) {
+    const problem = appAddressProblem(d.appAddress);
+    if (problem) return { error: problem };
+  }
+  const before = await getSettings();
+  const secret = String(formData.get("googleClientSecret") ?? "").trim();
+  const googleClientSecret = secret ? seal(secret) : before.googleClientSecret;
+  const googleEnabled = formData.get("googleEnabled") === "on";
+  if (googleEnabled && (!d.googleClientId || !googleClientSecret || !d.appAddress)) {
+    return { error: "Fill in the client ID, client secret and app address before switching Google sign-in on." };
+  }
+  await db.companySettings.update({ where: { id: 1 }, data: { ...d, googleClientSecret, googleEnabled } });
+  const changed = changedSettings(before, { ...d, googleClientSecret, googleEnabled });
+  if (changed) await logActivity(admin, "SETTINGS", "settings.google", `Changed Google sign-in: ${changed}`);
+  revalidatePath("/admin/settings");
+  revalidatePath("/login");
+  return {
+    ok: googleEnabled
+      ? "Saved. Google sign-in is on: try it from the sign-in page in a private window before telling everyone."
+      : "Saved. Google sign-in is off; everyone signs in with their password.",
+  };
 }

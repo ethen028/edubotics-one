@@ -13,6 +13,7 @@ import { exitFor, openExitOf } from "@/lib/exits";
 import { EXIT_REASONS, EXIT_TASK_CATEGORIES, EXIT_TASK_TEMPLATE } from "@/lib/exit-math";
 import { OPEN_PROJECT_STAGES } from "@/lib/projects";
 import type { FormState } from "@/components/action-form";
+import { logActivity } from "@/lib/activity";
 
 const date = z.string().trim().min(1, "Pick a date.").transform(parseDateOnly);
 const text = (max: number) =>
@@ -184,6 +185,7 @@ export async function markLeft(id: string): Promise<FormState> {
     db.employee.update({ where: { id: exit.employeeId }, data: { status: "EXITED", dateOfExit: exit.lastWorkingDay } }),
     ...(exit.employee.userId ? [db.user.update({ where: { id: exit.employee.userId }, data: { active: false } })] : []),
   ]);
+  await logActivity(user, "HR", "exit.left", `Marked ${exit.employee.firstName} ${exit.employee.lastName} as left; their login is switched off`);
   refresh(exit.id, exit.employeeId);
   return { ok: "Marked as left. Their login is switched off." };
 }

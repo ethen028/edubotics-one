@@ -13,6 +13,7 @@ import { PAYMENT_METHODS, computeTotals, financialYear } from "@/lib/invoices";
 import { CREDIT_REASONS, creditNoteNumber } from "@/lib/credit-notes";
 import type { FormState } from "@/components/action-form";
 import { invoiceForCredit } from "./data";
+import { logActivity } from "@/lib/activity";
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -155,13 +156,14 @@ export async function createCreditNote(invoiceId: string, _: FormState, formData
 
 /** Withdraw a credit note raised by mistake. It keeps its number; the invoice goes back to what it was. */
 export async function cancelCreditNote(id: string, _: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const reason = String(formData.get("reason") ?? "").trim();
   if (!reason) return { error: "Say why it's being cancelled." };
   const note = await db.creditNote.findUnique({ where: { id } });
   if (!note || note.status !== "ISSUED") return { error: "Only an issued credit note can be cancelled." };
   if (Number(note.refundAmount) > 0) return { error: "Money has been refunded on this credit note. Remove the refund first." };
   await db.creditNote.update({ where: { id }, data: { status: "CANCELLED", cancelledAt: new Date(), cancelReason: reason } });
+  await logActivity(admin, "MONEY", "credit-note.cancelled", `Cancelled credit note ${note.number}: ${reason}`);
   refresh(note.invoiceId, id);
   return { ok: "Credit note cancelled." };
 }
@@ -179,7 +181,7 @@ const refundSchema = z.object({
 
 /** Record money paid back to the school when the credit is more than what was still due. */
 export async function recordRefund(id: string, _: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const parsed = refundSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const note = await db.creditNote.findUnique({ where: { id } });
@@ -189,15 +191,17 @@ export async function recordRefund(id: string, _: FormState, formData: FormData)
   const most = round2(Math.min(Number(note.total), ctx.owedBack));
   if (parsed.data.refundAmount > most + 0.005) return { error: `Only ${most.toFixed(2)} is owed back to the school on this credit note.` };
   await db.creditNote.update({ where: { id }, data: parsed.data });
+  await logActivity(admin, "MONEY", "credit-note.refund", `Recorded a refund of ₹${parsed.data.refundAmount} on credit note ${note.number}`);
   refresh(note.invoiceId, id);
   return { ok: "Refund recorded." };
 }
 
 export async function removeRefund(id: string) {
-  await requireUser(["ADMIN"]);
+  const admin = await requireUser(["ADMIN"]);
   const note = await db.creditNote.update({
     where: { id },
     data: { refundAmount: 0, refundedOn: null, refundMethod: null, refundReference: null },
   });
+  await logActivity(admin, "MONEY", "credit-note.refund-removed", `Removed the refund on credit note ${note.number}`);
   refresh(note.invoiceId, id);
 }

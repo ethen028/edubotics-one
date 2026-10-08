@@ -24,6 +24,7 @@ import {
   workshopDays,
 } from "@/lib/workshops";
 import type { FormState } from "@/components/action-form";
+import { logActivity } from "@/lib/activity";
 
 const optional = z
   .string()
@@ -156,7 +157,8 @@ export async function deleteWorkshop(id: string) {
   await workshopFor(user, id);
   const regs = await db.workshopRegistration.count({ where: { workshopId: id } });
   if (regs) throw new Error("This workshop has registrations. Mark it cancelled instead.");
-  await db.workshop.delete({ where: { id } });
+  const workshop = await db.workshop.delete({ where: { id } });
+  await logActivity(user, "DELETED", "workshop.deleted", `Deleted workshop ${workshop.title}`);
   refresh();
   redirect("/workshops");
 }
@@ -446,6 +448,7 @@ export async function cancelCertificate(id: string, _: FormState, formData: Form
   const cert = await db.workshopCertificate.findUnique({ where: { id }, include: { registration: true } });
   if (!cert || cert.status !== "ISSUED") return { error: "Only an issued certificate can be cancelled." };
   await db.workshopCertificate.update({ where: { id }, data: { status: "CANCELLED", cancelledAt: new Date(), cancelReason: reason.slice(0, 300) } });
+  await logActivity(user, "HR", "certificate.cancelled", `Cancelled certificate ${cert.number}: ${reason.slice(0, 200)}`);
   refresh(cert.registration.workshopId);
   revalidatePath(`/workshops/registrations/${cert.registrationId}`);
   return { ok: "Certificate cancelled." };
