@@ -48,7 +48,9 @@ export async function ownerDashboard(user: CurrentUser) {
     closingSoon,
     receivables,
     invoicedThisMonth,
+    creditedThisMonth,
     received,
+    refunds,
     vendorPaid,
     payrollRuns,
     claimsPaidByHand,
@@ -82,9 +84,14 @@ export async function ownerDashboard(user: CurrentUser) {
     }),
     invoicesWithBalance({ status: "ISSUED" }),
     db.invoice.aggregate({ where: { status: "ISSUED", issueDate: { gte: monthStart } }, _sum: { total: true }, _count: true }),
+    db.creditNote.aggregate({ where: { status: "ISSUED", issueDate: { gte: monthStart } }, _sum: { total: true } }),
     db.invoicePayment.findMany({
       where: { receivedOn: { gte: firstMonth }, invoice: { status: { not: "CANCELLED" } } },
       select: { amount: true, receivedOn: true },
+    }),
+    db.creditNote.findMany({
+      where: { status: "ISSUED", refundedOn: { gte: firstMonth } },
+      select: { refundAmount: true, refundedOn: true },
     }),
     db.vendorPayment.findMany({
       where: { paidOn: { gte: firstMonth }, bill: { status: "OPEN" } },
@@ -162,7 +169,15 @@ export async function ownerDashboard(user: CurrentUser) {
   );
   const latestRun = payrollRuns[0];
 
-  const cashIn = sumBy(received, (p) => monthKey(p.receivedOn), (p) => Number(p.amount));
+  // Money paid back to schools on credit notes comes off what came in that month, as in the accounts summary.
+  const cashIn = sumBy(
+    [
+      ...received.map((p) => ({ on: p.receivedOn, amount: Number(p.amount) })),
+      ...refunds.map((c) => ({ on: c.refundedOn!, amount: -Number(c.refundAmount) })),
+    ],
+    (r) => monthKey(r.on),
+    (r) => r.amount,
+  );
   const vendorOut = sumBy(vendorPaid, (p) => monthKey(p.paidOn), (p) => Number(p.amount));
   const claimsOut = sumBy(claimsPaidByHand, (c) => monthKey(c.paidOn!), claimAmount);
   const cashFlow = months.map((m) => {
@@ -198,7 +213,8 @@ export async function ownerDashboard(user: CurrentUser) {
       overdue: receivableAgeing.slice(1).reduce((s, v) => s + v, 0),
       ageing: receivableAgeing,
       topOwing,
-      invoicedThisMonth: Number(invoicedThisMonth._sum.total ?? 0),
+      // Credit notes raised this month come off, whichever month their invoice was from.
+      invoicedThisMonth: round2(Number(invoicedThisMonth._sum.total ?? 0) - Number(creditedThisMonth._sum.total ?? 0)),
       invoicesThisMonth: invoicedThisMonth._count,
       receivedThisMonth: cashIn.get(monthKey(today)) ?? 0,
     },
