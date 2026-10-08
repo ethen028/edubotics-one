@@ -11,6 +11,7 @@ import { dateKey } from "@/lib/attendance";
 import { deleteSession, logSession, reopenSession, updateSession } from "../../actions";
 import { trainerOptions } from "../../data";
 import { RescheduleForm, SessionBadge } from "../../ui";
+import { SessionChecklists } from "../../../checklists/session-card";
 
 export const metadata = { title: "Session" };
 
@@ -175,6 +176,7 @@ export default async function SessionPage({ params }: PageProps<"/operations/ses
         </section>
 
         <div className="space-y-6">
+          <SessionChecklists user={user} session={session} />
           <section className="card text-sm">
             <h2 className="mb-3 font-semibold">Class</h2>
             <dl className="space-y-2">
