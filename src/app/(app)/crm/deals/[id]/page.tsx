@@ -9,6 +9,8 @@ import { deleteDeal, updateDeal } from "../../actions";
 import { activeUsers, orgOptions } from "../../data";
 import { ActivityPanel, activityInclude } from "../../activity-panel";
 import { dealStageColor } from "../../constants";
+import { quoteState, quoteStateLabel } from "@/lib/quotes";
+import { todayIST } from "@/lib/time";
 
 export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">) {
   const user = await requireUser();
@@ -25,10 +27,16 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
         select: { id: true, number: true, subtotal: true },
         orderBy: { issueDate: "asc" },
       },
+      quotes: {
+        where: { status: { not: "REVISED" } },
+        select: { id: true, number: true, status: true, subtotal: true, validUntil: true },
+        orderBy: { createdAt: "asc" },
+      },
       activities: { include: activityInclude, orderBy: { createdAt: "desc" } },
     },
   });
   if (!deal) notFound();
+  const today = todayIST();
   const [users, organizations, contacts] = await Promise.all([
     activeUsers(),
     orgOptions(),
@@ -75,6 +83,11 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
                 Start delivery project
               </Link>
             )}
+            {deal.stage !== "LOST" && isManagerOrAdmin(user) && (
+              <Link href={`/quotes/new?deal=${deal.id}`} className={deal.stage === "WON" ? "btn-secondary" : "btn-primary"}>
+                Make a quote
+              </Link>
+            )}
             {deal.stage === "WON" && isManagerOrAdmin(user) && (
               <Link href={`/invoices/new?deal=${deal.id}`} className="btn-secondary">
                 Create invoice
@@ -108,6 +121,23 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
               ({humanize(p.stage)})
             </span>
           ))}
+        </p>
+      )}
+      {isManagerOrAdmin(user) && deal.quotes.length > 0 && (
+        <p className="-mt-2 mb-4 text-sm text-slate-500">
+          Quotes:{" "}
+          {deal.quotes.map((q, k) => {
+            const state = quoteState(q, today);
+            return (
+              <span key={q.id}>
+                {k > 0 && ", "}
+                <Link href={`/quotes/${q.id}`} className="link">
+                  {q.number ?? "draft"}
+                </Link>{" "}
+                ({formatINR(q.subtotal)}, {quoteStateLabel[state].toLowerCase()})
+              </span>
+            );
+          })}
         </p>
       )}
       {isManagerOrAdmin(user) && deal.invoices.length > 0 && (

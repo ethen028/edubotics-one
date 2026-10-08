@@ -12,6 +12,8 @@ import { dealStageColor } from "../../constants";
 import { ProgrammeBadge } from "../../../operations/ui";
 import { formatMoney, payStateColor, payStateLabel } from "@/lib/invoices";
 import { invoicesWithBalance } from "../../../invoices/data";
+import { quotesWithState } from "../../../quotes/data";
+import { quoteStateColor, quoteStateLabel } from "@/lib/quotes";
 
 export default async function OrganizationPage({ params }: PageProps<"/crm/organizations/[id]">) {
   const user = await requireUser();
@@ -27,10 +29,11 @@ export default async function OrganizationPage({ params }: PageProps<"/crm/organ
   });
   if (!org) notFound();
   const billing = isManagerOrAdmin(user);
-  const [users, orgs, invoices] = await Promise.all([
+  const [users, orgs, invoices, quotes] = await Promise.all([
     activeUsers(),
     orgOptions(),
     billing ? invoicesWithBalance({ organizationId: id }) : [],
+    billing ? quotesWithState({ organizationId: id, status: { not: "REVISED" } }) : [],
   ]);
   const owed = invoices.reduce((n, i) => n + i.balance, 0);
 
@@ -49,6 +52,11 @@ export default async function OrganizationPage({ params }: PageProps<"/crm/organ
             <Link href={`/crm/deals/new?org=${org.id}`} className="btn-primary">
               New deal
             </Link>
+            {billing && (
+              <Link href={`/quotes/new?org=${org.id}`} className="btn-secondary">
+                New quote
+              </Link>
+            )}
             {billing && (
               <Link href={`/invoices/new?org=${org.id}`} className="btn-secondary">
                 New invoice
@@ -121,6 +129,29 @@ export default async function OrganizationPage({ params }: PageProps<"/crm/organ
                   </tbody>
                 </table>
               )}
+            </div>
+          )}
+          {billing && quotes.length > 0 && (
+            <div className="card p-0">
+              <h2 className="px-5 pt-4 pb-2 font-semibold">Quotes</h2>
+              <table className="table">
+                <tbody>
+                  {quotes.map((q) => (
+                    <tr key={q.id}>
+                      <td>
+                        <Link href={`/quotes/${q.id}`} className="link">
+                          {q.number ?? "Draft"}
+                        </Link>
+                      </td>
+                      <td>{formatDate(q.quoteDate)}</td>
+                      <td className="text-right">{formatMoney(q.total)}</td>
+                      <td>
+                        <Badge color={quoteStateColor[q.state]}>{quoteStateLabel[q.state]}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
           {billing && invoices.length > 0 && (

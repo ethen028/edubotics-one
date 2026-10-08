@@ -35,6 +35,7 @@ function refresh(id?: string) {
   revalidatePath("/invoices", "layout");
   if (id) revalidatePath(`/invoices/${id}`);
   revalidatePath("/crm", "layout");
+  revalidatePath("/quotes", "layout");
   revalidatePath("/");
 }
 
@@ -51,6 +52,7 @@ const invoiceSchema = z.object({
   contactId: optional,
   dealId: optional,
   projectId: optional,
+  quoteId: optional,
   billToName: z.string().trim().min(1, "required"),
   billToAddress: optional,
   billToGstin: z
@@ -101,6 +103,10 @@ export async function createInvoice(_: FormState, formData: FormData): Promise<F
   const user = await requireUser([...BILLING_ROLES]);
   const form = await readInvoiceForm(formData);
   if ("error" in form) return { error: form.error };
+  if (form.data.quoteId) {
+    const quote = await db.quote.findUnique({ where: { id: form.data.quoteId }, select: { status: true } });
+    if (quote?.status !== "ACCEPTED") return { error: "Only an accepted quote can be billed." };
+  }
   const invoice = await db.invoice.create({
     data: { ...form.data, createdById: user.id, lines: { create: form.lines } },
   });

@@ -150,6 +150,20 @@ export default async function SettingsPage() {
             <Field label="Note at the bottom of every invoice">
               <textarea name="invoiceNote" rows={2} defaultValue={s.invoiceNote ?? ""} className="input" />
             </Field>
+            <div className="grid gap-3 sm:grid-cols-[12rem_1fr]">
+              <Field label="Quotes valid for (days)">
+                <input name="quoteValidDays" type="number" min={1} max={365} defaultValue={s.quoteValidDays} className="input w-24" />
+              </Field>
+              <Field label="Starting terms on every new quote">
+                <textarea
+                  name="quoteTerms"
+                  rows={2}
+                  defaultValue={s.quoteTerms ?? ""}
+                  className="input"
+                  placeholder="e.g. 50% advance on confirmation, balance on completion."
+                />
+              </Field>
+            </div>
           </fieldset>
           <SubmitButton>Save settings</SubmitButton>
         </ActionForm>
