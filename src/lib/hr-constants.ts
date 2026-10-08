@@ -57,3 +57,12 @@ export function checklistRows(employeeId: string, joining: Date, existing: Set<s
     dueDate: new Date(Date.UTC(joining.getUTCFullYear(), joining.getUTCMonth(), joining.getUTCDate() + t.dueDays)),
   }));
 }
+
+/** Performance review scale, 1 to 5. */
+export const RATING_LABEL: Record<number, string> = {
+  1: "Needs improvement",
+  2: "Below expectations",
+  3: "Meets expectations",
+  4: "Exceeds expectations",
+  5: "Outstanding",
+};

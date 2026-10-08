@@ -9,7 +9,7 @@ import { istDate } from "@/lib/attendance";
 import { EmployeeForm } from "../../employee-form";
 import { updateEmployee } from "../../actions";
 import { LeaveStatusBadge } from "../../leave/status-badge";
-import { AssetsSection, DocumentsSection, OnboardingSection, SalarySection, TrainingSection } from "./sections";
+import { AssetsSection, DocumentsSection, OnboardingSection, ReviewsSection, SalarySection, TrainingSection } from "./sections";
 
 export default async function EmployeePage({ params }: PageProps<"/hr/employees/[id]">) {
   const user = await requireUser();
@@ -26,6 +26,7 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
       trainings: { include: { module: true }, orderBy: { createdAt: "asc" } },
       assets: { where: { status: "ASSIGNED" }, orderBy: { assignedAt: "desc" } },
       salaries: { orderBy: { effectiveFrom: "desc" } },
+      reviews: { include: { cycle: true, reviewer: { select: { name: true } } }, orderBy: { cycle: { periodEnd: "desc" } } },
     },
   });
   if (!employee) notFound();
@@ -161,6 +162,7 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
             isSelf={isSelf}
           />
           <AssetsSection assets={employee.assets} admin={admin} />
+          <ReviewsSection reviews={employee.reviews} isSelf={isSelf} />
           {canSeeDocuments && (
             <div className="lg:col-span-2">
               <SalarySection
