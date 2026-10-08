@@ -1,7 +1,7 @@
 import "server-only";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { db } from "../db";
-import { getSettings } from "../settings";
+import { certificateSignature, getSettings } from "../settings";
 import { formatDate } from "../format";
 import { monthLabel, payslipParts } from "../payroll";
 import { CATEGORY_LABEL, payableOf } from "../expenses";
@@ -9,9 +9,11 @@ import { creditNoteNotes } from "../credit-notes";
 import type { Attachment } from "../mail";
 import { BillingPdf } from "./billing";
 import { PayslipPdf } from "./payslip";
+import { CertificatePdf, type CertificateFacts } from "./certificate";
+import { certificateWording } from "../workshops";
 import { fileSafe } from "./layout";
 
-// PDF copies of invoices, quotes and payslips: attached to emails and offered as downloads.
+// PDF copies of invoices, quotes, payslips and certificates: attached to emails and offered as downloads.
 
 const QUOTE_WATERMARK: Record<string, string> = { DRAFT: "draft", DECLINED: "declined", REVISED: "replaced" };
 
@@ -133,6 +135,59 @@ export async function payslipPdf(id: string): Promise<Attachment | null> {
     />,
   );
   return { filename: `Payslip ${month} ${fileSafe(name)}.pdf`, content, contentType: "application/pdf" };
+}
+
+const certificateInclude = {
+  registration: {
+    include: {
+      workshop: {
+        include: {
+          organization: { select: { name: true } },
+          trainers: { include: { user: { select: { name: true } } }, orderBy: { createdAt: "asc" as const } },
+        },
+      },
+    },
+  },
+} as const;
+
+async function certificateFacts(where: { id: string } | { workshopId: string }): Promise<CertificateFacts[]> {
+  const [certs, settings] = await Promise.all([
+    db.workshopCertificate.findMany({
+      where: "id" in where ? { id: where.id } : { registration: { workshopId: where.workshopId }, status: "ISSUED" },
+      include: certificateInclude,
+      orderBy: { registration: { name: "asc" } },
+    }),
+    getSettings(),
+  ]);
+  return certs.map((c) => {
+    const w = c.registration.workshop;
+    return {
+      number: c.number,
+      issuedOn: c.issuedOn,
+      cancelled: c.status === "CANCELLED",
+      name: c.registration.name,
+      institution: c.registration.institution,
+      title: w.certificateTitle,
+      wording: certificateWording(w, w.organization?.name ?? null, settings.companyName),
+      trainer: w.trainers[0]?.user.name ?? null,
+    };
+  });
+}
+
+/** One participant's certificate. */
+export async function certificatePdf(id: string): Promise<Attachment | null> {
+  const [facts, settings, signature] = await Promise.all([certificateFacts({ id }), getSettings(), certificateSignature()]);
+  if (facts.length === 0) return null;
+  const content = await renderToBuffer(<CertificatePdf certificates={facts} settings={settings} signatureImage={signature} />);
+  return { filename: `Certificate ${fileSafe(facts[0].name)} ${fileSafe(facts[0].number)}.pdf`, content, contentType: "application/pdf" };
+}
+
+/** Every issued certificate of a workshop in one file, one page each, for printing. */
+export async function workshopCertificatesPdf(workshopId: string, title: string): Promise<Attachment | null> {
+  const [facts, settings, signature] = await Promise.all([certificateFacts({ workshopId }), getSettings(), certificateSignature()]);
+  if (facts.length === 0) return null;
+  const content = await renderToBuffer(<CertificatePdf certificates={facts} settings={settings} signatureImage={signature} />);
+  return { filename: `Certificates ${fileSafe(title)}.pdf`, content, contentType: "application/pdf" };
 }
 
 /** Serves a PDF in the browser, for the "Download PDF" buttons. */

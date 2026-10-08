@@ -70,7 +70,7 @@ export type OutgoingEmail = {
   subject: string;
   message: string; // plain text the person typed or kept from the template
   attachments?: Attachment[];
-  links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string };
+  links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string; certificateId?: string };
 };
 
 /**
@@ -114,6 +114,7 @@ export async function sendEmail(email: OutgoingEmail, settings: Settings, userId
       payslipId: email.links?.payslipId,
       interviewId: email.links?.interviewId,
       creditNoteId: email.links?.creditNoteId,
+      certificateId: email.links?.certificateId,
       invoices: email.links?.invoiceIds?.length ? { connect: email.links.invoiceIds.map((id) => ({ id })) } : undefined,
     },
   });

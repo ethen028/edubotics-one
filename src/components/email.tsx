@@ -103,6 +103,7 @@ const KIND: Record<EmailLog["kind"], string> = {
   PAYSLIP: "Payslip",
   INTERVIEW_INVITE: "Invite",
   CREDIT_NOTE: "Credit note",
+  CERTIFICATE: "Certificate",
 };
 
 /** What was emailed, to whom and by whom; failures show the mail server's reason. */

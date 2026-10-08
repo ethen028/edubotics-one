@@ -26,57 +26,63 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  ownedLeads            Lead[]               @relation("LeadOwner")
-  ownedOrganizations    Organization[]       @relation("OrgOwner")
-  ownedContacts         Contact[]            @relation("ContactOwner")
-  ownedDeals            Deal[]               @relation("DealOwner")
-  activities            Activity[]           @relation("ActivityAssignee")
-  createdActivities     Activity[]           @relation("ActivityCreator")
-  uploadedDocuments     EmployeeDocument[]   @relation("DocUploader")
-  reviewedDocuments     EmployeeDocument[]   @relation("DocReviewer")
+  ownedLeads            Lead[]                 @relation("LeadOwner")
+  ownedOrganizations    Organization[]         @relation("OrgOwner")
+  ownedContacts         Contact[]              @relation("ContactOwner")
+  ownedDeals            Deal[]                 @relation("DealOwner")
+  activities            Activity[]             @relation("ActivityAssignee")
+  createdActivities     Activity[]             @relation("ActivityCreator")
+  uploadedDocuments     EmployeeDocument[]     @relation("DocUploader")
+  reviewedDocuments     EmployeeDocument[]     @relation("DocReviewer")
   payrollRuns           PayrollRun[]
-  ownedProjects         Project[]            @relation("ProjectOwner")
+  ownedProjects         Project[]              @relation("ProjectOwner")
   projectMembers        ProjectMember[]
-  assignedTasks         ProjectTask[]        @relation("TaskAssignee")
-  createdTasks          ProjectTask[]        @relation("TaskCreator")
-  decidedProjects       Project[]            @relation("ProjectApprover")
-  decidedTimesheets     Timesheet[]          @relation("TimesheetApprover")
-  stockRequests         StockRequest[]       @relation("StockRequester")
-  decidedStockReqs      StockRequest[]       @relation("StockApprover")
+  assignedTasks         ProjectTask[]          @relation("TaskAssignee")
+  createdTasks          ProjectTask[]          @relation("TaskCreator")
+  decidedProjects       Project[]              @relation("ProjectApprover")
+  decidedTimesheets     Timesheet[]            @relation("TimesheetApprover")
+  stockRequests         StockRequest[]         @relation("StockRequester")
+  decidedStockReqs      StockRequest[]         @relation("StockApprover")
   stockMovements        StockMovement[]
-  coordinatedProgrammes Programme[]          @relation("ProgrammeCoordinator")
+  coordinatedProgrammes Programme[]            @relation("ProgrammeCoordinator")
   programmeTrainers     ProgrammeTrainer[]
-  trainerSessions       ProgrammeSession[]   @relation("SessionTrainer")
-  loggedSessions        ProgrammeSession[]   @relation("SessionLogger")
+  trainerSessions       ProgrammeSession[]     @relation("SessionTrainer")
+  loggedSessions        ProgrammeSession[]     @relation("SessionLogger")
   projectUpdates        ProjectUpdate[]
   projectFiles          ProjectFile[]
-  decidedClaims         ExpenseClaim[]       @relation("ClaimApprover")
-  createdInvoices       Invoice[]            @relation("InvoiceCreator")
-  createdQuotes         Quote[]              @relation("QuoteCreator")
+  decidedClaims         ExpenseClaim[]         @relation("ClaimApprover")
+  createdInvoices       Invoice[]              @relation("InvoiceCreator")
+  createdQuotes         Quote[]                @relation("QuoteCreator")
   recordedPayments      InvoicePayment[]
-  createdCreditNotes    CreditNote[]         @relation("CreditNoteCreator")
-  purchaseOrders        PurchaseOrder[]      @relation("PORequester")
-  decidedPurchases      PurchaseOrder[]      @relation("POApprover")
+  createdCreditNotes    CreditNote[]           @relation("CreditNoteCreator")
+  purchaseOrders        PurchaseOrder[]        @relation("PORequester")
+  decidedPurchases      PurchaseOrder[]        @relation("POApprover")
   purchaseReceipts      PurchaseReceipt[]
   vendorBills           VendorBill[]
   vendorPayments        VendorPayment[]
-  hiringJobs            JobOpening[]         @relation("JobHiringManager")
-  createdJobs           JobOpening[]         @relation("JobCreator")
-  addedCandidates       Candidate[]          @relation("CandidateCreator")
+  hiringJobs            JobOpening[]           @relation("JobHiringManager")
+  createdJobs           JobOpening[]           @relation("JobCreator")
+  addedCandidates       Candidate[]            @relation("CandidateCreator")
   candidateFiles        CandidateFile[]
-  interviewsTaken       Interview[]          @relation("Interviewer")
-  interviewsBooked      Interview[]          @relation("InterviewScheduler")
+  interviewsTaken       Interview[]            @relation("Interviewer")
+  interviewsBooked      Interview[]            @relation("InterviewScheduler")
   createdOffers         Offer[]
   notices               Notice[]
   noticeAcks            NoticeAck[]
-  helpdeskRequests      HelpdeskTicket[]     @relation("TicketRequester")
-  helpdeskAssigned      HelpdeskTicket[]     @relation("TicketAssignee")
+  helpdeskRequests      HelpdeskTicket[]       @relation("TicketRequester")
+  helpdeskAssigned      HelpdeskTicket[]       @relation("TicketAssignee")
   helpdeskComments      HelpdeskComment[]
   helpdeskFiles         HelpdeskAttachment[]
   sentEmails            EmailLog[]
+  coordinatedWorkshops  Workshop[]             @relation("WorkshopCoordinator")
+  createdWorkshops      Workshop[]             @relation("WorkshopCreator")
+  workshopTrainers      WorkshopTrainer[]
+  workshopRegistrations WorkshopRegistration[]
+  workshopPayments      WorkshopPayment[]
+  workshopCertificates  WorkshopCertificate[]
   checklistTemplates    ChecklistTemplate[]
   checklistAssignments  ChecklistAssignee[]
-  checklistRuns         ChecklistRun[]       @relation("ChecklistRunner")
+  checklistRuns         ChecklistRun[]         @relation("ChecklistRunner")
   checklistTicks        ChecklistTick[]
 }
 
@@ -252,6 +258,13 @@ model CompanySettings {
   mailReplyTo     String?
   mailBccSelf     Boolean   @default(true) // a copy of every email to the from address, for the sent record
   mailVerifiedAt  DateTime? // cleared whenever the account details change
+
+  // Workshop certificates: who signs them. The signature image is printed above the name, so
+  // emailed certificates arrive signed; without one there is a line to sign by hand.
+  certSignatoryName  String?
+  certSignatoryTitle String? @default("Director")
+  certSignature      Bytes?
+  certSignatureType  String? // image/png or image/jpeg
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -531,6 +544,7 @@ model Organization {
   gstin         String? // printed on invoices; schools usually have none
   invoices      Invoice[]
   quotes        Quote[]
+  workshops     Workshop[]
 
   @@index([name])
 }
@@ -1202,6 +1216,8 @@ model Invoice {
   createdById    String
   quoteId        String? // the accepted quote this invoice bills
   quote          Quote?           @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  workshopId     String? // a workshop the host institution pays for
+  workshop       Workshop?        @relation(fields: [workshopId], references: [id], onDelete: SetNull)
   createdBy      User             @relation("InvoiceCreator", fields: [createdById], references: [id])
   lines          InvoiceLine[]
   payments       InvoicePayment[]
@@ -1856,6 +1872,7 @@ enum EmailKind {
   PAYSLIP
   INTERVIEW_INVITE
   CREDIT_NOTE
+  CERTIFICATE
 }
 
 enum EmailStatus {
@@ -1864,32 +1881,189 @@ enum EmailStatus {
 }
 
 model EmailLog {
-  id           String      @id @default(cuid())
-  kind         EmailKind
-  status       EmailStatus
-  to           String // comma-separated
-  cc           String?
-  subject      String
-  attachments  String[] // file names, e.g. "Invoice EBG-26-27-001.pdf"
-  error        String? // why it failed, as the mail server said
-  invoices     Invoice[] // one for an invoice email, every unpaid one for a school's reminder
-  quoteId      String?
-  quote        Quote?      @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  payslipId    String?
-  payslip      Payslip?    @relation(fields: [payslipId], references: [id], onDelete: Cascade)
-  interviewId  String?
-  interview    Interview?  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  creditNoteId String?
-  creditNote   CreditNote? @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
-  sentById     String
-  sentBy       User        @relation(fields: [sentById], references: [id])
-  createdAt    DateTime    @default(now())
+  id            String               @id @default(cuid())
+  kind          EmailKind
+  status        EmailStatus
+  to            String // comma-separated
+  cc            String?
+  subject       String
+  attachments   String[] // file names, e.g. "Invoice EBG-26-27-001.pdf"
+  error         String? // why it failed, as the mail server said
+  invoices      Invoice[] // one for an invoice email, every unpaid one for a school's reminder
+  quoteId       String?
+  quote         Quote?               @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  payslipId     String?
+  payslip       Payslip?             @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+  interviewId   String?
+  interview     Interview?           @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  creditNoteId  String?
+  creditNote    CreditNote?          @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  certificateId String?
+  certificate   WorkshopCertificate? @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  sentById      String
+  sentBy        User                 @relation(fields: [sentById], references: [id])
+  createdAt     DateTime             @default(now())
 
   @@index([kind, createdAt])
   @@index([quoteId])
   @@index([payslipId])
   @@index([interviewId])
   @@index([creditNoteId])
+  @@index([certificateId])
+}
+
+// ─── Workshops and certificates ────────────────────────────────────────────
+// One-off workshops for colleges, professionals and others (separate from the weekly school
+// programmes): registrations, fees, attendance by day, and numbered certificates.
+
+enum WorkshopStatus {
+  UPCOMING
+  COMPLETED
+  CANCELLED
+}
+
+enum WorkshopAudience {
+  COLLEGE
+  PROFESSIONAL
+  SCHOOL
+  OTHER
+}
+
+enum WorkshopMode {
+  IN_PERSON
+  ONLINE
+}
+
+enum WorkshopFeeType {
+  FREE
+  PER_PERSON // each participant pays
+  INSTITUTION // the host college or company pays, billed with a normal invoice
+}
+
+model Workshop {
+  id               String                 @id @default(cuid())
+  title            String // "Arduino and IoT hands-on workshop"
+  description      String? // what it covers, also used in the certificate's wording
+  audience         WorkshopAudience       @default(COLLEGE)
+  mode             WorkshopMode           @default(IN_PERSON)
+  venue            String? // address, or the meeting link for online ones
+  organizationId   String? // host college or company, from CRM
+  organization     Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  startDate        DateTime               @db.Date
+  endDate          DateTime               @db.Date // same as startDate for a one-day workshop
+  hours            Decimal?               @db.Decimal(5, 1) // total contact hours, printed on certificates
+  capacity         Int?
+  feeType          WorkshopFeeType        @default(PER_PERSON)
+  fee              Decimal                @default(0) @db.Decimal(10, 2) // per participant, GST included
+  status           WorkshopStatus         @default(UPCOMING)
+  coordinatorId    String
+  coordinator      User                   @relation("WorkshopCoordinator", fields: [coordinatorId], references: [id])
+  certificateTitle String                 @default("Certificate of Participation")
+  minAttendancePct Int                    @default(75) // share of the days someone must attend to get a certificate
+  certNeedsPayment Boolean                @default(true) // per-person fee paid in full before a certificate
+  notes            String?
+  createdById      String
+  createdBy        User                   @relation("WorkshopCreator", fields: [createdById], references: [id])
+  trainers         WorkshopTrainer[]
+  registrations    WorkshopRegistration[]
+  invoices         Invoice[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([startDate])
+  @@index([organizationId])
+}
+
+model WorkshopTrainer {
+  id         String   @id @default(cuid())
+  workshopId String
+  workshop   Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([workshopId, userId])
+}
+
+enum RegistrationStatus {
+  REGISTERED
+  CANCELLED
+}
+
+model WorkshopRegistration {
+  id          String               @id @default(cuid())
+  workshopId  String
+  workshop    Workshop             @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  name        String // as it should appear on the certificate
+  email       String?
+  phone       String?
+  institution String? // college or company
+  detail      String? // course and year, or designation
+  fee         Decimal              @default(0) @db.Decimal(10, 2) // what this person owes; lower for a discount, 0 if waived
+  status      RegistrationStatus   @default(REGISTERED)
+  cancelledAt DateTime?
+  addedById   String
+  addedBy     User                 @relation(fields: [addedById], references: [id])
+  payments    WorkshopPayment[]
+  attendance  WorkshopAttendance[]
+  certificate WorkshopCertificate?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([workshopId])
+}
+
+model WorkshopPayment {
+  id             String               @id @default(cuid())
+  registrationId String
+  registration   WorkshopRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  amount         Decimal              @db.Decimal(10, 2)
+  paidOn         DateTime             @db.Date
+  method         PaymentMethod
+  reference      String? // UTR, UPI ref, receipt book no.
+  recordedById   String
+  recordedBy     User                 @relation(fields: [recordedById], references: [id])
+  createdAt      DateTime             @default(now())
+
+  @@index([paidOn])
+}
+
+/**
+ * One row per participant per workshop day that has been marked.
+ */
+model WorkshopAttendance {
+  id             String               @id @default(cuid())
+  registrationId String
+  registration   WorkshopRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  date           DateTime             @db.Date
+  present        Boolean
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([registrationId, date])
+}
+
+enum CertificateStatus {
+  ISSUED
+  CANCELLED
+}
+
+model WorkshopCertificate {
+  id             String               @id @default(cuid())
+  registrationId String               @unique
+  registration   WorkshopRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  fy             String // financial year of the issue date, "26-27"
+  seq            Int
+  number         String               @unique // EBG/CERT/26-27/0001
+  issuedOn       DateTime             @db.Date
+  status         CertificateStatus    @default(ISSUED)
+  cancelledAt    DateTime?
+  cancelReason   String?
+  issuedById     String
+  issuedBy       User                 @relation(fields: [issuedById], references: [id])
+  emails         EmailLog[]
+  createdAt      DateTime             @default(now())
+
+  @@unique([fy, seq])
 }
 
 // ---------- Daily checklists ----------

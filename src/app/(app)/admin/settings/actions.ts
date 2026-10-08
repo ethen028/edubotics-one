@@ -9,6 +9,7 @@ import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
 import { getSettings } from "@/lib/settings";
 import { mailSetup, parseAddresses, sendEmail } from "@/lib/mail";
 import { seal } from "@/lib/secret-box";
+import { sniffMime } from "@/lib/hr-constants";
 
 const text = (max: number) =>
   z
@@ -173,4 +174,31 @@ export async function sendTestEmail(_: FormState, formData: FormData): Promise<F
   await db.companySettings.update({ where: { id: 1 }, data: { mailVerifiedAt: new Date() } });
   revalidatePath("/", "layout");
   return { ok: `Test email sent to ${to.list.join(", ")}. Check that it arrived (and isn't in spam). Sending is now switched on.` };
+}
+
+const MAX_SIGNATURE_BYTES = 1024 * 1024;
+
+/** Who signs workshop certificates, and an optional scan of their signature (PNG or JPG). */
+export async function updateCertificateSettings(_: FormState, formData: FormData): Promise<FormState> {
+  await requireUser(["ADMIN"]);
+  const parsed = z
+    .object({ certSignatoryName: text(100), certSignatoryTitle: text(100) })
+    .safeParse({ certSignatoryName: formData.get("certSignatoryName") ?? "", certSignatoryTitle: formData.get("certSignatoryTitle") ?? "" });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const file = formData.get("signature");
+  let signature: { certSignature: Uint8Array<ArrayBuffer>; certSignatureType: string } | null = null;
+  if (file instanceof File && file.size > 0) {
+    if (file.size > MAX_SIGNATURE_BYTES) return { error: "The signature image must be under 1 MB." };
+    const data = new Uint8Array(await file.arrayBuffer());
+    const type = sniffMime(data);
+    if (type !== "image/png" && type !== "image/jpeg") return { error: "Upload the signature as a PNG or JPG picture." };
+    signature = { certSignature: data, certSignatureType: type };
+  }
+  const remove = formData.get("removeSignature") === "on";
+  await db.companySettings.update({
+    where: { id: 1 },
+    data: { ...parsed.data, ...(signature ?? {}), ...(remove && !signature ? { certSignature: null, certSignatureType: null } : {}) },
+  });
+  revalidatePath("/admin/settings");
+  return { ok: "Saved. New and reprinted certificates use this." };
 }

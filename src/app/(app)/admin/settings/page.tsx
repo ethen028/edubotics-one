@@ -2,7 +2,8 @@ import { requireUser } from "@/lib/auth";
 import { WEEKDAYS, getSettings } from "@/lib/settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Field, PageHeader } from "@/components/ui";
-import { sendTestEmail, updateMailSettings, updateSettings } from "./actions";
+import { sendTestEmail, updateCertificateSettings, updateMailSettings, updateSettings } from "./actions";
+import { certificateSignature } from "@/lib/settings";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
 import { db } from "@/lib/db";
 import { mailSetup } from "@/lib/mail";
@@ -16,10 +17,11 @@ export default async function SettingsPage() {
   const user = await requireUser(["ADMIN"]);
   const s = await getSettings();
   const setup = mailSetup(s);
+  const signature = await certificateSignature();
   const recent = await db.emailLog.findMany({ select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 15 });
   return (
     <>
-      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices and email." />
+      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email and certificates." />
       <div className="card max-w-xl">
         <ActionForm action={updateSettings} className="space-y-4">
           <Field label="Working time per day">
@@ -266,6 +268,40 @@ export default async function SettingsPage() {
           ) : (
             <p className="text-sm text-slate-500">Emails sent from the app will be listed here.</p>
           )}
+        </div>
+      </section>
+
+      <section id="certificates" className="mt-8 max-w-xl scroll-mt-6">
+        <div className="card space-y-4">
+          <h2 className="font-semibold">Workshop certificates</h2>
+          <p className="text-sm text-slate-600">
+            Certificates carry two signatures: the workshop&apos;s first trainer on the left and this person on the right. Upload a scan of their
+            signature so emailed certificates arrive signed; without one, there is a blank line to sign by hand.
+          </p>
+          <ActionForm action={updateCertificateSettings} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Signed by">
+                <input name="certSignatoryName" defaultValue={s.certSignatoryName ?? ""} className="input" placeholder="Full name" />
+              </Field>
+              <Field label="Their title">
+                <input name="certSignatoryTitle" defaultValue={s.certSignatoryTitle ?? ""} className="input" placeholder="e.g. Director" />
+              </Field>
+            </div>
+            <Field label="Signature picture (PNG or JPG, under 1 MB)">
+              <input type="file" name="signature" accept="image/png,image/jpeg" className="input" />
+              <span className="mt-1 block text-xs text-slate-500">Sign in dark ink on white paper and take a close, straight photo. A PNG with a see-through background looks best.</span>
+            </Field>
+            {signature && (
+              <div className="flex items-center gap-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/admin/settings/signature" alt="Current signature" className="h-14 rounded border border-slate-200 bg-white p-1" />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="removeSignature" /> Remove it
+                </label>
+              </div>
+            )}
+            <SubmitButton>Save certificate settings</SubmitButton>
+          </ActionForm>
         </div>
       </section>
     </>

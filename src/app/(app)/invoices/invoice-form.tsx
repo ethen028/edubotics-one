@@ -20,6 +20,7 @@ export type InvoiceDefaults = {
   billToGstin?: string | null;
   placeOfSupply?: string;
   quoteId?: string | null;
+  workshopId?: string | null;
   issueDate: string;
   dueDate: string;
   terms?: string | null;
@@ -118,6 +119,7 @@ export function InvoiceForm({
       <section className="card space-y-4">
         <h2 className="font-semibold">{w.party}</h2>
         {defaults.quoteId && <input type="hidden" name="quoteId" value={defaults.quoteId} />}
+        {defaults.workshopId && <input type="hidden" name="workshopId" value={defaults.workshopId} />}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="School / institution *">
             <select name="organizationId" required value={orgId} onChange={(e) => pickOrg(e.target.value)} className="input">

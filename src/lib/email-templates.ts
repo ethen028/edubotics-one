@@ -135,6 +135,21 @@ export function interviewEmail(i: InterviewFacts, candidate: string, sender: str
   };
 }
 
+type CertificateFacts = { name: string; workshop: string; dates: string; number: string };
+
+/** A participant's certificate, sent after the workshop. */
+export function certificateEmail(c: CertificateFacts, sender: string, s: Settings): Draft {
+  return {
+    subject: `Your certificate: ${c.workshop}`,
+    message: paragraphs(
+      `Dear ${c.name},`,
+      `Thank you for taking part in “${c.workshop}” (${c.dates}). Your certificate is attached, number ${c.number}.`,
+      "If your name is spelt wrongly on it, reply to this email and we will send a corrected copy. We hope to see you at another workshop soon.",
+      signOff(sender, s),
+    ),
+  };
+}
+
 /** "Thu, 15 Oct 2026, 10:30 am" in India time. */
 export function interviewTime(d: Date) {
   const part = (o: Intl.DateTimeFormatOptions) => d.toLocaleString("en-IN", { ...o, timeZone: "Asia/Kolkata" });
