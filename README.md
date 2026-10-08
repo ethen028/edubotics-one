@@ -20,6 +20,7 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 - **Recruitment**: jobs with a stage board (Applied, Screening, Interview, Offer, Hired), candidates with resumes, interviews booked with any staff member who rates the candidate, offers (admins only) with a printable offer letter, and one click to move a hire into HR onboarding with salary and login.
 - **Notice board**: admins and managers post company announcements and policies (with an optional PDF or image). Announcements show on everyone's Home; a notice can require everyone to read and acknowledge it, with a due date and a list of who hasn't yet. Changing a policy can ask everyone to acknowledge again.
 - **Helpdesk**: staff raise requests to the admin team (equipment, repairs, letters, payslip queries, accounts, supplies, travel) with a category, priority and attachments; admins assign, comment and move them through open, in progress and done, and the requester sees each change on Home. Requests can point at an HR asset.
+- **Daily checklists**: repeating checklists (every working day, weekly, monthly or before each school session) set up by admins and managers for chosen people, a role or everyone. Staff tick items on Home or their phone with an optional note or photo (some items can require a photo); overdue and missed ones are flagged to their manager, with history per person and per checklist. Session checklists show on the school session page.
 
 ## How it works
 
