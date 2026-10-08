@@ -20,6 +20,7 @@ import { TimesheetBadge } from "./timesheets/badge";
 import { invoicesWithBalance } from "./invoices/data";
 import { PendingAcks } from "./notices/ui";
 import { HelpdeskHomeCard } from "./helpdesk/home-card";
+import { ChecklistsHomeCard } from "./checklists/home-card";
 
 export const metadata = { title: "Home" };
 
@@ -178,6 +179,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <p className="text-sm text-slate-500">{roleNote}</p>
         </div>
         <div className="flex gap-2">
+          {admin && (
+            <Link href="/dashboard" className="btn-secondary">
+              Owner dashboard
+            </Link>
+          )}
           <Link href="/timesheets" className="btn-secondary">
             Log time
           </Link>
@@ -353,6 +359,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
 
         <div className="space-y-6">
+          <ChecklistsHomeCard user={user} />
           {(mySessions.length > 0 || myLogsDue > 0 || allLogsDue > 0) && (
             <section className="card">
               <div className="mb-2 flex items-center justify-between">
