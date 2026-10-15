@@ -226,7 +226,7 @@ export default async function OwnerDashboardPage() {
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card title="Money in" href="/invoices/dues" link="Payments due">
           <ul className="mb-3 divide-y divide-slate-100 text-sm">
-            <Row label={`Invoiced this month · ${moneyIn.invoicesThisMonth}`} value={formatINR(moneyIn.invoicedThisMonth)} href="/invoices" />
+            <Row label={`Invoiced this month, less credit notes · ${moneyIn.invoicesThisMonth}`} value={formatINR(moneyIn.invoicedThisMonth)} href="/invoices" />
             <Row label="Received this month" value={formatINR(moneyIn.receivedThisMonth)} href="/invoices" />
             <Row label="Still to collect" value={formatINR(moneyIn.toCollect)} href="/invoices/dues" />
           </ul>
