@@ -6,33 +6,36 @@
 @media screen {
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) {
     color-scheme: dark;
-    --page-bg: #0f1017;
-    --line: #272a38;
-    --side-line: #272a38;
-    --color-surface: #171923;
+    --page-bg: #0e1420;
+    --line: #263044;
+    --color-surface: #161d2b;
+    --color-navy: #111827;
+    /* Selected backgrounds: deep mint with pale mint text. */
+    --color-mint: #1d3a30;
+    --color-ink: #bff0d6;
 
-    --color-slate-50: #1c1e29;
-    --color-slate-100: #232533;
-    --color-slate-200: #2e3142;
-    --color-slate-300: #3d4155;
-    --color-slate-400: #6b7086;
-    --color-slate-500: #969bb0;
-    --color-slate-600: #b1b5c6;
-    --color-slate-700: #c9ccd8;
-    --color-slate-800: #dddfe8;
-    --color-slate-900: #eceef3;
-    --color-slate-950: #f6f7fa;
+    --color-slate-50: #1a2232;
+    --color-slate-100: #212a3c;
+    --color-slate-200: #2b3549;
+    --color-slate-300: #3a465c;
+    --color-slate-400: #8390a5;
+    --color-slate-500: #97a3b6;
+    --color-slate-600: #b3bdcc;
+    --color-slate-700: #cad2dd;
+    --color-slate-800: #dde3ea;
+    --color-slate-900: #ecf0f4;
+    --color-slate-950: #f6f8fa;
 
-    /* Indigo: pale tints darken, link and heading shades lighten, the button indigo stays strong. */
-    --color-brand-50: #1a1b3a;
-    --color-brand-100: #212250;
-    --color-brand-200: #2a2b66;
-    --color-brand-300: #363884;
-    --color-brand-500: #6366f1;
-    --color-brand-600: #5b5cf0;
-    --color-brand-700: #a5b4fc;
-    --color-brand-800: #c7d2fe;
-    --color-brand-900: #e0e7ff;
+    /* Cobalt: pale tints darken, link and heading shades lighten, the button cobalt stays strong. */
+    --color-brand-50: #172241;
+    --color-brand-100: #1c2a52;
+    --color-brand-200: #233467;
+    --color-brand-300: #2d4285;
+    --color-brand-500: #4f6fe3;
+    --color-brand-600: #3f63e0;
+    --color-brand-700: #9db0f3;
+    --color-brand-800: #c3cff8;
+    --color-brand-900: #e1e7fb;
 
     --color-red-50: color-mix(in oklab, oklch(25.8% 0.092 26.042) 45%, var(--color-surface));
     --color-red-100: color-mix(in oklab, oklch(25.8% 0.092 26.042) 80%, var(--color-surface));
@@ -144,20 +147,21 @@
     --color-rose-950: oklch(96.9% 0.015 12.422);
   }
 
-  /* Panels that stay dark teal in both looks keep the light-look colours inside them. */
+  /* Panels that stay cobalt in both looks keep the light-look colours inside them. */
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .grid > .stat:first-child, .brand-mark, .avatar, .nav-badge) {
-    --color-brand-50: #eef2ff;
-    --color-brand-100: #e0e7ff;
-    --color-brand-300: #a5b4fc;
-    --color-brand-600: #4f46e5;
-    --color-brand-700: #4338ca;
-    --color-brand-800: #3730a3;
-    --color-brand-900: #312e81;
+    --color-brand-50: #eff3fd;
+    --color-brand-100: #dfe7fb;
+    --color-brand-300: #9bb0ef;
+    --color-brand-500: #5373df;
+    --color-brand-600: #4565db;
+    --color-brand-700: #3659d9;
+    --color-brand-800: #2b47b0;
+    --color-brand-900: #223889;
     --color-red-200: oklch(88.5% 0.062 18.334);
   }
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .btn-primary {
-    --color-brand-700: #5b5cf0;
-    --color-brand-800: #4f46e5;
+    --color-brand-700: #3f63e0;
+    --color-brand-800: #3659d9;
   }
   /* Small count pills: dark text on a bright pill, as in the light look. */
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .bg-amber-400 {
