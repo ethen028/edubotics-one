@@ -19,6 +19,9 @@ html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-devi
   /* Critically damped spring (damping 1.0, response 0.35s): settles smoothly with no bounce. */
   --spring: linear(0, 0.055, 0.175, 0.312, 0.445, 0.562, 0.66, 0.74, 0.803, 0.852, 0.89, 0.919, 0.94, 0.956, 0.968, 0.977, 0.983, 0.988, 0.991, 0.994, 1);
   --spring-time: 420ms;
+  /* Spotlight: a soft glow that follows the pointer over cards (positions set by depth-effects.tsx). */
+  --spot: radial-gradient(320px circle at var(--mx, -999px) var(--my, -999px), rgb(var(--d-wash-a) / 0.14), transparent 60%);
+  --spot-light: radial-gradient(260px circle at var(--mx, -999px) var(--my, -999px), rgb(255 255 255 / 0.2), transparent 60%);
   font-optical-sizing: auto;
 }
 
@@ -53,6 +56,7 @@ html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-devi
 html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) body {
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(rgb(30 42 90 / 0.07) 1px, transparent 1.5px) 0 0 / 22px 22px,
     radial-gradient(900px 600px at 0% 0%, rgb(var(--d-wash-a) / 0.2), transparent 60%),
     radial-gradient(800px 600px at 100% 8%, rgb(var(--d-wash-b) / 0.14), transparent 60%),
     radial-gradient(900px 700px at 60% 110%, rgb(var(--d-wash-c) / 0.14), transparent 60%),
@@ -89,7 +93,9 @@ html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-devi
   border-color: rgb(255 255 255 / 0.75);
 }
 html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .card {
-  background: linear-gradient(150deg, color-mix(in oklab, var(--page-bg), white 55%), var(--page-bg));
+  background:
+    var(--spot),
+    linear-gradient(150deg, color-mix(in oklab, var(--page-bg), white 55%), var(--page-bg));
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.9),
     var(--neu-raised);
@@ -179,7 +185,13 @@ html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-devi
 
 /* Skeuomorphic keys: the main button is a glossy teal key that presses down. */
 html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .btn-primary {
-  background: linear-gradient(180deg, var(--d-key-top), var(--d-key-bottom));
+  background:
+    linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.38) 50%, transparent 65%) 160% 0 / 250% 100% no-repeat,
+    linear-gradient(180deg, var(--d-key-top), var(--d-key-bottom));
+  transition:
+    background-position 650ms ease-out,
+    box-shadow 150ms ease-out,
+    transform var(--spring-time) var(--spring);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.45),
     inset 0 -2px 0 rgb(0 0 0 / 0.12),
@@ -203,6 +215,11 @@ html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-devi
 html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.btn-secondary, .btn-danger, .icon-btn):active {
   transform: none;
   box-shadow: var(--neu-inset);
+}
+
+/* A light sweep crosses the main key on hover (no looping animation). */
+html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .btn-primary:hover {
+  background-position: -60% 0, 0 0;
 }
 
 /* Neumorphic wells for typing into. */
@@ -229,30 +246,35 @@ html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-devi
 html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .grid > .stat:nth-child(5n + 1) {
   --stat-glow: var(--d-s1-glow);
   background:
+    var(--spot-light),
     radial-gradient(220px 130px at 100% 0%, var(--d-s1-shine), transparent 70%),
     linear-gradient(140deg, var(--d-s1-from), var(--d-s1-to));
 }
 html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .grid > .stat:nth-child(5n + 2) {
   --stat-glow: var(--d-s2-glow);
   background:
+    var(--spot-light),
     radial-gradient(220px 130px at 100% 0%, var(--d-s2-shine), transparent 70%),
     linear-gradient(140deg, var(--d-s2-from), var(--d-s2-to));
 }
 html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .grid > .stat:nth-child(5n + 3) {
   --stat-glow: var(--d-s3-glow);
   background:
+    var(--spot-light),
     radial-gradient(220px 130px at 100% 0%, var(--d-s3-shine), transparent 70%),
     linear-gradient(140deg, var(--d-s3-from), var(--d-s3-to));
 }
 html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .grid > .stat:nth-child(5n + 4) {
   --stat-glow: var(--d-s4-glow);
   background:
+    var(--spot-light),
     radial-gradient(220px 130px at 100% 0%, var(--d-s4-shine), transparent 70%),
     linear-gradient(140deg, var(--d-s4-from), var(--d-s4-to));
 }
 html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .grid > .stat:nth-child(5n + 5) {
   --stat-glow: var(--d-s5-glow);
   background:
+    var(--spot-light),
     radial-gradient(220px 130px at 100% 0%, var(--d-s5-shine), transparent 70%),
     linear-gradient(140deg, var(--d-s5-from), var(--d-s5-to));
 }
@@ -314,9 +336,42 @@ html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-devi
     0 4px 10px -3px rgb(var(--d-wash-c) / 0.5);
 }
 
-/* Less motion: no presses that move, no materialising menu; colour changes stay. */
+/* Arrival: page titles sharpen into place and cards rise in a quick stagger, once per page. */
+@keyframes depth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+@keyframes depth-focus {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(4px);
+  }
+}
+html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) main h1 {
+  animation: depth-focus 520ms var(--spring) both;
+}
+html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) main :is(.grid > .stat, .grid > .card, .hero-card) {
+  animation: depth-rise var(--spring-time) var(--spring) both;
+}
+html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) main .grid > :nth-child(2) {
+  animation-delay: 40ms;
+}
+html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) main .grid > :nth-child(3) {
+  animation-delay: 80ms;
+}
+html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) main .grid > :nth-child(4) {
+  animation-delay: 120ms;
+}
+html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) main .grid > :nth-child(n + 5) {
+  animation-delay: 160ms;
+}
+
+/* Less motion: no presses that move, no materialising menu, no arrivals; colour changes stay. */
 @media (prefers-reduced-motion: reduce) {
-  html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .sidebar-menu {
+  html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.sidebar-menu, main h1, main .grid > .stat, main .grid > .card, main .hero-card) {
     animation: none;
   }
   html[data-look="depth"]:not([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.btn-primary, .nav-link, a.stat):active {

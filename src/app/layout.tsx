@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import { getCurrentUser } from "@/lib/auth";
+import { DepthEffects } from "@/components/depth-effects";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -26,6 +27,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" data-theme={theme} data-look={look} className={`${jakarta.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full font-sans">
         {children}
+        {look && <DepthEffects />}
         <Script id="watch-device" strategy="beforeInteractive">
           {WATCH_DEVICE}
         </Script>
