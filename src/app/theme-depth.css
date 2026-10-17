@@ -1,0 +1,210 @@
+/* TRIAL LOOK "Depth" (Oct 2026): neumorphism + skeuomorphism + maximalism + spatial UI, for Ethen to compare
+   with the current look. Only active with the "look=depth" cookie; nothing changes for anyone else.
+   Kept light for older office computers: blur only on the menu and top bar, no animations beyond presses. */
+
+html[data-look="depth"] {
+  --page-bg: #e7edeb;
+  --line: transparent;
+  --side-line: rgb(255 255 255 / 0.6);
+  --neu-dark: rgb(150 168 164 / 0.45);
+  --neu-light: rgb(255 255 255 / 0.95);
+  --neu-raised: 7px 7px 18px var(--neu-dark), -7px -7px 18px var(--neu-light);
+  --neu-raised-sm: 4px 4px 10px var(--neu-dark), -4px -4px 10px var(--neu-light);
+  --neu-inset: inset 3px 3px 7px var(--neu-dark), inset -3px -3px 7px var(--neu-light);
+}
+
+/* Maximalism: colour washes behind everything, plus a faint paper grain (skeuomorphic texture). */
+html[data-look="depth"] body {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(900px 600px at 0% 0%, rgb(20 184 166 / 0.22), transparent 60%),
+    radial-gradient(800px 600px at 100% 10%, rgb(251 113 133 / 0.16), transparent 60%),
+    radial-gradient(900px 700px at 60% 110%, rgb(139 92 246 / 0.16), transparent 60%),
+    var(--page-bg);
+  background-attachment: fixed;
+}
+
+html[data-look="depth"] h1 {
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(100deg, #0a6b5b, #0f9b80 45%, #7c3aed);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Neumorphic cards: the same soft surface as the page, lifted by light and shade. */
+html[data-look="depth"] .card:not(.deal-card) {
+  border-color: rgb(255 255 255 / 0.7);
+}
+html[data-look="depth"] .card {
+  background: linear-gradient(145deg, #f3f7f6, #e6ecea);
+  box-shadow: var(--neu-raised);
+  border-radius: 1.5rem;
+}
+html[data-look="depth"] .card .card,
+html[data-look="depth"] .card .stat {
+  box-shadow: var(--neu-raised-sm);
+}
+html[data-look="depth"] .table tbody tr:hover {
+  background: rgb(255 255 255 / 0.55);
+}
+
+/* Spatial: the menu and top bar float as frosted panels above the colour. */
+html[data-look="depth"] .sidebar,
+html[data-look="depth"] .topbar {
+  background: rgb(255 255 255 / 0.55);
+  border-color: rgb(255 255 255 / 0.75);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow:
+    0 24px 48px -24px rgb(15 60 52 / 0.35),
+    inset 0 1px 0 rgb(255 255 255 / 0.9);
+}
+html[data-look="depth"] .nav-link[data-active] {
+  background: linear-gradient(145deg, #f6faf9, #e3eae8);
+  box-shadow: var(--neu-raised-sm);
+}
+html[data-look="depth"] .nav-link[data-active]::before {
+  background: linear-gradient(#14b8a6, #7c3aed);
+}
+html[data-look="depth"] .nav-link[data-active] .nav-icon {
+  color: #7c3aed;
+}
+
+/* Skeuomorphic keys: the main button is a glossy teal key that presses down. */
+html[data-look="depth"] .btn-primary {
+  background: linear-gradient(180deg, #19b394, #0a7a66);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.4),
+    inset 0 -2px 0 rgb(0 0 0 / 0.12),
+    0 3px 0 #075246,
+    0 8px 16px -6px rgb(10 107 91 / 0.7);
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.2);
+}
+html[data-look="depth"] .btn-primary:active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 4px rgb(0 0 0 / 0.25),
+    0 0 0 #075246;
+}
+html[data-look="depth"] .btn-secondary,
+html[data-look="depth"] .btn-danger,
+html[data-look="depth"] .icon-btn {
+  border-color: transparent;
+  background: linear-gradient(145deg, #f4f8f7, #e4eae8);
+  box-shadow: var(--neu-raised-sm);
+}
+html[data-look="depth"] :is(.btn-secondary, .btn-danger, .icon-btn):active {
+  transform: none;
+  box-shadow: var(--neu-inset);
+}
+
+/* Neumorphic wells for typing into. */
+html[data-look="depth"] .input {
+  border-color: transparent;
+  background: #e8eeec;
+  box-shadow: var(--neu-inset);
+}
+html[data-look="depth"] .input:focus {
+  box-shadow:
+    var(--neu-inset),
+    0 0 0 3px rgb(20 184 166 / 0.35);
+}
+
+/* Maximalism: every number card in a row gets its own bold colour. */
+html[data-look="depth"] .grid > .stat {
+  border-color: transparent;
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 18px 30px -16px var(--stat-glow);
+}
+html[data-look="depth"] .grid > .stat:nth-child(5n + 1) {
+  --stat-glow: rgb(10 107 91 / 0.8);
+  background:
+    radial-gradient(200px 120px at 100% 0%, rgb(94 234 212 / 0.45), transparent 70%),
+    linear-gradient(135deg, #0f9b80, #0a5246);
+}
+html[data-look="depth"] .grid > .stat:nth-child(5n + 2) {
+  --stat-glow: rgb(225 29 72 / 0.6);
+  background:
+    radial-gradient(200px 120px at 100% 0%, rgb(254 205 211 / 0.5), transparent 70%),
+    linear-gradient(135deg, #fb7185, #e11d48);
+}
+html[data-look="depth"] .grid > .stat:nth-child(5n + 3) {
+  --stat-glow: rgb(217 119 6 / 0.6);
+  background:
+    radial-gradient(200px 120px at 100% 0%, rgb(254 243 199 / 0.55), transparent 70%),
+    linear-gradient(135deg, #fbbf24, #ea580c);
+}
+html[data-look="depth"] .grid > .stat:nth-child(5n + 4) {
+  --stat-glow: rgb(109 40 217 / 0.6);
+  background:
+    radial-gradient(200px 120px at 100% 0%, rgb(221 214 254 / 0.5), transparent 70%),
+    linear-gradient(135deg, #a78bfa, #6d28d9);
+}
+html[data-look="depth"] .grid > .stat:nth-child(5n + 5) {
+  --stat-glow: rgb(2 132 199 / 0.6);
+  background:
+    radial-gradient(200px 120px at 100% 0%, rgb(186 230 253 / 0.55), transparent 70%),
+    linear-gradient(135deg, #38bdf8, #0369a1);
+}
+html[data-look="depth"] .grid > .stat :is(.stat-label, .stat-value, div, span) {
+  color: #fff !important;
+}
+html[data-look="depth"] .grid > .stat .stat-label {
+  opacity: 0.85;
+}
+html[data-look="depth"] .grid > .stat .stat-value {
+  text-shadow: 0 2px 10px rgb(0 0 0 / 0.15);
+}
+html[data-look="depth"] .grid > .stat .stat-arrow {
+  border-color: transparent !important;
+  background: rgb(255 255 255 / 0.9) !important;
+  color: #0b3d35 !important;
+}
+
+/* The highlight panel and sign-in panel: a richer, many-colour mesh. */
+html[data-look="depth"] .hero-card,
+html[data-look="depth"] .auth-panel {
+  background:
+    radial-gradient(500px 260px at 95% 0%, rgb(251 113 133 / 0.75), transparent 60%),
+    radial-gradient(500px 300px at 60% 120%, rgb(139 92 246 / 0.8), transparent 60%),
+    radial-gradient(400px 260px at 0% 0%, rgb(45 212 191 / 0.5), transparent 65%),
+    linear-gradient(135deg, #0a6b5b, #0b3d35);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    0 28px 50px -24px rgb(76 29 149 / 0.55);
+  border-radius: 1.75rem;
+}
+
+html[data-look="depth"] .bar-track {
+  background: #e3e9e7;
+  box-shadow: var(--neu-inset);
+}
+html[data-look="depth"] .bar-fill.bg-brand-600 {
+  background: linear-gradient(#2dd4bf, #0a7a66);
+}
+html[data-look="depth"] .bar-fill.bg-amber-400 {
+  background: linear-gradient(#fcd34d, #f97316);
+}
+
+html[data-look="depth"] .deal-card {
+  border-left-width: 6px;
+}
+html[data-look="depth"] .brand-mark,
+html[data-look="depth"] .avatar {
+  background: linear-gradient(135deg, #2dd4bf, #0f9b80 50%, #7c3aed);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    0 4px 10px -3px rgb(124 58 237 / 0.5);
+}
+html[data-look="depth"] .auth-bg {
+  background:
+    radial-gradient(700px 500px at 10% 10%, rgb(20 184 166 / 0.25), transparent 60%),
+    radial-gradient(600px 500px at 95% 20%, rgb(251 113 133 / 0.2), transparent 60%),
+    radial-gradient(700px 500px at 60% 110%, rgb(139 92 246 / 0.2), transparent 60%),
+    var(--page-bg);
+}

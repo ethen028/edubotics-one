@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
+import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
 import "./globals.css";
 
@@ -20,8 +21,10 @@ const WATCH_DEVICE = `(function(){var m=matchMedia("(prefers-color-scheme: dark)
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const theme = (await getCurrentUser())?.theme ?? "LIGHT";
+  // Trial look for comparison only (see theme-depth.css).
+  const look = (await cookies()).get("look")?.value === "depth" ? "depth" : undefined;
   return (
-    <html lang="en" data-theme={theme} className={`${jakarta.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" data-theme={theme} data-look={look} className={`${jakarta.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full font-sans">
         {children}
         <Script id="watch-device" strategy="beforeInteractive">
