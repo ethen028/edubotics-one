@@ -58,6 +58,28 @@ export function certificateNumber(prefix: string, fy: string, seq: number) {
   return `${prefix}/CERT/${fy}/${String(seq).padStart(4, "0")}`;
 }
 
+export function receiptNumber(prefix: string, fy: string, seq: number) {
+  return `${prefix}/R/${fy}/${String(seq).padStart(4, "0")}`;
+}
+
+/**
+ * Where a participant's fee is taxed: the host college's state for an in-person workshop held there,
+ * otherwise the company's own state (the address of an individual is not on record).
+ */
+export function receiptPlaceOfSupply(w: { mode: WorkshopMode; organization: { state: string | null } | null }, companyState: string) {
+  return (w.mode === "IN_PERSON" && w.organization?.state?.trim()) || companyState;
+}
+
+/** Splits a fee received, GST included, into its taxable value and the GST inside it. */
+export function receiptTax(amount: Money, gstRate: Money, interState: boolean) {
+  const total = Number(amount);
+  const rate = Number(gstRate);
+  const subtotal = Math.round((total * 100 * 100) / (100 + rate)) / 100;
+  const tax = Math.round((total - subtotal) * 100) / 100;
+  const cgst = interState ? 0 : Math.round(tax * 50) / 100;
+  return { subtotal, cgst, sgst: interState ? 0 : Math.round((tax - cgst) * 100) / 100, igst: interState ? tax : 0, total };
+}
+
 /** Admins and managers run every workshop; its coordinator runs their own. */
 export function canManageWorkshop(user: { id: string; role: Role }, w: { coordinatorId: string }) {
   return user.role === "ADMIN" || user.role === "MANAGER" || w.coordinatorId === user.id;
@@ -88,12 +110,12 @@ export type Standing = {
  */
 export function standing(
   w: { startDate: Date; endDate: Date; minAttendancePct: number; feeType: WorkshopFeeType; certNeedsPayment: boolean; status: WorkshopStatus },
-  r: { status: string; fee: Money; payments: { amount: Money }[]; attendance: { present: boolean }[] },
+  r: { status: string; fee: Money; payments: { amount: Money; cancelledAt?: Date | null }[]; attendance: { present: boolean }[] },
   today: Date,
 ): Standing {
   const total = workshopDays(w).length;
   const attended = r.attendance.filter((a) => a.present).length;
-  const paid = r.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const paid = r.payments.reduce((s, p) => s + (p.cancelledAt ? 0 : Number(p.amount)), 0);
   const due = w.feeType === "PER_PERSON" ? Math.max(0, Math.round((Number(r.fee) - paid) * 100) / 100) : 0;
   const needed = daysNeeded(total, w.minAttendancePct);
   let blocker: string | null = null;

@@ -10,7 +10,8 @@ import type { Attachment } from "../mail";
 import { BillingPdf } from "./billing";
 import { PayslipPdf } from "./payslip";
 import { CertificatePdf, type CertificateFacts } from "./certificate";
-import { certificateWording } from "../workshops";
+import { certificateWording, dateSpan, receiptTax } from "../workshops";
+import { formatMoney, methodLabel } from "../invoices";
 import { fileSafe } from "./layout";
 import { ExitLetterPdf } from "./exit-letter";
 
@@ -189,6 +190,67 @@ export async function workshopCertificatesPdf(workshopId: string, title: string)
   if (facts.length === 0) return null;
   const content = await renderToBuffer(<CertificatePdf certificates={facts} settings={settings} signatureImage={signature} />);
   return { filename: `Certificates ${fileSafe(title)}.pdf`, content, contentType: "application/pdf" };
+}
+
+/** A workshop fee receipt. With GST on, it is also the tax invoice for the fee, the GST worked out from inside the amount paid. */
+export async function receiptPdf(id: string): Promise<Attachment | null> {
+  const [p, settings] = await Promise.all([
+    db.workshopPayment.findUnique({
+      where: { id },
+      include: { registration: { include: { workshop: true, payments: { where: { cancelledAt: null }, select: { id: true, amount: true, paidOn: true, seq: true, fy: true } } } } },
+    }),
+    getSettings(),
+  ]);
+  if (!p) return null;
+  const r = p.registration;
+  const w = r.workshop;
+  const tax = receiptTax(p.amount, p.gstRate, p.placeOfSupply !== settings.companyState);
+  const rate = Number(p.gstRate);
+  // What had been paid up to and including this receipt, so a reprint later still reads as it did on the day.
+  const upTo = r.payments.filter((x) => x.paidOn < p.paidOn || (x.paidOn.getTime() === p.paidOn.getTime() && (x.fy < p.fy || (x.fy === p.fy && x.seq <= p.seq))));
+  const paid = upTo.reduce((sum, x) => sum + Number(x.amount), 0);
+  const balance = Math.max(0, Math.round((Number(r.fee) - paid) * 100) / 100);
+  const notes = [
+    `Received on ${formatDate(p.paidOn)}${p.method === "OTHER" ? "" : ` by ${p.method === "UPI" ? "UPI" : methodLabel[p.method].toLowerCase()}`}${p.reference ? `, reference ${p.reference}` : ""}.`,
+    p.cancelledAt ? null : `Fee ${formatMoney(r.fee)}, paid so far ${formatMoney(paid)}${balance > 0 ? `, balance due ${formatMoney(balance)}` : ", paid in full"}.`,
+    p.cancelledAt ? `This receipt was cancelled: ${p.cancelReason?.replace(/\.$/, "")}.` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const content = await renderToBuffer(
+    <BillingPdf
+      doc={{
+        placeOfSupply: p.placeOfSupply,
+        billToName: r.name,
+        billToAddress: [r.institution, r.detail, r.email ?? r.phone].filter(Boolean).join("\n") || null,
+        billToGstin: null,
+        notes,
+        ...tax,
+      }}
+      lines={[
+        {
+          id: p.id,
+          description: `Fee for the workshop “${w.title}”, ${dateSpan(w)}`,
+          sac: settings.defaultSac,
+          quantity: 1,
+          unitPrice: tax.subtotal,
+          gstRate: rate,
+          amount: tax.subtotal,
+        },
+      ]}
+      settings={settings}
+      title={rate > 0 && settings.gstin ? "Tax invoice cum receipt" : "Receipt"}
+      partyLabel="Received from"
+      watermark={p.cancelledAt ? "cancelled" : null}
+      meta={[
+        ["Receipt no.", p.number],
+        ["Date", formatDate(p.paidOn)],
+      ]}
+      paymentDetails={false}
+      footer={rate > 0 ? "Amount paid includes GST. This is a computer-generated receipt." : "This is a computer-generated receipt."}
+    />,
+  );
+  return { filename: `Receipt ${fileSafe(p.number)}.pdf`, content, contentType: "application/pdf" };
 }
 
 /** Relieving and experience letter for someone leaving. Marked draft until they are marked as left. */

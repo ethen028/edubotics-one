@@ -1976,6 +1976,7 @@ enum EmailKind {
   CREDIT_NOTE
   CERTIFICATE
   EXIT_LETTER
+  RECEIPT
 }
 
 enum EmailStatus {
@@ -2003,6 +2004,8 @@ model EmailLog {
   creditNote    CreditNote?          @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
   certificateId String?
   certificate   WorkshopCertificate? @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  receiptId     String?
+  receipt       WorkshopPayment?     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   exitId        String?
   exit          EmployeeExit?        @relation(fields: [exitId], references: [id], onDelete: Cascade)
   sentById      String
@@ -2015,6 +2018,7 @@ model EmailLog {
   @@index([interviewId])
   @@index([creditNoteId])
   @@index([certificateId])
+  @@index([receiptId])
   @@index([exitId])
 }
 
@@ -2127,10 +2131,22 @@ model WorkshopPayment {
   paidOn         DateTime             @db.Date
   method         PaymentMethod
   reference      String? // UTR, UPI ref, receipt book no.
+  // Every payment gets a receipt, numbered EBG/R/26-27/0001 by the financial year it was paid in.
+  fy             String
+  seq            Int
+  number         String               @unique
+  // GST inside the amount, fixed when the payment is recorded: 0 when GST is off in Settings.
+  gstRate        Decimal              @default(0) @db.Decimal(5, 2)
+  placeOfSupply  String // the host college's state for an in-person workshop, else the company's
+  // A receipt given by mistake is cancelled, not deleted, so its number stays used.
+  cancelledAt    DateTime?
+  cancelReason   String?
+  emails         EmailLog[]
   recordedById   String
   recordedBy     User                 @relation(fields: [recordedById], references: [id])
   createdAt      DateTime             @default(now())
 
+  @@unique([fy, seq])
   @@index([paidOn])
 }
 

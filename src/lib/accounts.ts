@@ -2,6 +2,7 @@
 
 import { financialYear } from "./invoices";
 import { gstCreditDeadline } from "./credit-notes";
+import { receiptTax } from "./workshops";
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -45,12 +46,12 @@ export type MonthMoney = {
   // Income and spending, counted when invoiced, billed or earned (before GST)
   sales: number; // issued invoices, before GST
   credited: number; // credit notes against them, before GST (plus GST that could no longer be reversed)
-  workshopFees: number; // per-person workshop fees received
+  workshopFees: number; // per-person workshop fees received, before the GST inside them
   purchases: number; // vendor bills, before GST
   salaries: number; // earned pay on finalised payroll: gross less loss of pay and recoveries
   claims: number; // approved expense claims, by the day the money was spent
   // GST
-  gstOut: number; // on issued invoices
+  gstOut: number; // on issued invoices and workshop fee receipts
   gstCredited: number; // reversed by credit notes in time
   gstIn: number; // on vendor bills (input credit)
   cgstOut: number;
@@ -102,7 +103,7 @@ export type AccountsInput = {
   creditNotes: { issueDate: Date; subtotal: Money; cgst: Money; sgst: Money; igst: Money; invoice: { issueDate: Date } }[];
   refunds: { refundedOn: Date | null; refundAmount: Money }[];
   invoicePayments: { receivedOn: Date; amount: Money; tds: Money }[];
-  workshopPayments: { paidOn: Date; amount: Money }[];
+  workshopPayments: { paidOn: Date; amount: Money; gstRate: Money; interState: boolean }[];
   bills: { billDate: Date; subtotal: Money; tax: Money }[];
   vendorPayments: { paidOn: Date; amount: Money; tds: Money }[];
   payrollRuns: {
@@ -158,7 +159,13 @@ export function monthlyMoney(input: AccountsInput, months: { key: string; label:
   for (const p of input.workshopPayments) {
     const r = at(p.paidOn);
     if (!r) continue;
-    r.workshopFees += n(p.amount);
+    // The fee includes GST: the receipt splits it, so only the taxable part is income.
+    const t = receiptTax(p.amount, p.gstRate, p.interState);
+    r.workshopFees += t.subtotal;
+    r.cgstOut += t.cgst;
+    r.sgstOut += t.sgst;
+    r.igstOut += t.igst;
+    r.gstOut += t.cgst + t.sgst + t.igst;
     r.receivedWorkshops += n(p.amount);
   }
   for (const b of input.bills) {
