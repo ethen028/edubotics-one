@@ -1,32 +1,33 @@
 @import "tailwindcss";
 @import "./theme-dark.css";
-@import "./theme-depth.css";
 
 @theme inline {
   /* Edubotics One look (Oct 2026), after the client's "Fernly" reference: floating white menu,
-     big soft cards, pill buttons, a filled first number card, Plus Jakarta Sans, Edubotics teal. */
+     big soft cards, pill buttons, a filled first number card, Plus Jakarta Sans, indigo with a coral accent. */
   --font-sans: var(--font-jakarta);
   --font-display: var(--font-jakarta);
 }
 
 @theme {
-  --color-brand-50: #effaf7;
-  --color-brand-100: #d5f2ea;
-  --color-brand-200: #a9e3d3;
-  --color-brand-300: #6fcdb5;
-  --color-brand-400: #2fb394;
-  --color-brand-500: #0f9b80;
-  --color-brand-600: #0c8570;
-  --color-brand-700: #0a6b5b;
-  --color-brand-800: #0b5248;
-  --color-brand-900: #0b3d35;
+  /* Indigo, with coral as the accent (Ethen's pick, 17 Oct 2026). */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+  --color-accent: #f97366;
   --color-surface: #fff; /* cards, menu, inputs: white here, dark grey in dark mode */
 }
 
 :root {
-  --page-bg: #f2f4f3;
-  --line: #e7ebe9;
-  --side-line: #e7ebe9;
+  --page-bg: #f3f4f8;
+  --line: #e6e8f0;
+  --side-line: #e6e8f0;
 }
 
 body {
@@ -96,7 +97,7 @@ h2 {
   .grid > .stat:first-child {
     @apply border-transparent text-white;
     background:
-      radial-gradient(300px 140px at 100% 0%, rgb(45 212 191 / 0.3), transparent 70%),
+      radial-gradient(300px 140px at 100% 0%, rgb(249 115 102 / 0.35), transparent 70%),
       linear-gradient(135deg, var(--color-brand-700), var(--color-brand-900));
   }
   .grid > .stat:first-child .stat-label {
@@ -113,7 +114,7 @@ h2 {
   .hero-card {
     @apply rounded-[1.25rem] shadow-lg;
     background:
-      radial-gradient(600px 200px at 90% 0%, rgb(45 212 191 / 0.35), transparent 70%),
+      radial-gradient(600px 200px at 90% 0%, rgb(249 115 102 / 0.45), transparent 70%),
       linear-gradient(135deg, var(--color-brand-700), var(--color-brand-900));
   }
 
@@ -153,14 +154,14 @@ h2 {
   /* Sign-in pages: form on the left, a teal welcome panel on the right. */
   .auth-bg {
     background:
-      radial-gradient(700px 400px at 50% -10%, rgb(20 184 166 / 0.14), transparent 70%),
+      radial-gradient(700px 400px at 50% -10%, rgb(99 102 241 / 0.12), transparent 70%),
       var(--page-bg);
   }
   .auth-panel {
     background:
-      radial-gradient(500px 300px at 80% 10%, rgb(45 212 191 / 0.35), transparent 70%),
-      radial-gradient(400px 300px at 10% 100%, rgb(16 185 129 / 0.25), transparent 70%),
-      linear-gradient(160deg, var(--color-brand-800), var(--color-brand-900) 60%, #072a25);
+      radial-gradient(500px 300px at 80% 10%, rgb(249 115 102 / 0.4), transparent 70%),
+      radial-gradient(400px 300px at 10% 100%, rgb(129 140 248 / 0.35), transparent 70%),
+      linear-gradient(160deg, var(--color-brand-800), var(--color-brand-900) 60%, #1e1b4b);
   }
 
   /* Menu: a white panel floating beside the page on computers. */
@@ -182,7 +183,7 @@ h2 {
     @apply rounded-full px-3 py-1 text-sm text-slate-600 ring-1 ring-[var(--side-line)];
   }
   .brand-mark {
-    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-teal-500 to-brand-700 font-display text-sm font-bold text-white;
+    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-accent to-brand-600 font-display text-sm font-bold text-white;
   }
   .nav-section {
     @apply px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase;
@@ -210,7 +211,7 @@ h2 {
     @apply mt-4 flex items-start gap-2.5 border-t border-[var(--side-line)] pt-3;
   }
   .avatar {
-    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-135 from-teal-500 to-brand-700 text-xs font-semibold text-white;
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-135 from-accent to-brand-600 text-xs font-semibold text-white;
   }
 
   /* Bar along the top of every page on computers. */

@@ -6,33 +6,33 @@
 @media screen {
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) {
     color-scheme: dark;
-    --page-bg: #0e1413;
-    --line: #263130;
-    --side-line: #263130;
-    --color-surface: #161d1c;
+    --page-bg: #0f1017;
+    --line: #272a38;
+    --side-line: #272a38;
+    --color-surface: #171923;
 
-    --color-slate-50: #1b2321;
-    --color-slate-100: #222b2a;
-    --color-slate-200: #2d3836;
-    --color-slate-300: #3c4947;
-    --color-slate-400: #6c7b78;
-    --color-slate-500: #94a3a0;
-    --color-slate-600: #afbbb9;
-    --color-slate-700: #c7d1cf;
-    --color-slate-800: #dbe2e1;
-    --color-slate-900: #ebf0ef;
-    --color-slate-950: #f6f8f8;
+    --color-slate-50: #1c1e29;
+    --color-slate-100: #232533;
+    --color-slate-200: #2e3142;
+    --color-slate-300: #3d4155;
+    --color-slate-400: #6b7086;
+    --color-slate-500: #969bb0;
+    --color-slate-600: #b1b5c6;
+    --color-slate-700: #c9ccd8;
+    --color-slate-800: #dddfe8;
+    --color-slate-900: #eceef3;
+    --color-slate-950: #f6f7fa;
 
-    /* Teal: pale tints darken, link and heading shades lighten, the button teal stays as it is. */
-    --color-brand-50: #0f2723;
-    --color-brand-100: #13352f;
-    --color-brand-200: #18463d;
-    --color-brand-300: #1f5d4f;
-    --color-brand-500: #14a487;
-    --color-brand-600: #0f9b80;
-    --color-brand-700: #4fd0b1;
-    --color-brand-800: #86e0c9;
-    --color-brand-900: #bfeee1;
+    /* Indigo: pale tints darken, link and heading shades lighten, the button indigo stays strong. */
+    --color-brand-50: #1a1b3a;
+    --color-brand-100: #212250;
+    --color-brand-200: #2a2b66;
+    --color-brand-300: #363884;
+    --color-brand-500: #6366f1;
+    --color-brand-600: #5b5cf0;
+    --color-brand-700: #a5b4fc;
+    --color-brand-800: #c7d2fe;
+    --color-brand-900: #e0e7ff;
 
     --color-red-50: color-mix(in oklab, oklch(25.8% 0.092 26.042) 45%, var(--color-surface));
     --color-red-100: color-mix(in oklab, oklch(25.8% 0.092 26.042) 80%, var(--color-surface));
@@ -146,17 +146,18 @@
 
   /* Panels that stay dark teal in both looks keep the light-look colours inside them. */
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .grid > .stat:first-child, .brand-mark, .avatar, .nav-badge) {
-    --color-brand-50: #effaf7;
-    --color-brand-100: #d5f2ea;
-    --color-brand-300: #6fcdb5;
-    --color-brand-700: #0a6b5b;
-    --color-brand-800: #0b5248;
-    --color-brand-900: #0b3d35;
+    --color-brand-50: #eef2ff;
+    --color-brand-100: #e0e7ff;
+    --color-brand-300: #a5b4fc;
+    --color-brand-600: #4f46e5;
+    --color-brand-700: #4338ca;
+    --color-brand-800: #3730a3;
+    --color-brand-900: #312e81;
     --color-red-200: oklch(88.5% 0.062 18.334);
   }
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .btn-primary {
-    --color-brand-700: #0f9b80;
-    --color-brand-800: #0c8570;
+    --color-brand-700: #5b5cf0;
+    --color-brand-800: #4f46e5;
   }
   /* Small count pills: dark text on a bright pill, as in the light look. */
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .bg-amber-400 {

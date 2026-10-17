@@ -14,10 +14,6 @@ const THEMES = [
   { value: "DARK", label: "Dark" },
   { value: "SYSTEM", label: "Match my device" },
 ] as const;
-const LOOKS = [
-  { value: "CLEAN", label: "Clean" },
-  { value: "DEPTH", label: "Depth" },
-] as const;
 
 export const metadata = { title: "My account" };
 
@@ -73,26 +69,6 @@ export default async function AccountPage() {
                   </button>
                 ))}
               </div>
-            </div>
-            <div>
-              <div className="label">Style</div>
-              <div className="flex flex-wrap gap-2">
-                {LOOKS.map((l) => (
-                  <button
-                    key={l.value}
-                    name="look"
-                    value={l.value}
-                    aria-pressed={user.look === l.value}
-                    className={user.look === l.value ? "btn-primary" : "btn-secondary"}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Clean is flat and calm. Depth has raised cards, glossy buttons, a glass menu and a colour for each number card. Depth
-                shows in light colours only.
-              </p>
             </div>
           </form>
 
