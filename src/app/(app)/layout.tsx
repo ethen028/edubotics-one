@@ -282,7 +282,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 <>
                   <span className="text-slate-500">Waiting on you:</span>
                   {waiting.map((w) => (
-                    <Link key={w.href} href={w.href} className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-800 hover:bg-brand-100">
+                    <Link key={w.href} href={w.href} className="rounded-full bg-mint px-3 py-1 text-xs font-medium text-ink hover:brightness-95">
                       {w.label}
                     </Link>
                   ))}

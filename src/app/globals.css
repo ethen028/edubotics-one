@@ -3,31 +3,39 @@
 
 @theme inline {
   /* Edubotics One look (Oct 2026), after the client's "Fernly" reference: floating white menu,
-     big soft cards, pill buttons, a filled first number card, Plus Jakarta Sans, indigo with a coral accent. */
+     big soft cards, pill buttons, a filled first number card, Plus Jakarta Sans, navy menu, cobalt actions, mint selections. */
   --font-sans: var(--font-jakarta);
   --font-display: var(--font-jakarta);
 }
 
 @theme {
-  /* Indigo, with coral as the accent (Ethen's pick, 17 Oct 2026). */
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
-  --color-brand-900: #312e81;
-  --color-accent: #f97366;
+  /* Ethen's palette (17 Oct 2026): midnight navy menu #182235, cobalt #3659d9 for buttons and active states
+     (brand-700), soft mint #ddf5e9 for selected backgrounds, ink #1b2635 text, slate #526174 secondary text,
+     pale grey #dee5ed borders, cool off-white #f5f7fa page. */
+  --color-brand-50: #eff3fd;
+  --color-brand-100: #dfe7fb;
+  --color-brand-200: #c3d1f6;
+  --color-brand-300: #9bb0ef;
+  --color-brand-400: #6f8ae6;
+  --color-brand-500: #5373df;
+  --color-brand-600: #4565db;
+  --color-brand-700: #3659d9;
+  --color-brand-800: #2b47b0;
+  --color-brand-900: #223889;
+  --color-navy: #182235;
+  --color-mint: #ddf5e9;
+  --color-ink: #1b2635;
+  --color-slate-200: #dee5ed;
+  --color-slate-400: #61708a; /* faint helper text; darker than stock so it passes 4.5:1 on the page */
+  --color-slate-500: #526174;
+  --color-slate-900: #1b2635;
   --color-surface: #fff; /* cards, menu, inputs: white here, dark grey in dark mode */
 }
 
 :root {
-  --page-bg: #f3f4f8;
-  --line: #e6e8f0;
-  --side-line: #e6e8f0;
+  --page-bg: #f5f7fa;
+  --line: #dee5ed;
+  --side-line: rgb(255 255 255 / 0.1);
 }
 
 body {
@@ -84,7 +92,7 @@ h2 {
     @apply font-medium text-brand-700 hover:underline;
   }
 
-  /* Number cards. The first one in a row is filled in teal, like the client's reference. */
+  /* Number cards. The first one in a row is filled in cobalt, like the client's reference. */
   .stat {
     @apply relative flex flex-col justify-between transition-[border-color,box-shadow,transform] duration-150;
   }
@@ -97,8 +105,8 @@ h2 {
   .grid > .stat:first-child {
     @apply border-transparent text-white;
     background:
-      radial-gradient(300px 140px at 100% 0%, rgb(249 115 102 / 0.35), transparent 70%),
-      linear-gradient(135deg, var(--color-brand-700), var(--color-brand-900));
+      radial-gradient(300px 140px at 100% 0%, rgb(221 245 233 / 0.22), transparent 70%),
+      linear-gradient(135deg, var(--color-brand-700), var(--color-navy));
   }
   .grid > .stat:first-child .stat-label {
     @apply text-white/80!;
@@ -114,8 +122,8 @@ h2 {
   .hero-card {
     @apply rounded-[1.25rem] shadow-lg;
     background:
-      radial-gradient(600px 200px at 90% 0%, rgb(249 115 102 / 0.45), transparent 70%),
-      linear-gradient(135deg, var(--color-brand-700), var(--color-brand-900));
+      radial-gradient(600px 200px at 90% 0%, rgb(221 245 233 / 0.22), transparent 70%),
+      linear-gradient(135deg, var(--color-brand-700), var(--color-navy));
   }
 
   /* Chart bars drawn as pills over a striped track. */
@@ -151,22 +159,29 @@ h2 {
     @apply border-l-slate-300;
   }
 
-  /* Sign-in pages: form on the left, a teal welcome panel on the right. */
+  /* Sign-in pages: form on the left, a cobalt welcome panel on the right. */
   .auth-bg {
     background:
-      radial-gradient(700px 400px at 50% -10%, rgb(99 102 241 / 0.12), transparent 70%),
+      radial-gradient(700px 400px at 50% -10%, rgb(54 89 217 / 0.1), transparent 70%),
       var(--page-bg);
   }
   .auth-panel {
     background:
-      radial-gradient(500px 300px at 80% 10%, rgb(249 115 102 / 0.4), transparent 70%),
-      radial-gradient(400px 300px at 10% 100%, rgb(129 140 248 / 0.35), transparent 70%),
-      linear-gradient(160deg, var(--color-brand-800), var(--color-brand-900) 60%, #1e1b4b);
+      radial-gradient(500px 300px at 80% 10%, rgb(221 245 233 / 0.22), transparent 70%),
+      radial-gradient(400px 300px at 10% 100%, rgb(54 89 217 / 0.45), transparent 70%),
+      linear-gradient(160deg, var(--color-brand-800), var(--color-navy) 60%, #101828);
   }
 
-  /* Menu: a white panel floating beside the page on computers. */
+  /* Menu: a navy panel floating beside the page on computers. The greys inside it are re-pointed to light
+     tints, so every grey used in the menu reads on navy. */
   .sidebar {
-    @apply border-b border-[var(--side-line)] bg-surface text-slate-900 md:m-3 md:h-[calc(100vh-1.5rem)] md:rounded-3xl md:border md:shadow-[0_8px_24px_-16px_rgba(16,24,40,0.15)];
+    --color-slate-100: rgb(255 255 255 / 0.07);
+    --color-slate-400: #7d8aa0;
+    --color-slate-500: #aeb8c7;
+    --color-slate-600: #c3cbd7;
+    --color-slate-900: #ffffff;
+    color: var(--color-slate-900);
+    @apply border-b border-[var(--side-line)] bg-navy md:m-3 md:h-[calc(100vh-1.5rem)] md:rounded-3xl md:border md:shadow-[0_8px_24px_-16px_rgba(16,24,40,0.15)];
   }
   @media (min-width: 768px) {
     .sidebar {
@@ -183,7 +198,7 @@ h2 {
     @apply rounded-full px-3 py-1 text-sm text-slate-600 ring-1 ring-[var(--side-line)];
   }
   .brand-mark {
-    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-accent to-brand-600 font-display text-sm font-bold text-white;
+    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-brand-500 to-brand-800 font-display text-sm font-bold text-white;
   }
   .nav-section {
     @apply px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase;
@@ -192,7 +207,7 @@ h2 {
     @apply relative flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-sm text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-900;
   }
   .nav-link[data-active] {
-    @apply bg-brand-50 font-semibold text-brand-800;
+    @apply bg-mint font-semibold text-ink;
   }
   .nav-link[data-active]::before {
     content: "";
@@ -205,13 +220,13 @@ h2 {
     @apply opacity-100;
   }
   .nav-badge {
-    @apply rounded-full bg-brand-800 px-1.5 text-[11px] font-semibold text-white;
+    @apply rounded-full bg-brand-700 px-1.5 text-[11px] font-semibold text-white;
   }
   .sidebar-user {
     @apply mt-4 flex items-start gap-2.5 border-t border-[var(--side-line)] pt-3;
   }
   .avatar {
-    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-135 from-accent to-brand-600 text-xs font-semibold text-white;
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-135 from-brand-500 to-brand-800 text-xs font-semibold text-white;
   }
 
   /* Bar along the top of every page on computers. */
