@@ -133,7 +133,7 @@ export default async function AccountsPage({ searchParams }: PageProps<"/account
 
       <section className="mb-6">
         <h2 className="mb-3 font-semibold">Month by month</h2>
-        <div className="card overflow-x-auto p-0">
+        <div className="card overflow-x-auto p-0" tabIndex={0}>
           <table className="table">
             <thead>
               <tr>
@@ -203,7 +203,7 @@ export default async function AccountsPage({ searchParams }: PageProps<"/account
             ? "Collected on invoices and workshop fee receipts less credit notes, against GST on vendor bills. A guide for the monthly return; the invoice and credit note spreadsheets and workshop receipts carry the detail your accountant files from."
             : "GST is switched off in Admin → Settings → Invoices, so new invoices carry no GST."}
         </p>
-        <div className="card overflow-x-auto p-0">
+        <div className="card overflow-x-auto p-0" tabIndex={0}>
           <table className="table">
             <thead>
               <tr>

@@ -85,7 +85,7 @@ export default async function ActivityPage({ searchParams }: PageProps<"/admin/a
       {shown.length === 0 ? (
         <Empty>Nothing logged yet{area || person || problems ? " for this filter" : ""}.</Empty>
       ) : (
-        <div className="card overflow-x-auto p-0">
+        <div className="card overflow-x-auto p-0" tabIndex={0}>
           <table className="w-full text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
               <tr>
