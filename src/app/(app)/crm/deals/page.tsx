@@ -64,7 +64,7 @@ export default async function DealsPage({ searchParams }: PageProps<"/crm/deals"
                 {col.map((d) => {
                   const late = d.expectedClose && d.expectedClose < today && (OPEN_STAGES as readonly string[]).includes(d.stage);
                   return (
-                    <div key={d.id} className="card p-3 text-sm">
+                    <div key={d.id} className="card deal-card p-3 text-sm" data-stage={d.stage}>
                       <Link href={`/crm/deals/${d.id}`} className="link block">
                         {d.title}
                       </Link>

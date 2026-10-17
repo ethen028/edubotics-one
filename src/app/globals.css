@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* Edubotics One "Fresh" look (Oct 2026): light menu, white cards, Plus Jakarta Sans, Edubotics teal. */
+  /* Edubotics One look (Oct 2026), after the client's "Fernly" reference: floating white menu,
+     big soft cards, pill buttons, a filled first number card, Plus Jakarta Sans, Edubotics teal. */
   --font-sans: var(--font-jakarta);
   --font-display: var(--font-jakarta);
 }
@@ -20,9 +21,9 @@
 }
 
 :root {
-  --page-bg: #f6f7f9;
-  --line: #e6e8ec;
-  --side-line: #eaecf0;
+  --page-bg: #f2f4f3;
+  --line: #e7ebe9;
+  --side-line: #e7ebe9;
 }
 
 body {
@@ -37,28 +38,28 @@ h2 {
 }
 
 @utility btn {
-  @apply inline-flex items-center justify-center gap-1.5 rounded-[0.625rem] px-3.5 py-2 text-sm font-medium whitespace-nowrap transition disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100;
 }
 
 @utility btn-sm {
-  @apply rounded-lg px-2.5 py-1 text-xs;
+  @apply px-3 py-1 text-xs;
 }
 
 @layer components {
   .card {
-    @apply rounded-[0.875rem] border border-[var(--line)] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)];
+    @apply rounded-[1.25rem] border border-[var(--line)] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.03),0_8px_24px_-16px_rgba(16,24,40,0.12)];
   }
   .label {
     @apply mb-1 block text-xs font-medium text-slate-600;
   }
   .input {
-    @apply block w-full rounded-[0.625rem] border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-100 disabled:bg-slate-50;
+    @apply block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-100 disabled:bg-slate-50;
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700;
+    @apply btn bg-brand-700 text-white shadow-sm hover:bg-brand-800 hover:shadow-md;
   }
   .btn-secondary {
-    @apply btn border border-slate-300 bg-white text-slate-700 shadow-xs hover:bg-slate-50;
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50;
   }
   .btn-danger {
     @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50;
@@ -76,27 +77,97 @@ h2 {
     @apply bg-slate-50;
   }
   .link {
-    @apply font-medium text-brand-600 hover:underline;
+    @apply font-medium text-brand-700 hover:underline;
+  }
+
+  /* Number cards. The first one in a row is filled in teal, like the client's reference. */
+  .stat {
+    @apply relative flex flex-col justify-between transition-[border-color,box-shadow,transform] duration-150;
+  }
+  a.stat:hover {
+    @apply -translate-y-0.5 border-brand-300 shadow-md;
+  }
+  .stat-arrow {
+    @apply absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-500;
+  }
+  .grid > .stat:first-child {
+    @apply border-transparent text-white;
+    background:
+      radial-gradient(300px 140px at 100% 0%, rgb(45 212 191 / 0.3), transparent 70%),
+      linear-gradient(135deg, var(--color-brand-700), var(--color-brand-900));
+  }
+  .grid > .stat:first-child .stat-label {
+    @apply text-white/80!;
+  }
+  .grid > .stat:first-child .stat-value {
+    @apply text-white!;
+  }
+  .grid > .stat:first-child .stat-arrow {
+    @apply border-transparent! bg-white! text-brand-800!;
   }
 
   /* The dark highlight panel on Home ("Next priority"). */
   .hero-card {
-    @apply rounded-2xl shadow-lg;
+    @apply rounded-[1.25rem] shadow-lg;
     background:
       radial-gradient(600px 200px at 90% 0%, rgb(45 212 191 / 0.35), transparent 70%),
       linear-gradient(135deg, var(--color-brand-700), var(--color-brand-900));
   }
 
-  /* Sign-in pages: a soft teal glow behind the form. */
+  /* Chart bars drawn as pills over a striped track. */
+  .bar-track {
+    @apply relative flex h-full w-full max-w-7 items-end overflow-hidden rounded-full;
+    background: repeating-linear-gradient(135deg, #e5e9e7 0 2px, transparent 2px 7px);
+  }
+  .bar-fill {
+    @apply w-full rounded-full;
+    min-height: 0.375rem;
+  }
+
+  /* Deal cards on the pipeline board carry their stage colour on the left. */
+  .deal-card {
+    @apply border-l-4;
+  }
+  .deal-card[data-stage="PROSPECT"] {
+    @apply border-l-slate-400;
+  }
+  .deal-card[data-stage="DEMO"] {
+    @apply border-l-amber-400;
+  }
+  .deal-card[data-stage="PROPOSAL"] {
+    @apply border-l-brand-500;
+  }
+  .deal-card[data-stage="NEGOTIATION"] {
+    @apply border-l-orange-500;
+  }
+  .deal-card[data-stage="WON"] {
+    @apply border-l-emerald-600;
+  }
+  .deal-card[data-stage="LOST"] {
+    @apply border-l-slate-300;
+  }
+
+  /* Sign-in pages: form on the left, a teal welcome panel on the right. */
   .auth-bg {
     background:
       radial-gradient(700px 400px at 50% -10%, rgb(20 184 166 / 0.14), transparent 70%),
       var(--page-bg);
   }
+  .auth-panel {
+    background:
+      radial-gradient(500px 300px at 80% 10%, rgb(45 212 191 / 0.35), transparent 70%),
+      radial-gradient(400px 300px at 10% 100%, rgb(16 185 129 / 0.25), transparent 70%),
+      linear-gradient(160deg, var(--color-brand-800), var(--color-brand-900) 60%, #072a25);
+  }
 
-  /* Menu */
+  /* Menu: a white panel floating beside the page on computers. */
   .sidebar {
-    @apply border-r border-[var(--side-line)] bg-white text-slate-900;
+    @apply border-b border-[var(--side-line)] bg-white text-slate-900 md:m-3 md:h-[calc(100vh-1.5rem)] md:rounded-3xl md:border md:shadow-[0_8px_24px_-16px_rgba(16,24,40,0.15)];
+  }
+  @media (min-width: 768px) {
+    .sidebar {
+      top: 0.75rem;
+    }
   }
   .sidebar-muted {
     @apply text-slate-400;
@@ -105,19 +176,23 @@ h2 {
     @apply text-slate-500 hover:text-slate-900;
   }
   .sidebar-toggle {
-    @apply rounded-md px-2 py-1 text-sm text-slate-600 ring-1 ring-[var(--side-line)];
+    @apply rounded-full px-3 py-1 text-sm text-slate-600 ring-1 ring-[var(--side-line)];
   }
   .brand-mark {
-    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-teal-500 to-brand-600 font-display text-sm font-bold text-white;
+    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-teal-500 to-brand-700 font-display text-sm font-bold text-white;
   }
   .nav-section {
     @apply px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase;
   }
   .nav-link {
-    @apply flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900;
+    @apply relative flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-sm text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-900;
   }
   .nav-link[data-active] {
-    @apply bg-brand-50 font-semibold text-brand-700;
+    @apply bg-brand-50 font-semibold text-brand-800;
+  }
+  .nav-link[data-active]::before {
+    content: "";
+    @apply absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r-full bg-brand-700;
   }
   .nav-icon {
     @apply h-4 w-4 shrink-0 opacity-75;
@@ -126,12 +201,36 @@ h2 {
     @apply opacity-100;
   }
   .nav-badge {
-    @apply rounded-full bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-700;
+    @apply rounded-full bg-brand-800 px-1.5 text-[11px] font-semibold text-white;
   }
   .sidebar-user {
     @apply mt-4 flex items-start gap-2.5 border-t border-[var(--side-line)] pt-3;
   }
   .avatar {
-    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-135 from-teal-500 to-brand-600 text-xs font-semibold text-white;
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-135 from-teal-500 to-brand-700 text-xs font-semibold text-white;
+  }
+
+  /* Bar along the top of every page on computers. */
+  .topbar {
+    @apply mb-6 hidden items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-white px-4 py-2 md:flex;
+  }
+  .icon-btn {
+    @apply relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900;
+  }
+  .icon-btn-dot {
+    @apply absolute -top-1 -right-1 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] leading-4 font-semibold text-white;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  [class*="btn"]:active,
+  a.stat:hover {
+    transform: none !important;
   }
 }

@@ -2,6 +2,7 @@ import { requireUser, isAdmin, isManagerOrAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { NavLink } from "@/components/nav-link";
 import { Sidebar } from "@/components/sidebar";
+import { Icon } from "@/components/icons";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
 import { lowStockItems } from "@/lib/inventory";
@@ -37,6 +38,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     unreadCount(user.id),
   ]);
   const overdueChecklists = checklists.open.some((e) => e.status === "OVERDUE");
+  // Shortcuts in the bar along the top: only the things this person has to act on.
+  const waiting = [
+    { n: approvals.total, label: `${approvals.total} to approve`, href: "/approvals" },
+    { n: checklists.open.length, label: `${checklists.open.length} checklist${checklists.open.length === 1 ? "" : "s"} to tick`, href: "/checklists" },
+    { n: toAcknowledge.length, label: `${toAcknowledge.length} notice${toAcknowledge.length === 1 ? "" : "s"} to read`, href: "/notices" },
+    { n: reviewTodos.length, label: `${reviewTodos.length} review${reviewTodos.length === 1 ? "" : "s"} to do`, href: "/hr/reviews" },
+    { n: myInterviews, label: `${myInterviews} interview${myInterviews === 1 ? "" : "s"}`, href: "/recruitment/interviews" },
+  ].filter((w) => w.n > 0);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -248,10 +257,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           )}
         </nav>
         <div className="sidebar-user">
-          <div className="avatar">{initials(user.name)}</div>
+          <div className="avatar md:hidden">{initials(user.name)}</div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">{user.name}</div>
-            <div className="sidebar-muted text-xs">{humanize(user.role)}</div>
+            <div className="truncate text-sm font-medium md:hidden">{user.name}</div>
+            <div className="sidebar-muted text-xs md:hidden">{humanize(user.role)}</div>
             <div className="mt-1 flex items-center gap-3">
               <Link href="/account" className="sidebar-link text-xs">
                 My account
@@ -263,8 +272,39 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </div>
         </div>
       </Sidebar>
-      <main className="app-main min-w-0 flex-1 p-4 md:p-8">
-        <div className="mx-auto max-w-[1400px]">{children}</div>
+      <main className="app-main min-w-0 flex-1 p-4 md:py-3 md:pr-4 md:pl-1">
+        <div className="mx-auto max-w-[1400px]">
+          <header className="topbar">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {waiting.length === 0 ? (
+                <span className="text-slate-500">Nothing waiting on you right now.</span>
+              ) : (
+                <>
+                  <span className="text-slate-500">Waiting on you:</span>
+                  {waiting.map((w) => (
+                    <Link key={w.href} href={w.href} className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-800 hover:bg-brand-100">
+                      {w.label}
+                    </Link>
+                  ))}
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <Link href="/inbox" className="icon-btn" title={inbox > 0 ? `Inbox · ${inbox} unread` : "Inbox"}>
+                <Icon name="bell" className="h-4 w-4" />
+                {inbox > 0 && <span className="icon-btn-dot">{inbox}</span>}
+              </Link>
+              <Link href="/account" className="flex items-center gap-2.5 rounded-full py-1 pr-3 pl-1 hover:bg-slate-50">
+                <span className="avatar">{initials(user.name)}</span>
+                <span className="leading-tight">
+                  <span className="block text-sm font-semibold">{user.name}</span>
+                  <span className="block text-xs text-slate-500">{user.email}</span>
+                </span>
+              </Link>
+            </div>
+          </header>
+          <div className="md:px-4 md:pt-1 md:pb-6">{children}</div>
+        </div>
       </main>
     </div>
   );

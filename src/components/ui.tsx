@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Icon } from "./icons";
 
 export function PageHeader({
   title,
@@ -54,16 +55,21 @@ export function Empty({ children }: { children: ReactNode }) {
 export function Stat({ label, value, href }: { label: string; value: ReactNode; href?: string }) {
   const inner = (
     <>
-      <div className="text-xs font-medium text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{value}</div>
+      <div className={`stat-label text-xs font-medium text-slate-500 ${href ? "pr-8" : ""}`}>{label}</div>
+      <div className="stat-value mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</div>
+      {href && (
+        <span className="stat-arrow">
+          <Icon name="arrowUpRight" className="h-3.5 w-3.5" />
+        </span>
+      )}
     </>
   );
   return href ? (
-    <Link href={href} className="card block hover:border-brand-500">
+    <Link href={href} className="card stat">
       {inner}
     </Link>
   ) : (
-    <div className="card">{inner}</div>
+    <div className="card stat">{inner}</div>
   );
 }
 
