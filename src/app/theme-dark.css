@@ -13,6 +13,12 @@
     /* Selected backgrounds: deep mint with pale mint text. */
     --color-mint: #1d3a30;
     --color-ink: #bff0d6;
+    --tint-2: #142a24;
+    --tint-3: #18213a;
+    --tint-4: #2a2416;
+    --tint-line-2: #1f3d33;
+    --tint-line-3: #263256;
+    --tint-line-4: #3d3420;
 
     --color-slate-50: #1a2232;
     --color-slate-100: #212a3c;
@@ -148,7 +154,7 @@
   }
 
   /* Panels that stay cobalt in both looks keep the light-look colours inside them. */
-  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .grid > .stat:first-child, .brand-mark, .avatar, .nav-badge) {
+  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .brand-mark, .avatar, .nav-badge) {
     --color-brand-50: #eff3fd;
     --color-brand-100: #dfe7fb;
     --color-brand-300: #9bb0ef;
@@ -158,6 +164,13 @@
     --color-brand-800: #2b47b0;
     --color-brand-900: #223889;
     --color-red-200: oklch(88.5% 0.062 18.334);
+    --color-amber-200: oklch(92.4% 0.12 95.746);
+    --color-mint: #ddf5e9;
+    --color-navy: #1c2842; /* a step lighter than the dark page, so the banner still stands out */
+  }
+  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .cal-tile {
+    --color-mint: #ddf5e9;
+    --color-ink: #1b2635;
   }
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .btn-primary {
     --color-brand-700: #3f63e0;

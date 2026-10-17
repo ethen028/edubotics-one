@@ -2,6 +2,7 @@ import { requireUser, isAdmin, isManagerOrAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { NavLink } from "@/components/nav-link";
 import { Sidebar } from "@/components/sidebar";
+import { NavGroup } from "@/components/nav-group";
 import { Icon } from "@/components/icons";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
@@ -60,8 +61,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </div>
         }
       >
-        <nav className="flex-1 space-y-4 overflow-y-auto">
-          <div className="space-y-0.5">
+        <nav className="flex-1 space-y-1.5 overflow-y-auto">
+          <NavGroup title="Overview" icon="grid" paths={["/", "/inbox", "/dashboard", "/notices"]} count={inbox + toAcknowledge.length}>
             <NavLink href="/">Home</NavLink>
             <NavLink href="/inbox">
               <span className="flex items-center justify-between">
@@ -84,9 +85,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 )}
               </span>
             </NavLink>
-          </div>
-          <div className="space-y-0.5">
-            <div className="nav-section">Work</div>
+          </NavGroup>
+          <NavGroup title="Work" icon="briefcase" paths={["/work", "/projects", "/timesheets", "/checklists", "/expenses", "/helpdesk", "/approvals"]} count={checklists.open.length + helpdesk.total + approvals.total}>
             <NavLink href="/work">My work</NavLink>
             <NavLink href="/projects/pulse">Daily pulse</NavLink>
             <NavLink href="/projects" except={["/projects/pulse"]}>
@@ -130,9 +130,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 </span>
               </NavLink>
             )}
-          </div>
-          <div className="space-y-0.5">
-            <div className="nav-section">Inventory</div>
+          </NavGroup>
+          <NavGroup title="Inventory" icon="box" paths={["/inventory"]} count={lowStock.length}>
             <NavLink href="/inventory" exact>
               <span className="flex items-center justify-between">
                 Stock
@@ -144,9 +143,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               </span>
             </NavLink>
             <NavLink href="/inventory/requests">Requests</NavLink>
-          </div>
-          <div className="space-y-0.5">
-            <div className="nav-section">Operations</div>
+          </NavGroup>
+          <NavGroup title="Operations" icon="school" paths={["/operations", "/workshops"]}>
             <NavLink href="/operations" exact>
               School sessions
             </NavLink>
@@ -154,26 +152,23 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <NavLink href="/operations/programmes">School programmes</NavLink>
             {isManagerOrAdmin(user) && <NavLink href="/operations/reports">Delivery reports</NavLink>}
             <NavLink href="/workshops">Workshops</NavLink>
-          </div>
-          <div className="space-y-0.5">
-            <div className="nav-section">Purchases</div>
+          </NavGroup>
+          <NavGroup title="Purchases" icon="cart" paths={["/purchases"]}>
             <NavLink href="/purchases" exact>
               Purchase orders
             </NavLink>
             <NavLink href="/purchases/vendors">Vendors</NavLink>
             {isAdmin(user) && <NavLink href="/purchases/payables">Payables</NavLink>}
-          </div>
-          <div className="space-y-0.5">
-            <div className="nav-section">CRM</div>
+          </NavGroup>
+          <NavGroup title="CRM" icon="handshake" paths={["/crm"]}>
             <NavLink href="/crm/leads">Leads</NavLink>
             <NavLink href="/crm/deals">Deals</NavLink>
             <NavLink href="/crm/organizations">Institutions</NavLink>
             <NavLink href="/crm/contacts">Contacts</NavLink>
             <NavLink href="/crm/activities">Follow-ups</NavLink>
-          </div>
+          </NavGroup>
           {isManagerOrAdmin(user) && (
-            <div className="space-y-0.5">
-              <div className="nav-section">Billing</div>
+            <NavGroup title="Billing" icon="receipt" paths={["/accounts", "/quotes", "/invoices", "/credit-notes"]}>
               <NavLink href="/accounts">Accounts summary</NavLink>
               <NavLink href="/quotes">Quotes</NavLink>
               <NavLink href="/invoices" exact>
@@ -181,10 +176,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               </NavLink>
               <NavLink href="/credit-notes">Credit notes</NavLink>
               <NavLink href="/invoices/dues">Payments due</NavLink>
-            </div>
+            </NavGroup>
           )}
-          <div className="space-y-0.5">
-            <div className="nav-section">HR</div>
+          <NavGroup title="HR" icon="users" paths={["/hr/employees", "/hr/attendance", "/hr/leave", "/recruitment", "/hr/onboarding", "/hr/training", "/hr/exits", "/hr/reviews", "/hr/assets", "/hr/holidays"]} count={onlineApplications + myInterviews + reviewTodos.length}>
             {user.employee && <NavLink href={`/hr/employees/${user.employee.id}`}>My profile</NavLink>}
             <NavLink href="/hr/attendance" exact>
               My attendance
@@ -232,28 +226,26 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             </NavLink>
             {isAdmin(user) && <NavLink href="/hr/assets">Assets</NavLink>}
             <NavLink href="/hr/holidays">Holidays</NavLink>
-          </div>
+          </NavGroup>
           {(user.employee || isAdmin(user)) && (
-            <div className="space-y-0.5">
-              <div className="nav-section">Payroll</div>
+            <NavGroup title="Payroll" icon="wallet" paths={["/payroll"]}>
               {user.employee && <NavLink href="/payroll/my">My payslips</NavLink>}
               {isAdmin(user) && (
                 <NavLink href="/payroll" exact>
                   Payroll
                 </NavLink>
               )}
-            </div>
+            </NavGroup>
           )}
           {isAdmin(user) && (
-            <div className="space-y-0.5">
-              <div className="nav-section">Admin</div>
+            <NavGroup title="Admin" icon="settings" paths={["/admin", "/hr/departments", "/hr/leave-types"]}>
               <NavLink href="/admin/users">Users</NavLink>
               <NavLink href="/admin/activity">Activity log</NavLink>
               <NavLink href="/admin/backups">Backups</NavLink>
               <NavLink href="/hr/departments">Departments</NavLink>
               <NavLink href="/hr/leave-types">Leave types</NavLink>
               <NavLink href="/admin/settings">Settings</NavLink>
-            </div>
+            </NavGroup>
           )}
         </nav>
         <div className="sidebar-user">
