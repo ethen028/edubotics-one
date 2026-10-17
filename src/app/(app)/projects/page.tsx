@@ -5,7 +5,7 @@ import { Empty, PageHeader, Stat } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { todayIST } from "@/lib/time";
 import { OPEN_PROJECT_STAGES, kindLabel, progress, projectScope, scopeLabel } from "@/lib/projects";
-import { ProgressBar, StageBadge, StatusRing, UpdateRequestedBadge, healthCounts, updateInclude } from "./ui";
+import { BlockedBadge, ProgressBar, StageBadge, StatusRing, UpdateRequestedBadge, healthCounts, updateInclude } from "./ui";
 
 export const metadata = { title: "Projects" };
 
@@ -28,6 +28,8 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
           progress: true,
           dueDate: true,
           updateRequestedAt: true,
+          blockedAt: true,
+          blockedReason: true,
           assignee: { select: { name: true } },
         },
       },
@@ -49,7 +51,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
   const activeTasks = open.flatMap((p) => p.tasks.map((t) => ({ ...t, project: { id: p.id, name: p.name } })));
   const counts = healthCounts(activeTasks, today);
   const attention = activeTasks
-    .filter((t) => t.status !== "DONE" && ((t.dueDate && t.dueDate < today) || t.updateRequestedAt))
+    .filter((t) => t.status !== "DONE" && ((t.dueDate && t.dueDate < today) || t.updateRequestedAt || t.blockedAt))
     .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity))
     .slice(0, 6);
   const recent = await db.projectUpdate.findMany({
@@ -68,6 +70,12 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
           <>
             <Link href={`?done=${showDone ? "0" : "1"}`} className="btn-secondary">
               {showDone ? "Hide completed" : "Show completed"}
+            </Link>
+            <Link href="/projects/pulse" className="btn-secondary">
+              Daily pulse
+            </Link>
+            <Link href="/projects/timeline" className="btn-secondary">
+              Timeline
             </Link>
             {isManagerOrAdmin(user) && (
               <Link href="/projects/people" className="btn-secondary">
@@ -98,7 +106,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
           </section>
           <section className="card">
             <h2 className="font-semibold">Needs attention</h2>
-            <p className="mb-3 text-xs text-slate-500">Overdue or update requested</p>
+            <p className="mb-3 text-xs text-slate-500">Overdue, blocked or update requested</p>
             {attention.length === 0 ? (
               <p className="text-sm text-slate-500">Nothing overdue. 🎉</p>
             ) : (
@@ -113,6 +121,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
                       <span>· {t.project.name}</span>
                       {t.dueDate && t.dueDate < today && <span className="font-medium text-red-600">· due {formatDate(t.dueDate)}</span>}
                       {t.updateRequestedAt && <UpdateRequestedBadge />}
+                      {t.blockedAt && <BlockedBadge reason={t.blockedReason} />}
                     </div>
                   </li>
                 ))}

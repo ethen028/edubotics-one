@@ -1,8 +1,8 @@
 import { requireUser } from "@/lib/auth";
 import { payStateLabel } from "@/lib/invoices";
 import { invoicesWithBalance } from "../data";
+import { csvCell as csv } from "@/lib/csv";
 
-const csv = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Every issued and cancelled invoice, for the accountant's GST return and books. */

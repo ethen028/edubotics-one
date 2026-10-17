@@ -2,8 +2,7 @@ import type { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { fyLabel } from "@/lib/accounts";
 import { accountsSummary } from "../data";
-
-const csv = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+import { csvCell as csv } from "@/lib/csv";
 
 /** The accounts summary month by month, one row per month and a total, for the accountant. */
 export async function GET(request: NextRequest) {

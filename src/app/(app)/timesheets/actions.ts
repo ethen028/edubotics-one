@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Project, ProjectTask } from "@prisma/client";
+import type { Prisma, Project, ProjectTask } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -14,7 +14,9 @@ import { toDateInput } from "@/lib/format";
 import { canUpdateTask, projectScope } from "@/lib/projects";
 import { readFiles } from "@/lib/project-files";
 import { recordTaskUpdate } from "@/lib/task-updates";
-import { workedMinutes } from "@/lib/daily-log";
+import { overlapping, workedMinutes } from "@/lib/daily-log";
+import { notify } from "@/lib/notifications";
+import { formatDate } from "@/lib/format";
 import type { FormState } from "@/components/action-form";
 
 function refresh() {
@@ -78,6 +80,34 @@ function readEntry(formData: FormData): { error: string } | { data: EntryInput; 
   return { data: parsed.data, hours };
 }
 
+/**
+ * Task Flow v5's worksheet checks, done on the server: no more than 24 hours on a day, and clock times that don't overlap
+ * another entry on the same day. Runs inside the transaction that saves the entry, holding a lock on the timesheet so
+ * two browser tabs can't both slip in the same slot.
+ */
+async function checkDay(
+  tx: Prisma.TransactionClient,
+  timesheetId: string,
+  date: Date,
+  hours: number,
+  startTime: string | null,
+  endTime: string | null,
+  exceptId?: string,
+) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`timesheet:${timesheetId}`}))`;
+  const sameDay = await tx.timeEntry.findMany({
+    where: { timesheetId, date, ...(exceptId ? { id: { not: exceptId } } : {}) },
+    select: { hours: true, startTime: true, endTime: true, title: true, note: true },
+  });
+  if (sameDay.reduce((s, e) => s + Number(e.hours), 0) + hours > 24) return "That would be more than 24 hours on one day.";
+  if (startTime && endTime) {
+    const hit = sameDay.find((e) => e.startTime && e.endTime && overlapping(startTime, endTime, e.startTime, e.endTime));
+    if (hit)
+      return `That overlaps ${hit.startTime}–${hit.endTime}${hit.title || hit.note ? ` (${hit.title || hit.note})` : ""}, already logged on ${formatDate(date)}.`;
+  }
+  return null;
+}
+
 /** Resolves "task:<id>" / "project:<id>" to a task and project the user is on. */
 async function readTarget(user: Awaited<ReturnType<typeof requireUser>>, target: string) {
   let projectId: string | null = null;
@@ -127,11 +157,10 @@ export async function addEntry(_: FormState, formData: FormData): Promise<FormSt
   if (sheet.status === "SUBMITTED" || sheet.status === "APPROVED")
     return { error: "That week is already submitted. Ask your manager to send it back to change it." };
 
-  const dayTotal = await db.timeEntry.aggregate({ where: { timesheetId: sheet.id, date }, _sum: { hours: true } });
-  if (Number(dayTotal._sum.hours ?? 0) + hours > 24) return { error: "That would be more than 24 hours on one day." };
-
   const summary = [title, note].filter(Boolean).join(": ") || null;
-  await db.$transaction(async (tx) => {
+  const clash = await db.$transaction(async (tx) => {
+    const problem = await checkDay(tx, sheet.id, date, hours, startTime, endTime);
+    if (problem) return problem;
     await tx.timeEntry.create({
       data: {
         timesheetId: sheet.id,
@@ -156,7 +185,9 @@ export async function addEntry(_: FormState, formData: FormData): Promise<FormSt
         await tx.projectFile.create({ data: { ...f, projectId: projectId!, taskId: task?.id ?? null, updateId: update.id, uploadedById: user.id } });
       }
     }
+    return null;
   });
+  if (clash) return { error: clash };
   refresh();
   if (projectId) revalidatePath(`/projects/${projectId}`, "layout");
   return { ok: progressChange !== undefined ? `Logged ${hours} h and updated the task to ${progressChange}%.` : `Logged ${hours} h.` };
@@ -185,10 +216,10 @@ export async function updateEntry(id: string, _: FormState, formData: FormData):
   const { projectId, task } = resolved;
   if (!projectId && !title && !note) return { error: "Pick a project or say what the time was for." };
 
-  const dayTotal = await db.timeEntry.aggregate({ where: { timesheetId: entry.timesheetId, date, id: { not: id } }, _sum: { hours: true } });
-  if (Number(dayTotal._sum.hours ?? 0) + hours > 24) return { error: "That would be more than 24 hours on one day." };
-
-  await db.timeEntry.update({
+  const clash = await db.$transaction(async (tx) => {
+    const problem = await checkDay(tx, entry.timesheetId, date, hours, startTime, endTime, id);
+    if (problem) return problem;
+    await tx.timeEntry.update({
     where: { id },
     data: {
       date,
@@ -204,7 +235,10 @@ export async function updateEntry(id: string, _: FormState, formData: FormData):
       editCount: { increment: 1 },
       editedAt: new Date(),
     },
+    });
+    return null;
   });
+  if (clash) return { error: clash };
   refresh();
   redirect(`/timesheets?week=${toDateInput(entry.timesheet.weekStart)}`);
 }
@@ -239,6 +273,13 @@ export async function decideTimesheet(id: string, formData: FormData) {
   await db.timesheet.update({
     where: { id },
     data: { status: decision, decisionNote: note, decidedById: user.id, decidedAt: new Date() },
+  });
+  const employee = await db.employee.findUnique({ where: { id: sheet.employeeId }, select: { userId: true } });
+  await notify([employee?.userId], user.id, {
+    kind: "timesheet.decided",
+    title: `${user.name} ${decision === "APPROVED" ? "approved" : "sent back"} your timesheet for the week of ${formatDate(sheet.weekStart)}`,
+    body: note,
+    href: `/timesheets?week=${toDateInput(sheet.weekStart)}`,
   });
   refresh();
 }

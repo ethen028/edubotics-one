@@ -67,9 +67,4 @@ export function ageBucket(dueDate: Date, today: Date) {
   return 4;
 }
 
-/** A CSV cell. Leading = + - @ are escaped so spreadsheets don't run them as formulas. */
-export function csvCell(v: string | number) {
-  let s = String(v);
-  if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return `"${s.replace(/"/g, '""')}"`;
-}
+export { csvCell } from "./csv";

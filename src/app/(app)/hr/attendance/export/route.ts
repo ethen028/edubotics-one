@@ -2,8 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { getAttendance, summarize } from "@/lib/attendance-data";
 import { managedEmployees } from "@/lib/team";
 import { STATUS_LABEL, dateKey, formatMinutes, monthDays, parseMonth } from "@/lib/attendance";
-
-const csv = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+import { csvCell as csv } from "@/lib/csv";
 
 /** Monthly attendance as CSV: one row per employee, one column per day, then totals. */
 export async function GET(request: Request) {

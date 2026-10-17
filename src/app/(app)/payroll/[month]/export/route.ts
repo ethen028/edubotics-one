@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-
-const csv = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+import { csvCell as csv } from "@/lib/csv";
 
 /** Every payslip line for the month, for the accountant or the bank transfer. */
 export async function GET(_: Request, { params }: RouteContext<"/payroll/[month]/export">) {
