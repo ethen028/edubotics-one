@@ -43,3 +43,8 @@ next-env.d.ts
 
 # backups made by the office Docker setup (docs/backups.md)
 /backups
+
+# Claude Code / oh-my-claudecode runtime state (keep shared OMC skills)
+.omc/*
+!.omc/skills/
+.claude/settings.local.json
