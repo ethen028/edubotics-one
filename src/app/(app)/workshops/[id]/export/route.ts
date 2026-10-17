@@ -17,7 +17,7 @@ export async function GET(_: Request, { params }: RouteContext<"/workshops/[id]/
   const days = workshopDays(w);
   const today = todayIST();
   const payments = money
-    ? await db.workshopPayment.findMany({ where: { registration: { workshopId: w.id } }, orderBy: { paidOn: "asc" } })
+    ? await db.workshopPayment.findMany({ where: { registration: { workshopId: w.id }, cancelledAt: null }, orderBy: { seq: "asc" } })
     : [];
   const rows = [
     [
@@ -55,7 +55,7 @@ export async function GET(_: Request, { params }: RouteContext<"/workshops/[id]/
               st.due,
               payments
                 .filter((p) => p.registrationId === r.id)
-                .map((p) => `${day(p.paidOn)} ${methodLabel[p.method]} ${Number(p.amount)}${p.reference ? ` (${p.reference})` : ""}`)
+                .map((p) => `${p.number} ${day(p.paidOn)} ${methodLabel[p.method]} ${Number(p.amount)}${p.reference ? ` (${p.reference})` : ""}`)
                 .join("; "),
             ]
           : []),
