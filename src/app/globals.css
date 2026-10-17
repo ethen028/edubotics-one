@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* Edubotics One look, carried over from the Floot prototype: deep teal on warm off-white,
-     Manrope for text and Bricolage Grotesque for headings. */
-  --font-sans: var(--font-manrope);
-  --font-display: var(--font-bricolage);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-heading);
+}
+
+@theme {
+  /* Edubotics teal. Each look below may shift it slightly. */
   --color-brand-50: #eef6f3;
   --color-brand-100: #d6ebe3;
   --color-brand-200: #b0d8ca;
@@ -17,19 +19,130 @@
   --color-brand-900: #0f2d27;
 }
 
+/* ─── Looks (samples to choose from; only the chosen one stays) ─── */
+:root {
+  --font-body: var(--font-manrope);
+  --font-heading: var(--font-bricolage);
+  --page-bg: #f4f7f5;
+  --page-fg: #15231f;
+  --card-bg: #fbfdfb;
+  --card-border: #d7e1dd;
+  --card-radius: 1rem;
+  --card-shadow: 0 1px 2px rgba(15, 45, 39, 0.06), 0 4px 14px rgba(15, 45, 39, 0.05);
+  --side-bg: var(--color-brand-900);
+  --side-fg: #fff;
+  --side-muted: var(--color-slate-400);
+  --side-link: var(--color-slate-300);
+  --side-hover: rgb(255 255 255 / 0.08);
+  --side-active-bg: var(--color-brand-600);
+  --side-active-fg: #fff;
+  --side-line: rgb(255 255 255 / 0.1);
+  --mark-bg: var(--color-brand-500);
+  --btn-radius: 0.5rem;
+  --btn-primary: var(--color-brand-600);
+  --btn-primary-hover: var(--color-brand-700);
+  --input-radius: 0.5rem;
+}
+
+/* A · Fresh: light sidebar, crisp white cards, Plus Jakarta Sans. */
+html[data-look="fresh"] {
+  --font-body: var(--font-jakarta);
+  --font-heading: var(--font-jakarta);
+  --color-brand-50: #effaf7;
+  --color-brand-100: #d5f2ea;
+  --color-brand-500: #0f9b80;
+  --color-brand-600: #0c8570;
+  --color-brand-700: #0a6b5b;
+  --page-bg: #f6f7f9;
+  --page-fg: #0f172a;
+  --card-bg: #fff;
+  --card-border: #e6e8ec;
+  --card-radius: 0.875rem;
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --side-bg: #fff;
+  --side-fg: #0f172a;
+  --side-muted: #8a94a6;
+  --side-link: #475467;
+  --side-hover: #f2f4f7;
+  --side-active-bg: var(--color-brand-50);
+  --side-active-fg: var(--color-brand-700);
+  --side-line: #eaecf0;
+  --mark-bg: linear-gradient(135deg, #14b8a6, #0c8570);
+  --btn-radius: 0.625rem;
+  --btn-primary: var(--color-brand-600);
+  --btn-primary-hover: var(--color-brand-700);
+  --input-radius: 0.625rem;
+}
+
+/* B · Teal, refined: today's deep teal sidebar, cleaned up with icons, softer cards and a gradient. */
+html[data-look="teal"] {
+  --page-bg: #f3f6f5;
+  --card-bg: #fff;
+  --card-border: #e1e8e5;
+  --card-radius: 1rem;
+  --card-shadow: 0 1px 3px rgba(15, 45, 39, 0.06), 0 8px 24px -12px rgba(15, 45, 39, 0.12);
+  --side-bg: linear-gradient(180deg, #0f3b33 0%, #0b2924 100%);
+  --side-muted: #86a69d;
+  --side-link: #c4d6d0;
+  --side-hover: rgb(255 255 255 / 0.07);
+  --side-active-bg: rgb(127 191 170 / 0.18);
+  --side-active-fg: #fff;
+  --mark-bg: linear-gradient(135deg, #4aa28a, #1a8570);
+  --btn-radius: 0.625rem;
+  --btn-primary: linear-gradient(180deg, #13806b, #0b6b5b);
+  --btn-primary-hover: linear-gradient(180deg, #0f725f, #0a5a4d);
+}
+
+/* C · Bold: floating dark panel, mint accents, Inter, big rounded cards. */
+html[data-look="bold"] {
+  --font-body: var(--font-inter);
+  --font-heading: var(--font-inter);
+  --color-brand-50: #ecfdf7;
+  --color-brand-100: #d1faec;
+  --color-brand-500: #10b987;
+  --color-brand-600: #059a72;
+  --color-brand-700: #047a5c;
+  --page-bg: radial-gradient(1200px 600px at 100% -10%, #dff7ef 0%, transparent 60%), #f1f3f6;
+  --page-fg: #0b1220;
+  --card-bg: #fff;
+  --card-border: transparent;
+  --card-radius: 1.25rem;
+  --card-shadow: 0 1px 2px rgba(11, 18, 32, 0.04), 0 10px 30px -14px rgba(11, 18, 32, 0.18);
+  --side-bg: #0b1220;
+  --side-muted: #7c869a;
+  --side-link: #b6bfcf;
+  --side-hover: rgb(255 255 255 / 0.06);
+  --side-active-bg: #34d399;
+  --side-active-fg: #052e22;
+  --side-line: rgb(255 255 255 / 0.08);
+  --mark-bg: linear-gradient(135deg, #34d399, #06b6d4);
+  --btn-radius: 9999px;
+  --btn-primary: #0b1220;
+  --btn-primary-hover: #1f2a3d;
+  --input-radius: 0.75rem;
+}
+
 body {
-  background: #f4f7f5;
-  color: #15231f;
+  background: var(--page-bg);
+  background-attachment: fixed;
+  color: var(--page-fg);
 }
 
 h1,
 h2 {
   font-family: var(--font-display);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+}
+html[data-look="fresh"] h1,
+html[data-look="bold"] h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 @utility btn {
-  @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-sm font-medium whitespace-nowrap transition disabled:opacity-50;
+  border-radius: var(--btn-radius);
 }
 
 @utility btn-sm {
@@ -38,16 +151,25 @@ h2 {
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-[#d7e1dd] bg-[#fbfdfb] p-5 shadow-[0_1px_2px_rgba(15,45,39,0.06),0_4px_14px_rgba(15,45,39,0.05)];
+    @apply border p-5;
+    border-radius: var(--card-radius);
+    border-color: var(--card-border);
+    background: var(--card-bg);
+    box-shadow: var(--card-shadow);
   }
   .label {
     @apply mb-1 block text-xs font-medium text-slate-600;
   }
   .input {
-    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-50;
+    @apply block w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-100 disabled:bg-slate-50;
+    border-radius: var(--input-radius);
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+    @apply btn text-white shadow-sm;
+    background: var(--btn-primary);
+  }
+  .btn-primary:hover {
+    background: var(--btn-primary-hover);
   }
   .btn-secondary {
     @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
@@ -67,6 +189,90 @@ h2 {
   .table tbody tr:hover {
     @apply bg-slate-50;
   }
+  /* The dark highlight panel on Home ("Next priority"). */
+  .hero-card {
+    @apply rounded-2xl shadow-lg;
+    background: var(--hero-bg, var(--color-brand-900));
+  }
+  html[data-look="fresh"] .hero-card {
+    --hero-bg: radial-gradient(600px 200px at 90% 0%, rgb(45 212 191 / 0.35), transparent 70%), linear-gradient(135deg, #0a6b5b, #0b3d35);
+  }
+  html[data-look="teal"] .hero-card {
+    --hero-bg: linear-gradient(135deg, #12705f, #0b2924);
+  }
+  html[data-look="bold"] .hero-card {
+    @apply rounded-[1.25rem];
+    --hero-bg: radial-gradient(500px 220px at 95% 0%, rgb(52 211 153 / 0.35), transparent 70%), #0b1220;
+  }
+
+  /* Menu */
+  .sidebar {
+    background: var(--side-bg);
+    color: var(--side-fg);
+    border-right: 1px solid var(--side-line);
+  }
+  .sidebar-muted {
+    color: var(--side-muted);
+  }
+  .sidebar-link {
+    color: var(--side-link);
+  }
+  .sidebar-link:hover {
+    color: var(--side-fg);
+  }
+  .sidebar-toggle {
+    @apply rounded-md px-2 py-1 text-sm;
+    color: var(--side-link);
+    box-shadow: inset 0 0 0 1px var(--side-line);
+  }
+  .brand-mark {
+    @apply flex h-8 w-8 items-center justify-center rounded-lg font-display text-sm font-bold text-white;
+    background: var(--mark-bg);
+  }
+  .nav-section {
+    @apply px-3 pb-1 text-[11px] font-semibold tracking-wider uppercase;
+    color: var(--side-muted);
+  }
+  .nav-link {
+    @apply flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm transition-colors;
+    color: var(--side-link);
+  }
+  .nav-link:hover {
+    background: var(--side-hover);
+    color: var(--side-fg);
+  }
+  .nav-link[data-active] {
+    background: var(--side-active-bg);
+    color: var(--side-active-fg);
+    font-weight: 600;
+  }
+  .nav-icon {
+    @apply h-4 w-4 shrink-0 opacity-75;
+  }
+  .nav-link[data-active] .nav-icon {
+    opacity: 1;
+  }
+  .nav-badge {
+    @apply rounded-full px-1.5 text-[11px] font-semibold;
+    background: var(--side-hover);
+    color: inherit;
+  }
+  .sidebar-user {
+    @apply mt-4 flex items-start gap-2.5 border-t pt-3;
+    border-color: var(--side-line);
+  }
+  .avatar {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white;
+    background: var(--mark-bg);
+  }
+  /* Bold look: the menu floats as a rounded panel on desktop. */
+  @media (min-width: 768px) {
+    html[data-look="bold"] .sidebar {
+      @apply m-3 h-[calc(100vh-1.5rem)] rounded-2xl border-0;
+      top: 0.75rem;
+    }
+  }
+
   .link {
     @apply font-medium text-brand-600 hover:underline;
   }

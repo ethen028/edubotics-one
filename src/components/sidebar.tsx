@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 export function Sidebar({ header, children }: { header: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <aside className="bg-brand-900 text-white print:hidden md:sticky md:top-0 md:h-screen md:w-56 md:shrink-0">
+    <aside className="sidebar print:hidden md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0">
       <div className="flex h-full flex-col p-4">
         <div className="flex items-center justify-between md:mb-5">
           {header}
@@ -14,7 +14,7 @@ export function Sidebar({ header, children }: { header: ReactNode; children: Rea
             type="button"
             onClick={() => setOpen(!open)}
             aria-expanded={open}
-            className="rounded-md px-2 py-1 text-sm text-slate-200 ring-1 ring-white/20 md:hidden"
+            className="sidebar-toggle md:hidden"
           >
             {open ? "Close" : "Menu"}
           </button>
