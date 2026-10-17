@@ -197,9 +197,10 @@ h2 {
       linear-gradient(160deg, var(--color-brand-800), var(--color-navy) 60%, #101828);
   }
 
-  /* Menu: a navy panel floating beside the page on computers. The greys inside it are re-pointed to light
-     tints, so every grey used in the menu reads on navy. */
+  /* Menu: a navy panel floating beside the page on computers; a bar with a sliding drawer on phones.
+     The greys inside it are re-pointed to light tints, so every grey used in the menu reads on navy. */
   .sidebar {
+    --ease-menu: cubic-bezier(0.22, 1, 0.36, 1);
     --color-slate-100: rgb(255 255 255 / 0.07);
     --color-slate-400: #7d8aa0;
     --color-slate-500: #aeb8c7;
@@ -208,43 +209,100 @@ h2 {
     color: var(--color-slate-900);
     @apply border-b border-[var(--side-line)] bg-navy md:m-3 md:h-[calc(100vh-1.5rem)] md:rounded-3xl md:border md:shadow-[0_8px_24px_-16px_rgba(16,24,40,0.15)];
   }
-  @media (min-width: 768px) {
-    .sidebar {
-      top: 0.75rem;
-    }
-  }
   .sidebar-muted {
     @apply text-slate-400;
   }
   .sidebar-link {
-    @apply text-slate-500 hover:text-slate-900;
+    @apply inline-flex items-center text-slate-500 hover:text-slate-900;
   }
   .sidebar-toggle {
     @apply rounded-full px-3 py-1 text-sm text-slate-600 ring-1 ring-[var(--side-line)];
   }
+
+  /* Phones: the menu is a drawer that slides in from the left over a dimmed page. */
+  .sidebar-backdrop {
+    @apply pointer-events-none fixed inset-0 z-40 bg-black/50 opacity-0 transition-opacity duration-300;
+  }
+  .sidebar-backdrop[data-open] {
+    @apply pointer-events-auto opacity-100;
+  }
+  .sidebar-menu {
+    @apply invisible fixed inset-y-0 left-0 z-50 flex w-[85vw] max-w-80 -translate-x-full flex-col bg-navy p-4 transition-[transform,visibility] duration-300;
+    transition-timing-function: var(--ease-menu);
+  }
+  .sidebar-menu[data-open] {
+    @apply visible translate-x-0 shadow-2xl;
+  }
+  .sidebar-menu > nav {
+    @apply min-h-0;
+  }
+
+  /* Text that fades away when the menu is shrunk to icons. */
+  .rail-hide {
+    @apply max-w-56 overflow-hidden whitespace-nowrap transition-[opacity,max-width,margin] duration-300;
+    transition-timing-function: var(--ease-menu);
+  }
+
+  /* The round button on the menu's edge that shrinks and widens it (computers only). */
+  .sidebar-collapse {
+    @apply absolute top-7 -right-3 z-10 h-6 w-6 items-center justify-center rounded-full bg-brand-700 text-white shadow-md ring-2 ring-[var(--page-bg)] transition-colors hover:bg-brand-800;
+  }
+  .sidebar-collapse-icon {
+    @apply rotate-180 transition-transform duration-300;
+    transition-timing-function: var(--ease-menu);
+  }
+  .sidebar[data-collapsed] .sidebar-collapse-icon {
+    @apply rotate-0;
+  }
+
   .brand-mark {
     @apply flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-brand-500 to-brand-800 font-display text-sm font-bold text-white;
   }
   .nav-search {
-    @apply mb-3 flex items-center gap-2 rounded-xl border border-[var(--side-line)] bg-white/[0.06] px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-within:border-brand-400;
+    @apply mb-3 flex items-center rounded-xl border border-[var(--side-line)] bg-white/[0.06] px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-within:border-brand-400;
   }
   .nav-search input::placeholder {
     color: var(--color-slate-400);
   }
   .nav-group-head {
-    @apply flex w-full items-center gap-2.5 rounded-xl border border-[var(--side-line)] bg-white/[0.04] px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-white/[0.08] hover:text-slate-900;
+    @apply flex w-full items-center rounded-xl border border-[var(--side-line)] bg-white/[0.04] px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-white/[0.08] hover:text-slate-900;
   }
   .nav-group[data-open] > .nav-group-head {
     @apply text-slate-900;
   }
   .nav-chevron {
-    @apply h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-150;
+    @apply h-3.5 w-3.5 shrink-0 opacity-70 transition-[transform,opacity,width] duration-300;
+    transition-timing-function: var(--ease-menu);
   }
   .nav-group[data-open] .nav-chevron {
     @apply rotate-90;
   }
+  /* A group opens by growing its row from nothing to its natural height, so nothing jumps. */
+  .nav-group-wrap {
+    @apply grid opacity-0 transition-[grid-template-rows,opacity] duration-300;
+    grid-template-rows: 0fr;
+    transition-timing-function: var(--ease-menu);
+  }
+  .nav-group[data-open] > .nav-group-wrap {
+    @apply opacity-100;
+    grid-template-rows: 1fr;
+  }
+  .nav-group-clip {
+    @apply min-h-0 overflow-hidden;
+  }
   .nav-group-body {
     @apply mt-1 mb-2 ml-3 space-y-0.5 border-l border-[var(--side-line)] pl-2;
+  }
+  /* Rail: the pages of the group you point at, in a panel beside the icon. */
+  .nav-flyout {
+    @apply fixed z-[60];
+  }
+  .nav-flyout-card {
+    @apply min-w-52 rounded-2xl border border-[var(--side-line)] bg-navy p-2 shadow-2xl;
+    animation: flyout-in 160ms var(--ease-menu);
+  }
+  .nav-flyout-title {
+    @apply px-3 pt-1 pb-1.5 text-[11px] font-semibold tracking-wider text-slate-400 uppercase;
   }
   .nav-section {
     @apply px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase;
@@ -284,6 +342,81 @@ h2 {
   }
   .icon-btn-dot {
     @apply absolute -top-1 -right-1 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] leading-4 font-semibold text-white;
+  }
+}
+
+/* The rail rules sit outside the components layer so they beat the spacing classes used in the markup. */
+@media (min-width: 768px) {
+  .sidebar {
+    top: 0.75rem;
+    z-index: 30;
+    width: 16rem;
+    transition: width 320ms var(--ease-menu);
+    will-change: width;
+  }
+  .sidebar[data-collapsed] {
+    width: 4.5rem;
+  }
+  .sidebar-inner {
+    transition: padding 320ms var(--ease-menu);
+  }
+  .sidebar[data-collapsed] .sidebar-inner {
+    padding-inline: 0.9375rem;
+  }
+  .sidebar-backdrop {
+    display: none;
+  }
+  .sidebar-menu {
+    position: static;
+    visibility: visible;
+    translate: none;
+    width: auto;
+    max-width: none;
+    flex: 1 1 0%;
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    transition: none;
+  }
+  .sidebar[data-collapsed] .rail-hide {
+    max-width: 0;
+    margin-left: 0 !important;
+    opacity: 0;
+  }
+  .sidebar[data-collapsed] .brand-mark {
+    margin-inline: 0.25rem;
+  }
+  .sidebar[data-collapsed] .sidebar-user {
+    justify-content: center;
+  }
+  .sidebar[data-collapsed] .nav-chevron {
+    width: 0;
+    opacity: 0;
+  }
+  .sidebar[data-collapsed] .nav-group-head {
+    position: relative;
+  }
+  .sidebar[data-collapsed] .nav-group-head .nav-badge {
+    position: absolute;
+    top: 0.125rem;
+    right: 0.125rem;
+    font-size: 9px;
+    line-height: 1rem;
+    min-width: 1rem;
+    padding-inline: 0.25rem;
+    text-align: center;
+  }
+  /* The group you are in is lit up in the rail, like the current page is in the open menu. */
+  .sidebar[data-collapsed] .nav-group[data-here] > .nav-group-head {
+    @apply border-transparent bg-mint text-ink;
+  }
+}
+
+@keyframes flyout-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
   }
 }
 

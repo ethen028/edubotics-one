@@ -154,7 +154,7 @@
   }
 
   /* Panels that stay cobalt in both looks keep the light-look colours inside them. */
-  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .brand-mark, .avatar, .nav-badge) {
+  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .brand-mark, .avatar, .nav-badge, .sidebar-collapse) {
     --color-brand-50: #eff3fd;
     --color-brand-100: #dfe7fb;
     --color-brand-300: #9bb0ef;

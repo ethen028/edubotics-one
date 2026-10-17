@@ -36,6 +36,7 @@ model User {
   lastLoginAt        DateTime?
   googleSub          String?       @unique // the Google account linked on first Google sign-in
   theme              Theme         @default(LIGHT) // picked in My account
+  menuCollapsed      Boolean       @default(false) // side menu shrunk to icons; toggled from the menu itself
   sessions           Session[]
   activityLog        ActivityLog[]
   createdAt          DateTime      @default(now())

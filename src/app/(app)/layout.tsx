@@ -51,10 +51,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar
+        defaultCollapsed={user.menuCollapsed}
         header={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             <div className="brand-mark">E</div>
-            <div className="leading-tight">
+            <div className="rail-hide ml-2 leading-tight">
               <div className="font-display text-sm font-semibold">Edubotics One</div>
               <div className="sidebar-muted text-[11px]">Global Operations</div>
             </div>
@@ -253,12 +254,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium md:hidden">{user.name}</div>
             <div className="sidebar-muted text-xs md:hidden">{humanize(user.role)}</div>
-            <div className="mt-1 flex items-center gap-3">
-              <Link href="/account" className="sidebar-link text-xs">
-                My account
+            <div className="sidebar-links mt-1 flex items-center gap-2">
+              <Link href="/account" className="sidebar-link text-xs" title="My account">
+                <Icon name="user" className="h-4 w-4 shrink-0" />
+                <span className="rail-hide ml-1.5">My account</span>
               </Link>
               <form action={logout}>
-                <button className="sidebar-link text-xs">Sign out</button>
+                <button className="sidebar-link text-xs" title="Sign out">
+                  <Icon name="logout" className="h-4 w-4 shrink-0" />
+                  <span className="rail-hide ml-1.5">Sign out</span>
+                </button>
               </form>
             </div>
           </div>

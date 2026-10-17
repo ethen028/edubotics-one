@@ -105,6 +105,13 @@ export async function setAppearance(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
+/** Remembers whether this person keeps the side menu shrunk to icons. No page refresh: the menu already moved. */
+export async function setMenuCollapsed(collapsed: boolean) {
+  const current = await getCurrentSession();
+  if (!current) return;
+  await db.user.update({ where: { id: current.user.id }, data: { menuCollapsed: collapsed === true } });
+}
+
 /** Signs out every other browser this person is signed in on. */
 export async function signOutOtherDevices() {
   const current = await getCurrentSession();
