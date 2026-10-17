@@ -57,6 +57,8 @@ One office computer can run the whole app with Docker Desktop, and staff on the 
 
 The public careers page (`/careers`) and how to put just that page on the internet later: [docs/careers-page.md](docs/careers-page.md).
 
+Working on the code with Claude Code (shared design skills, plugins and ground rules): [docs/claude-code-setup.md](docs/claude-code-setup.md).
+
 ## Run locally
 
 Requires Node 22+ and PostgreSQL 14+.
