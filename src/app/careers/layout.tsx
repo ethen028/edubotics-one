@@ -9,12 +9,12 @@ export default async function CareersLayout({ children }: LayoutProps<"/careers"
   const { companyName, contactEmail } = await careersSettings();
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="bg-brand-900 text-white">
+      <header className="border-b border-[var(--side-line)] bg-surface">
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 font-display font-bold">E</div>
+          <div className="brand-mark h-9 w-9">E</div>
           <Link href="/careers" className="leading-tight">
             <div className="font-display font-semibold">{companyName}</div>
-            <div className="text-xs text-brand-200">Careers</div>
+            <div className="text-xs text-slate-500">Careers</div>
           </Link>
         </div>
       </header>

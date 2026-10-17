@@ -308,7 +308,7 @@ export default async function SettingsPage() {
             {signature && (
               <div className="flex items-center gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/admin/settings/signature" alt="Current signature" className="h-14 rounded border border-slate-200 bg-white p-1" />
+                <img src="/admin/settings/signature" alt="Current signature" className="h-14 rounded border border-slate-200 bg-surface p-1" />
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" name="removeSignature" /> Remove it
                 </label>

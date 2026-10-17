@@ -12,7 +12,7 @@ import { findClashes, timeRange, trainerLeaveDays } from "@/lib/operations";
 export const metadata = { title: "Session schedule" };
 
 const chipColor = {
-  SCHEDULED: "border-brand-200 bg-white",
+  SCHEDULED: "border-brand-200 bg-surface",
   COMPLETED: "border-emerald-200 bg-emerald-50",
   CANCELLED: "border-slate-200 bg-slate-50 text-slate-400 line-through",
   MISSED: "border-red-200 bg-red-50",

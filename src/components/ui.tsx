@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Icon } from "./icons";
 
 export function PageHeader({
   title,
@@ -13,7 +14,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
         {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
@@ -48,22 +49,27 @@ export function Field({ label, children, className }: { label: string; children:
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">{children}</div>;
+  return <div className="rounded-xl border border-dashed border-slate-300 bg-surface/60 p-8 text-center text-sm text-slate-500">{children}</div>;
 }
 
 export function Stat({ label, value, href }: { label: string; value: ReactNode; href?: string }) {
   const inner = (
     <>
-      <div className="text-xs font-medium text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-slate-900">{value}</div>
+      <div className={`stat-label text-xs font-medium text-slate-500 ${href ? "pr-8" : ""}`}>{label}</div>
+      <div className="stat-value mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</div>
+      {href && (
+        <span className="stat-arrow">
+          <Icon name="arrowUpRight" className="h-3.5 w-3.5" />
+        </span>
+      )}
     </>
   );
   return href ? (
-    <Link href={href} className="card block hover:border-brand-500">
+    <Link href={href} className="card stat">
       {inner}
     </Link>
   ) : (
-    <div className="card">{inner}</div>
+    <div className="card stat">{inner}</div>
   );
 }
 

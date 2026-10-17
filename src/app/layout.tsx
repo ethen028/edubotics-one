@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Manrope } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
+import Script from "next/script";
+import { getCurrentUser } from "@/lib/auth";
 import "./globals.css";
 
-const manrope = Manrope({
-  variable: "--font-manrope",
-  subsets: ["latin"],
-});
-
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
 });
 
@@ -17,10 +14,20 @@ export const metadata: Metadata = {
   description: "Internal operations for Edubotics Global: CRM, HR, payroll, projects and timesheets",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// Keeps data-device on <html> in step with the computer's or phone's light/dark setting, so "Match my device"
+// can follow it (also when it changes later). React never renders data-device, so it is left alone.
+const WATCH_DEVICE = `(function(){var m=matchMedia("(prefers-color-scheme: dark)"),h=document.documentElement;function a(){h.dataset.device=m.matches?"dark":"light"}a();m.addEventListener("change",a)})()`;
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const theme = (await getCurrentUser())?.theme ?? "LIGHT";
   return (
-    <html lang="en" className={`${manrope.variable} ${bricolage.variable} h-full antialiased`}>
-      <body className="min-h-full font-sans">{children}</body>
+    <html lang="en" data-theme={theme} className={`${jakarta.variable} h-full antialiased`} suppressHydrationWarning>
+      <body className="min-h-full font-sans">
+        {children}
+        <Script id="watch-device" strategy="beforeInteractive">
+          {WATCH_DEVICE}
+        </Script>
+      </body>
     </html>
   );
 }

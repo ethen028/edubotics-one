@@ -2,6 +2,8 @@ import { requireUser, isAdmin, isManagerOrAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { NavLink } from "@/components/nav-link";
 import { Sidebar } from "@/components/sidebar";
+import { NavGroup } from "@/components/nav-group";
+import { Icon } from "@/components/icons";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
 import { lowStockItems } from "@/lib/inventory";
@@ -13,6 +15,15 @@ import { newOnlineApplications } from "@/lib/careers";
 import { myChecklistsNow } from "@/lib/checklists";
 import { unreadCount } from "@/lib/notifications";
 import { logout } from "../actions";
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+}
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
@@ -28,28 +39,37 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     unreadCount(user.id),
   ]);
   const overdueChecklists = checklists.open.some((e) => e.status === "OVERDUE");
+  // Shortcuts in the bar along the top: only the things this person has to act on.
+  const waiting = [
+    { n: approvals.total, label: `${approvals.total} to approve`, href: "/approvals" },
+    { n: checklists.open.length, label: `${checklists.open.length} checklist${checklists.open.length === 1 ? "" : "s"} to tick`, href: "/checklists" },
+    { n: toAcknowledge.length, label: `${toAcknowledge.length} notice${toAcknowledge.length === 1 ? "" : "s"} to read`, href: "/notices" },
+    { n: reviewTodos.length, label: `${reviewTodos.length} review${reviewTodos.length === 1 ? "" : "s"} to do`, href: "/hr/reviews" },
+    { n: myInterviews, label: `${myInterviews} interview${myInterviews === 1 ? "" : "s"}`, href: "/recruitment/interviews" },
+  ].filter((w) => w.n > 0);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar
+        defaultCollapsed={user.menuCollapsed}
         header={
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 font-display text-sm font-bold">E</div>
-            <div className="leading-tight">
+          <div className="flex items-center">
+            <div className="brand-mark">E</div>
+            <div className="rail-hide ml-2 leading-tight">
               <div className="font-display text-sm font-semibold">Edubotics One</div>
-              <div className="text-[11px] text-slate-400">Global Operations</div>
+              <div className="sidebar-muted text-[11px]">Global Operations</div>
             </div>
           </div>
         }
       >
-        <nav className="flex-1 space-y-4 overflow-y-auto">
-          <div className="space-y-0.5">
+        <nav className="flex-1 space-y-1.5 overflow-y-auto">
+          <NavGroup title="Overview" icon="grid" paths={["/", "/inbox", "/dashboard", "/notices"]} count={inbox + toAcknowledge.length}>
             <NavLink href="/">Home</NavLink>
             <NavLink href="/inbox">
               <span className="flex items-center justify-between">
                 Inbox
                 {inbox > 0 && (
-                  <span className="rounded-full bg-brand-300 px-1.5 text-[11px] font-semibold text-brand-900" title="Unread messages">
+                  <span className="nav-badge" title="Unread messages">
                     {inbox}
                   </span>
                 )}
@@ -66,9 +86,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 )}
               </span>
             </NavLink>
-          </div>
-          <div className="space-y-0.5">
-            <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Work</div>
+          </NavGroup>
+          <NavGroup title="Work" icon="briefcase" paths={["/work", "/projects", "/timesheets", "/checklists", "/expenses", "/helpdesk", "/approvals"]} count={checklists.open.length + helpdesk.total + approvals.total}>
             <NavLink href="/work">My work</NavLink>
             <NavLink href="/projects/pulse">Daily pulse</NavLink>
             <NavLink href="/projects" except={["/projects/pulse"]}>
@@ -112,9 +131,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 </span>
               </NavLink>
             )}
-          </div>
-          <div className="space-y-0.5">
-            <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Inventory</div>
+          </NavGroup>
+          <NavGroup title="Inventory" icon="box" paths={["/inventory"]} count={lowStock.length}>
             <NavLink href="/inventory" exact>
               <span className="flex items-center justify-between">
                 Stock
@@ -126,9 +144,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               </span>
             </NavLink>
             <NavLink href="/inventory/requests">Requests</NavLink>
-          </div>
-          <div className="space-y-0.5">
-            <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Operations</div>
+          </NavGroup>
+          <NavGroup title="Operations" icon="school" paths={["/operations", "/workshops"]}>
             <NavLink href="/operations" exact>
               School sessions
             </NavLink>
@@ -136,26 +153,23 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <NavLink href="/operations/programmes">School programmes</NavLink>
             {isManagerOrAdmin(user) && <NavLink href="/operations/reports">Delivery reports</NavLink>}
             <NavLink href="/workshops">Workshops</NavLink>
-          </div>
-          <div className="space-y-0.5">
-            <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Purchases</div>
+          </NavGroup>
+          <NavGroup title="Purchases" icon="cart" paths={["/purchases"]}>
             <NavLink href="/purchases" exact>
               Purchase orders
             </NavLink>
             <NavLink href="/purchases/vendors">Vendors</NavLink>
             {isAdmin(user) && <NavLink href="/purchases/payables">Payables</NavLink>}
-          </div>
-          <div className="space-y-0.5">
-            <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">CRM</div>
+          </NavGroup>
+          <NavGroup title="CRM" icon="handshake" paths={["/crm"]}>
             <NavLink href="/crm/leads">Leads</NavLink>
             <NavLink href="/crm/deals">Deals</NavLink>
             <NavLink href="/crm/organizations">Institutions</NavLink>
             <NavLink href="/crm/contacts">Contacts</NavLink>
             <NavLink href="/crm/activities">Follow-ups</NavLink>
-          </div>
+          </NavGroup>
           {isManagerOrAdmin(user) && (
-            <div className="space-y-0.5">
-              <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Billing</div>
+            <NavGroup title="Billing" icon="receipt" paths={["/accounts", "/quotes", "/invoices", "/credit-notes"]}>
               <NavLink href="/accounts">Accounts summary</NavLink>
               <NavLink href="/quotes">Quotes</NavLink>
               <NavLink href="/invoices" exact>
@@ -163,10 +177,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               </NavLink>
               <NavLink href="/credit-notes">Credit notes</NavLink>
               <NavLink href="/invoices/dues">Payments due</NavLink>
-            </div>
+            </NavGroup>
           )}
-          <div className="space-y-0.5">
-            <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">HR</div>
+          <NavGroup title="HR" icon="users" paths={["/hr/employees", "/hr/attendance", "/hr/leave", "/recruitment", "/hr/onboarding", "/hr/training", "/hr/exits", "/hr/reviews", "/hr/assets", "/hr/holidays"]} count={onlineApplications + myInterviews + reviewTodos.length}>
             {user.employee && <NavLink href={`/hr/employees/${user.employee.id}`}>My profile</NavLink>}
             <NavLink href="/hr/attendance" exact>
               My attendance
@@ -196,7 +209,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 <span className="flex items-center justify-between">
                   My interviews
                   {myInterviews > 0 && (
-                    <span className="rounded-full bg-white/15 px-1.5 text-[11px] font-semibold">{myInterviews}</span>
+                    <span className="nav-badge">{myInterviews}</span>
                   )}
                 </span>
               </NavLink>
@@ -214,44 +227,82 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             </NavLink>
             {isAdmin(user) && <NavLink href="/hr/assets">Assets</NavLink>}
             <NavLink href="/hr/holidays">Holidays</NavLink>
-          </div>
+          </NavGroup>
           {(user.employee || isAdmin(user)) && (
-            <div className="space-y-0.5">
-              <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Payroll</div>
+            <NavGroup title="Payroll" icon="wallet" paths={["/payroll"]}>
               {user.employee && <NavLink href="/payroll/my">My payslips</NavLink>}
               {isAdmin(user) && (
                 <NavLink href="/payroll" exact>
                   Payroll
                 </NavLink>
               )}
-            </div>
+            </NavGroup>
           )}
           {isAdmin(user) && (
-            <div className="space-y-0.5">
-              <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Admin</div>
+            <NavGroup title="Admin" icon="settings" paths={["/admin", "/hr/departments", "/hr/leave-types"]}>
               <NavLink href="/admin/users">Users</NavLink>
               <NavLink href="/admin/activity">Activity log</NavLink>
               <NavLink href="/admin/backups">Backups</NavLink>
               <NavLink href="/hr/departments">Departments</NavLink>
               <NavLink href="/hr/leave-types">Leave types</NavLink>
               <NavLink href="/admin/settings">Settings</NavLink>
-            </div>
+            </NavGroup>
           )}
         </nav>
-        <div className="mt-4 border-t border-white/10 pt-3 text-sm">
-          <div className="font-medium">{user.name}</div>
-          <div className="text-xs text-slate-400">{humanize(user.role)}</div>
-          <div className="mt-2 flex items-center gap-3">
-            <Link href="/account" className="text-xs text-slate-300 hover:text-white">
-              My account
-            </Link>
-            <form action={logout}>
-              <button className="text-xs text-slate-300 hover:text-white">Sign out</button>
-            </form>
+        <div className="sidebar-user">
+          <div className="avatar md:hidden">{initials(user.name)}</div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium md:hidden">{user.name}</div>
+            <div className="sidebar-muted text-xs md:hidden">{humanize(user.role)}</div>
+            <div className="sidebar-links mt-1 flex items-center gap-2">
+              <Link href="/account" className="sidebar-link text-xs" title="My account">
+                <Icon name="user" className="h-4 w-4 shrink-0" />
+                <span className="rail-hide ml-1.5">My account</span>
+              </Link>
+              <form action={logout}>
+                <button className="sidebar-link text-xs" title="Sign out">
+                  <Icon name="logout" className="h-4 w-4 shrink-0" />
+                  <span className="rail-hide ml-1.5">Sign out</span>
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </Sidebar>
-      <main className="min-w-0 flex-1 p-4 md:p-8">{children}</main>
+      <main className="app-main min-w-0 flex-1 p-4 md:py-3 md:pr-4 md:pl-1">
+        <div className="mx-auto max-w-[1400px]">
+          <header className="topbar">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {waiting.length === 0 ? (
+                <span className="text-slate-500">Nothing waiting on you right now.</span>
+              ) : (
+                <>
+                  <span className="text-slate-500">Waiting on you:</span>
+                  {waiting.map((w) => (
+                    <Link key={w.href} href={w.href} className="rounded-full bg-mint px-3 py-1 text-xs font-medium text-ink hover:brightness-95">
+                      {w.label}
+                    </Link>
+                  ))}
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <Link href="/inbox" className="icon-btn" title={inbox > 0 ? `Inbox · ${inbox} unread` : "Inbox"}>
+                <Icon name="bell" className="h-4 w-4" />
+                {inbox > 0 && <span className="icon-btn-dot">{inbox}</span>}
+              </Link>
+              <Link href="/account" className="flex items-center gap-2.5 rounded-full py-1 pr-3 pl-1 hover:bg-slate-50">
+                <span className="avatar">{initials(user.name)}</span>
+                <span className="leading-tight">
+                  <span className="block text-sm font-semibold">{user.name}</span>
+                  <span className="block text-xs text-slate-500">{user.email}</span>
+                </span>
+              </Link>
+            </div>
+          </header>
+          <div className="md:px-4 md:pt-1 md:pb-6">{children}</div>
+        </div>
+      </main>
     </div>
   );
 }

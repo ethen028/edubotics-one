@@ -35,7 +35,7 @@ function Section({ title, rows, color }: { title: string; rows: Row[]; color: "r
               <tr key={a.id}>
                 <td className="w-8">
                   <form action={toggleActivity.bind(null, a.id)}>
-                    <button title="Mark as done" className="h-4 w-4 rounded border border-slate-400 bg-white hover:border-emerald-500" />
+                    <button title="Mark as done" className="h-4 w-4 rounded border border-slate-400 bg-surface hover:border-emerald-500" />
                   </form>
                 </td>
                 <td>

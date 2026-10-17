@@ -95,6 +95,23 @@ export async function changePassword(_: FormState, formData: FormData): Promise<
   return { ok: ended ? `Password changed. ${ended} other ${ended === 1 ? "device was" : "devices were"} signed out.` : "Password changed." };
 }
 
+/** Light, dark, or follow the device: saved on the person, so it applies on every device they use. */
+export async function setAppearance(formData: FormData) {
+  const current = await getCurrentSession();
+  if (!current) redirect("/login");
+  const theme = z.enum(["LIGHT", "DARK", "SYSTEM"]).safeParse(formData.get("theme"));
+  if (!theme.success) return;
+  await db.user.update({ where: { id: current.user.id }, data: { theme: theme.data } });
+  revalidatePath("/", "layout");
+}
+
+/** Remembers whether this person keeps the side menu shrunk to icons. No page refresh: the menu already moved. */
+export async function setMenuCollapsed(collapsed: boolean) {
+  const current = await getCurrentSession();
+  if (!current) return;
+  await db.user.update({ where: { id: current.user.id }, data: { menuCollapsed: collapsed === true } });
+}
+
 /** Signs out every other browser this person is signed in on. */
 export async function signOutOtherDevices() {
   const current = await getCurrentSession();
