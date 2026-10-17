@@ -48,7 +48,7 @@ export default async function DealsPage({ searchParams }: PageProps<"/crm/deals"
           </>
         }
       />
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex gap-4 overflow-x-auto pb-4" tabIndex={0} role="region" aria-label="Deal stages">
         {stages.map((stage) => {
           const col = deals.filter((d) => d.stage === stage);
           const total = col.reduce((s, d) => s + Number(d.value), 0);
@@ -64,7 +64,7 @@ export default async function DealsPage({ searchParams }: PageProps<"/crm/deals"
                 {col.map((d) => {
                   const late = d.expectedClose && d.expectedClose < today && (OPEN_STAGES as readonly string[]).includes(d.stage);
                   return (
-                    <div key={d.id} className="card p-3 text-sm">
+                    <div key={d.id} className="card deal-card p-3 text-sm" data-stage={d.stage}>
                       <Link href={`/crm/deals/${d.id}`} className="link block">
                         {d.title}
                       </Link>

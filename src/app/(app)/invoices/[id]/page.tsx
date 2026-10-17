@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Field, Options, PageHeader } from "@/components/ui";
 import { formatDate, toDateInput } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -100,7 +100,7 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
               </Link>
               {isDraft && (
                 <form action={deleteDraft.bind(null, invoice.id)}>
-                  <button className="btn-danger">Delete draft</button>
+                  <ConfirmButton message={"Delete this draft invoice? It has no number yet, so nothing is skipped."} className="btn-danger">Delete draft</ConfirmButton>
                 </form>
               )}
               {!isDraft && (
@@ -272,7 +272,7 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
                     </div>
                     {isAdmin(user) && (
                       <form action={deletePayment.bind(null, p.id)}>
-                        <button className="text-xs text-slate-400 hover:text-red-600">Remove</button>
+                        <ConfirmButton message={"Remove this payment from the invoice? The amount goes back to owed."} className="text-xs text-slate-400 hover:text-red-600">Remove</ConfirmButton>
                       </form>
                     )}
                   </li>

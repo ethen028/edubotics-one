@@ -55,7 +55,7 @@ export default async function WorkshopAttendancePage({ params, searchParams }: P
                 key={k}
                 href={`/workshops/${w.id}/attendance?day=${k}`}
                 className={`rounded-full px-3 py-1 text-sm ring-1 ${
-                  current ? "bg-brand-600 text-white ring-brand-600" : d > today ? "text-slate-400 ring-slate-200" : "bg-white ring-slate-300"
+                  current ? "bg-brand-600 text-white ring-brand-600" : d > today ? "text-slate-400 ring-slate-200" : "bg-surface ring-slate-300"
                 }`}
               >
                 Day {i + 1} · {dayLabel(d)}

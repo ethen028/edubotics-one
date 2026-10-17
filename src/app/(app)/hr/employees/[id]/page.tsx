@@ -170,6 +170,30 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
         )}
       </div>
 
+      {canSeeDocuments && (
+        <div className="card mb-6 text-sm">
+          <h2 className="mb-3 font-semibold">Bank and statutory IDs</h2>
+          {[employee.bankAccountNo, employee.bankIfsc, employee.pan, employee.uan, employee.esiNumber].some(Boolean) ? (
+            <dl className="grid gap-x-6 gap-y-1.5 sm:grid-cols-[auto_1fr_auto_1fr]">
+              <dt className="text-slate-500">Account</dt>
+              <dd>
+                {employee.bankAccountNo ? `${employee.bankAccountNo}${employee.bankAccountName ? ` (${employee.bankAccountName})` : ""}` : "—"}
+              </dd>
+              <dt className="text-slate-500">IFSC</dt>
+              <dd>{employee.bankIfsc ? `${employee.bankIfsc}${employee.bankName ? `, ${employee.bankName}` : ""}` : "—"}</dd>
+              <dt className="text-slate-500">PAN</dt>
+              <dd>{employee.pan ?? "—"}</dd>
+              <dt className="text-slate-500">UAN</dt>
+              <dd>{employee.uan ?? "—"}</dd>
+              <dt className="text-slate-500">ESI number</dt>
+              <dd>{employee.esiNumber ?? "—"}</dd>
+            </dl>
+          ) : (
+            <p className="text-slate-500">{admin ? "Not filled in yet. Add them under Edit record below." : "Not filled in yet. Ask an admin to add them."}</p>
+          )}
+        </div>
+      )}
+
       {canSeePrivate && (
         <div className="mb-6 grid gap-4 lg:grid-cols-2">
           <OnboardingSection employeeId={employee.id} tasks={employee.onboardingTasks} canEdit={admin || isManager} isSelf={isSelf} />

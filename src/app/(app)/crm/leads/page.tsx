@@ -54,7 +54,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/crm/leads"
           <Link
             key={t}
             href={qs(t)}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${t === tab ? "bg-brand-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${t === tab ? "bg-brand-600 text-white" : "bg-surface text-slate-600 ring-1 ring-slate-200"}`}
           >
             {humanize(t)}
           </Link>

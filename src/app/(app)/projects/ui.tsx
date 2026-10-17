@@ -31,7 +31,7 @@ export function StageRail({ stage }: { stage: ProjectStage }) {
                 done
                   ? "bg-brand-600 text-white"
                   : active
-                    ? "bg-white text-brand-700 ring-2 ring-brand-600"
+                    ? "bg-surface text-brand-700 ring-2 ring-brand-600"
                     : "bg-slate-100 text-slate-400"
               }`}
             >
@@ -94,9 +94,9 @@ export const WORK_STATUSES: WorkStatus[] = ["TODO", "IN_PROGRESS", "REVIEW", "DO
 
 const HEALTH: { key: TaskHealth; label: string; color: string }[] = [
   { key: "TODO", label: "To do", color: "#94a3b8" },
-  { key: "IN_PROGRESS", label: "In progress", color: "#0b6b5b" },
+  { key: "IN_PROGRESS", label: "In progress", color: "#3659d9" },
   { key: "REVIEW", label: "Review", color: "#8b5cf6" },
-  { key: "DONE", label: "Done", color: "#4aa28a" },
+  { key: "DONE", label: "Done", color: "#10b981" },
   { key: "OVERDUE", label: "Overdue", color: "#dc2626" },
 ];
 
@@ -110,7 +110,7 @@ export function StatusRing({ counts }: { counts: Record<TaskHealth, number> }) {
   return (
     <div className="flex flex-wrap items-center gap-6">
       <svg viewBox="0 0 140 140" className="h-36 w-36 shrink-0" role="img" aria-label="Tasks by status">
-        <circle cx="70" cy="70" r={r} fill="none" stroke="#eef2f0" strokeWidth="18" />
+        <circle cx="70" cy="70" r={r} fill="none" strokeWidth="18" className="stroke-slate-100" />
         {total > 0 &&
           HEALTH.filter((h) => counts[h.key] > 0).map((h) => {
             const len = (counts[h.key] / total) * c;
@@ -167,6 +167,34 @@ export function TaskStatusBadge({ status, dueDate, today }: { status: WorkStatus
 
 export function UpdateRequestedBadge() {
   return <Badge color="amber">Update requested</Badge>;
+}
+
+/** Task Flow v5: the assignee or owner flagged the task as stuck. */
+export function BlockedBadge({ reason }: { reason?: string | null }) {
+  return (
+    <span title={reason ?? undefined}>
+      <Badge color="red">Blocked</Badge>
+    </span>
+  );
+}
+
+/** Task Flow v5: the task waits on another one that isn't done yet. */
+export function WaitingBadge({ on }: { on: string }) {
+  return (
+    <span title={`Waiting on ${on}`}>
+      <Badge color="purple">Waiting</Badge>
+    </span>
+  );
+}
+
+/** "3/5" ticked steps on a task's checklist. */
+export function ChecklistCount({ done, total }: { done: number; total: number }) {
+  if (total === 0) return null;
+  return (
+    <span className={`text-xs tabular-nums ${done === total ? "text-emerald-700" : "text-slate-500"}`} title="Checklist steps done">
+      ☑ {done}/{total}
+    </span>
+  );
 }
 
 type FileRow = {

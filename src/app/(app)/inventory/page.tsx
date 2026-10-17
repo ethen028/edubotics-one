@@ -81,7 +81,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
         {admin && tab("archived", "Archived")}
         <form className="ml-auto flex flex-wrap gap-2">
           {view !== "all" && <input type="hidden" name="view" value={view} />}
-          <select name="category" defaultValue={category ?? ""} className="input w-auto py-1.5">
+          <select name="category" aria-label="Category" defaultValue={category ?? ""} className="input w-auto py-1.5">
             <option value="">All categories</option>
             <Options values={INVENTORY_CATEGORIES} />
           </select>

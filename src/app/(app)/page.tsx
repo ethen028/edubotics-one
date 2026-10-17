@@ -194,7 +194,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </h1>
           <p className="text-sm text-slate-500">{roleNote}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {admin && (
             <Link href="/dashboard" className="btn-secondary">
               Owner dashboard
@@ -225,7 +225,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       )}
 
       {focus && (
-        <section className="mb-6 rounded-2xl bg-brand-900 p-5 text-white shadow-lg">
+        <section className="hero-card mb-6 p-5 text-white">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-semibold tracking-widest text-brand-300">NEXT PRIORITY</div>

@@ -308,7 +308,7 @@ export default async function SettingsPage() {
             {signature && (
               <div className="flex items-center gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/admin/settings/signature" alt="Current signature" className="h-14 rounded border border-slate-200 bg-white p-1" />
+                <img src="/admin/settings/signature" alt="Current signature" className="h-14 rounded border border-slate-200 bg-surface p-1" />
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" name="removeSignature" /> Remove it
                 </label>
@@ -343,6 +343,13 @@ export default async function SettingsPage() {
             <Field label="Email for candidates' questions (optional)">
               <input name="careersContactEmail" type="email" defaultValue={s.careersContactEmail ?? ""} className="input" placeholder="careers@eduboticsglobal.com" />
             </Field>
+            <Field label="Delete turned-down applicants after (months)">
+              <input name="applicantRetentionMonths" type="number" min={0} max={120} required defaultValue={s.applicantRetentionMonths} className="input max-w-32" />
+            </Field>
+            <p className="text-xs text-slate-500">
+              Applicants marked rejected or withdrawn are deleted, with their resumes, once nothing about them has changed for this long. Hired
+              people are never deleted. 0 keeps everyone. Holding personal data only as long as needed is what India&apos;s data protection law asks.
+            </p>
             <SubmitButton>Save careers page</SubmitButton>
           </ActionForm>
         </div>

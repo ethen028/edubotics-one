@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Field, Options, PageHeader } from "@/components/ui";
 import { humanize } from "@/lib/format";
 import { LeadForm, ProgramList } from "../../forms";
@@ -44,7 +44,7 @@ export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">)
             </Link>
             {isAdmin(user) && (
               <form action={deleteLead.bind(null, lead.id)}>
-                <button className="btn-danger">Delete</button>
+                <ConfirmButton message={`Delete the lead ${lead.name} and its activity history for good?`} className="btn-danger">Delete</ConfirmButton>
               </form>
             )}
           </>

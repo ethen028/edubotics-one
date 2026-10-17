@@ -133,7 +133,7 @@ export default async function TicketPage({ params, searchParams }: PageProps<"/h
                   ) : (
                     <li
                       key={c.id}
-                      className={`rounded-xl border p-3 text-sm ${c.author.id === ticket.requesterId ? "border-slate-200 bg-white" : "border-brand-100 bg-brand-50/60"}`}
+                      className={`rounded-xl border p-3 text-sm ${c.author.id === ticket.requesterId ? "border-slate-200 bg-surface" : "border-brand-100 bg-brand-50/60"}`}
                     >
                       <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                         <b className="text-slate-800">{c.author.name}</b>

@@ -94,7 +94,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/hr/atte
           ← Previous day
         </Link>
         <form className="flex items-center gap-2">
-          <input type="date" name="date" defaultValue={key} className="input w-auto py-1" />
+          <input type="date" name="date" aria-label="Date" defaultValue={key} className="input w-auto py-1" />
           <button className="btn-secondary btn-sm">Go</button>
         </form>
         <Link href={`?date=${shift(1)}`} className="btn-secondary btn-sm">
@@ -149,7 +149,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/hr/atte
                       <form action={markDay} className="flex items-center gap-1">
                         <input type="hidden" name="employeeId" value={e.id} />
                         <input type="hidden" name="date" value={key} />
-                        <select name="status" defaultValue={r.marked ? r.status : "AUTO"} className="input w-auto py-1 text-xs">
+                        <select name="status" aria-label={`Attendance for ${e.firstName} ${e.lastName}`} defaultValue={r.marked ? r.status : "AUTO"} className="input w-auto py-1 text-xs">
                           <option value="AUTO">Automatic</option>
                           {MARKS.map((m) => (
                             <option key={m} value={m}>

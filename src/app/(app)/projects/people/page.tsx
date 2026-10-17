@@ -84,7 +84,7 @@ export default async function WorkloadPage({ searchParams }: PageProps<"/project
         ))}
         <form className="ml-auto flex gap-2">
           {filter !== "all" && <input type="hidden" name="show" value={filter} />}
-          <select name="dept" defaultValue={dept} className="input w-auto py-1 text-sm">
+          <select name="dept" aria-label="Department" defaultValue={dept} className="input w-auto py-1 text-sm">
             <option value="">All departments</option>
             {departments.map((d) => (
               <option key={d.id} value={d.id}>
@@ -99,7 +99,7 @@ export default async function WorkloadPage({ searchParams }: PageProps<"/project
       {rows.length === 0 ? (
         <Empty>No one matches.</Empty>
       ) : (
-        <div className="card overflow-x-auto p-0">
+        <div className="card overflow-x-auto p-0" tabIndex={0}>
           <table className="table">
             <thead>
               <tr>

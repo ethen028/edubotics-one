@@ -60,7 +60,7 @@ export function ActivityPanel({
                 <form action={toggleActivity.bind(null, a.id)} className="pt-0.5">
                   <button
                     title={a.done ? "Mark as not done" : "Mark as done"}
-                    className={`h-4 w-4 rounded border ${a.done ? "border-emerald-500 bg-emerald-500" : "border-slate-400 bg-white"}`}
+                    className={`h-4 w-4 rounded border ${a.done ? "border-emerald-500 bg-emerald-500" : "border-slate-400 bg-surface"}`}
                   />
                 </form>
                 <div className="min-w-0 flex-1">

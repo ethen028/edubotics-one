@@ -123,7 +123,7 @@ export default async function MyAttendancePage({ searchParams }: PageProps<"/hr/
               purple: "bg-violet-50 text-violet-800 ring-violet-200",
               red: "bg-red-50 text-red-700 ring-red-200",
               blue: "bg-brand-50 text-brand-700 ring-brand-100",
-              gray: "bg-white text-slate-400 ring-slate-100",
+              gray: "bg-surface text-slate-400 ring-slate-100",
             };
             return (
               <div

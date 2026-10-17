@@ -4,8 +4,7 @@ import { istDate } from "@/lib/attendance";
 import { readTeamFilter, teamClaimsWhere } from "@/lib/expense-data";
 import { CATEGORY_LABEL, CLAIM_LABEL } from "@/lib/expenses";
 import { toDateInput } from "@/lib/format";
-
-const csv = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+import { csvCell as csv } from "@/lib/csv";
 
 /** The claims shown on Team expenses, for the accountant. */
 export async function GET(request: Request) {

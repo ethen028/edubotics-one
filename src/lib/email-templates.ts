@@ -150,6 +150,18 @@ export function certificateEmail(c: CertificateFacts, sender: string, s: Setting
   };
 }
 
+/** A workshop fee receipt, sent to the participant who paid. */
+export function receiptEmail(r: { name: string; workshop: string; dates: string; number: string; amount: string }, sender: string, s: Settings): Draft {
+  return {
+    subject: `Receipt ${r.number}: ${r.workshop}`,
+    message: paragraphs(
+      `Dear ${r.name},`,
+      `Thank you for your payment of ${r.amount} for “${r.workshop}” (${r.dates}). Your receipt ${r.number} is attached.`,
+      signOff(sender, s),
+    ),
+  };
+}
+
 /** The relieving and experience letter, sent after someone leaves. */
 export function exitLetterEmail(p: { firstName: string }, sender: string, s: Settings): Draft {
   return {

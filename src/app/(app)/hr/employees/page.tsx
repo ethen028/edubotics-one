@@ -54,7 +54,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/hr/emp
       />
       <form className="mb-4 flex flex-wrap gap-2">
         <input name="q" defaultValue={q} placeholder="Search name, role or code" className="input max-w-xs" />
-        <select name="dept" defaultValue={dept} className="input w-auto">
+        <select name="dept" aria-label="Department" defaultValue={dept} className="input w-auto">
           <option value="">All departments</option>
           {departments.map((d) => (
             <option key={d.id} value={d.id}>
@@ -62,7 +62,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/hr/emp
             </option>
           ))}
         </select>
-        <select name="status" defaultValue={status} className="input w-auto">
+        <select name="status" aria-label="Status" defaultValue={status} className="input w-auto">
           <option value="CURRENT">Current</option>
           <option value="ONBOARDING">Onboarding</option>
           <option value="ACTIVE">Active</option>

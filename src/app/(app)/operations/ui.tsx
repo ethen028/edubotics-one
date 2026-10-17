@@ -61,7 +61,7 @@ export function WeeklySessionsForm({ action, trainers, programme }: { action: Ac
           <span className="label">Every</span>
           <div className="flex flex-wrap gap-2">
             {WEEKDAYS.map(([n, label]) => (
-              <label key={n} className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm">
+              <label key={n} className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-surface px-2.5 py-1.5 text-sm">
                 <input type="checkbox" name="weekday" value={n} className="accent-brand-600" />
                 {label}
               </label>

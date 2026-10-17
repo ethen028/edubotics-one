@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
 import { formatDate, formatDateTime, toDateInput } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -281,7 +281,7 @@ export default async function OrderPage({ params }: PageProps<"/purchases/[id]">
 
           {canCancel && (
             <form action={cancelOrder.bind(null, order.id)}>
-              <button className="text-sm text-slate-500 hover:text-red-600 hover:underline">Cancel this order</button>
+              <ConfirmButton message={"Cancel this purchase order? It can't be reopened."} className="text-sm text-slate-500 hover:text-red-600 hover:underline">Cancel this order</ConfirmButton>
             </form>
           )}
         </div>

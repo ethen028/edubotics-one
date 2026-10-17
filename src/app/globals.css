@@ -1,59 +1,88 @@
 @import "tailwindcss";
+@import "./theme-dark.css";
 
 @theme inline {
-  /* Edubotics One look, carried over from the Floot prototype: deep teal on warm off-white,
-     Manrope for text and Bricolage Grotesque for headings. */
-  --font-sans: var(--font-manrope);
-  --font-display: var(--font-bricolage);
-  --color-brand-50: #eef6f3;
-  --color-brand-100: #d6ebe3;
-  --color-brand-200: #b0d8ca;
-  --color-brand-300: #7fbfaa;
-  --color-brand-400: #4aa28a;
-  --color-brand-500: #1a8570;
-  --color-brand-600: #0b6b5b;
-  --color-brand-700: #0a5a4d;
-  --color-brand-800: #0d473e;
-  --color-brand-900: #0f2d27;
+  /* Edubotics One look (Oct 2026), after the client's "Fernly" reference: floating white menu,
+     big soft cards, pill buttons, a filled first number card, Plus Jakarta Sans, navy menu, cobalt actions, mint selections. */
+  --font-sans: var(--font-jakarta);
+  --font-display: var(--font-jakarta);
+}
+
+@theme {
+  /* Ethen's palette (17 Oct 2026): midnight navy menu #182235, cobalt #3659d9 for buttons and active states
+     (brand-700), soft mint #ddf5e9 for selected backgrounds, ink #1b2635 text, slate #526174 secondary text,
+     pale grey #dee5ed borders, cool off-white #f5f7fa page. */
+  --color-brand-50: #eff3fd;
+  --color-brand-100: #dfe7fb;
+  --color-brand-200: #c3d1f6;
+  --color-brand-300: #9bb0ef;
+  --color-brand-400: #6f8ae6;
+  --color-brand-500: #5373df;
+  --color-brand-600: #4565db;
+  --color-brand-700: #3659d9;
+  --color-brand-800: #2b47b0;
+  --color-brand-900: #223889;
+  --color-navy: #182235;
+  --color-mint: #ddf5e9;
+  --color-ink: #1b2635;
+  --color-slate-200: #dee5ed;
+  --color-slate-400: #61708a; /* faint helper text; darker than stock so it passes 4.5:1 on the page */
+  --color-slate-500: #526174;
+  --color-slate-900: #1b2635;
+  --color-surface: #fff; /* cards, menu, inputs: white here, dark grey in dark mode */
+}
+
+:root {
+  --page-bg: #f5f7fa;
+  --line: #dee5ed;
+  --side-line: rgb(255 255 255 / 0.1);
+  /* Soft fills for the number cards, in turn: white, mint, lavender, sand. */
+  --tint-1: var(--color-surface);
+  --tint-2: #e3f6ec;
+  --tint-3: #eaeefc;
+  --tint-4: #fdf2df;
+  --tint-line-2: #cbebd9;
+  --tint-line-3: #d7dff8;
+  --tint-line-4: #f5e1bb;
 }
 
 body {
-  background: #f4f7f5;
-  color: #15231f;
+  background: var(--page-bg);
+  color: var(--color-slate-900);
 }
 
 h1,
 h2 {
   font-family: var(--font-display);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 @utility btn {
-  @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100;
 }
 
 @utility btn-sm {
-  @apply px-2.5 py-1 text-xs;
+  @apply px-3 py-1 text-xs;
 }
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-[#d7e1dd] bg-[#fbfdfb] p-5 shadow-[0_1px_2px_rgba(15,45,39,0.06),0_4px_14px_rgba(15,45,39,0.05)];
+    @apply rounded-[1.25rem] border border-[var(--line)] bg-surface p-5 shadow-[0_1px_2px_rgba(16,24,40,0.03),0_8px_24px_-16px_rgba(16,24,40,0.12)];
   }
   .label {
     @apply mb-1 block text-xs font-medium text-slate-600;
   }
   .input {
-    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-50;
+    @apply block w-full rounded-xl border border-slate-300 bg-surface px-3 py-2 text-sm text-slate-900 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-100 disabled:bg-slate-50;
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+    @apply btn bg-brand-700 text-white shadow-sm hover:bg-brand-800 hover:shadow-md;
   }
   .btn-secondary {
-    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+    @apply btn border border-slate-300 bg-surface text-slate-700 hover:border-slate-400 hover:bg-slate-50;
   }
   .btn-danger {
-    @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50;
+    @apply btn border border-red-200 bg-surface text-red-700 hover:bg-red-50;
   }
   .table {
     @apply w-full text-left text-sm;
@@ -68,6 +97,205 @@ h2 {
     @apply bg-slate-50;
   }
   .link {
-    @apply font-medium text-brand-600 hover:underline;
+    @apply font-medium text-brand-700 hover:underline;
+  }
+
+  /* Number cards: a short cobalt bar on top, and each card in a row takes the next soft fill. */
+  .stat {
+    @apply relative flex flex-col justify-between pt-8 transition-[border-color,box-shadow,transform] duration-150;
+    background: var(--tint-1);
+  }
+  .stat::before {
+    content: "";
+    @apply absolute top-4 left-5 h-1 w-6 rounded-full bg-brand-700;
+  }
+  .grid > .stat:nth-child(4n + 2) {
+    background: var(--tint-2);
+    border-color: var(--tint-line-2);
+  }
+  .grid > .stat:nth-child(4n + 3) {
+    background: var(--tint-3);
+    border-color: var(--tint-line-3);
+  }
+  .grid > .stat:nth-child(4n + 4) {
+    background: var(--tint-4);
+    border-color: var(--tint-line-4);
+  }
+  a.stat:hover {
+    @apply -translate-y-0.5 border-brand-300 shadow-md;
+  }
+  .stat-arrow {
+    @apply absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-500;
+  }
+
+  /* The navy banner at the top of overview pages (Home, Holidays): flat, with one faint ring on the right. */
+  .hero-card {
+    @apply relative overflow-hidden rounded-[1.5rem] bg-navy;
+  }
+  .hero-card::before {
+    content: "";
+    @apply pointer-events-none absolute -top-24 -right-24 h-80 w-80 rounded-full border-[56px] border-white/[0.05];
+  }
+  .hero-card > * {
+    @apply relative;
+  }
+
+  /* Little desk-calendar tile used in banners and date columns. */
+  .cal-tile {
+    @apply flex w-28 shrink-0 flex-col overflow-hidden rounded-2xl bg-white text-center text-ink shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5)];
+  }
+  .cal-tile-month {
+    @apply bg-mint py-1.5 text-xs font-bold tracking-widest uppercase;
+  }
+  .date-chip {
+    @apply inline-flex w-11 flex-col items-center rounded-lg border border-[var(--line)] bg-slate-50 py-1 leading-none;
+  }
+
+  /* Chart bars drawn as pills over a striped track. */
+  .bar-track {
+    @apply relative flex h-full w-full max-w-7 items-end overflow-hidden rounded-full;
+    background: repeating-linear-gradient(135deg, var(--color-slate-200) 0 2px, transparent 2px 7px);
+  }
+  .bar-fill {
+    @apply w-full rounded-full;
+    min-height: 0.375rem;
+  }
+
+  /* Deal cards on the pipeline board carry their stage colour on the left. */
+  .deal-card {
+    @apply border-l-4;
+  }
+  .deal-card[data-stage="PROSPECT"] {
+    @apply border-l-slate-400;
+  }
+  .deal-card[data-stage="DEMO"] {
+    @apply border-l-amber-400;
+  }
+  .deal-card[data-stage="PROPOSAL"] {
+    @apply border-l-brand-500;
+  }
+  .deal-card[data-stage="NEGOTIATION"] {
+    @apply border-l-orange-500;
+  }
+  .deal-card[data-stage="WON"] {
+    @apply border-l-emerald-600;
+  }
+  .deal-card[data-stage="LOST"] {
+    @apply border-l-slate-300;
+  }
+
+  /* Sign-in pages: form on the left, a cobalt welcome panel on the right. */
+  .auth-bg {
+    background:
+      radial-gradient(700px 400px at 50% -10%, rgb(54 89 217 / 0.1), transparent 70%),
+      var(--page-bg);
+  }
+  .auth-panel {
+    background:
+      radial-gradient(500px 300px at 80% 10%, rgb(221 245 233 / 0.22), transparent 70%),
+      radial-gradient(400px 300px at 10% 100%, rgb(54 89 217 / 0.45), transparent 70%),
+      linear-gradient(160deg, var(--color-brand-800), var(--color-navy) 60%, #101828);
+  }
+
+  /* Menu: a navy panel floating beside the page on computers. The greys inside it are re-pointed to light
+     tints, so every grey used in the menu reads on navy. */
+  .sidebar {
+    --color-slate-100: rgb(255 255 255 / 0.07);
+    --color-slate-400: #7d8aa0;
+    --color-slate-500: #aeb8c7;
+    --color-slate-600: #c3cbd7;
+    --color-slate-900: #ffffff;
+    color: var(--color-slate-900);
+    @apply border-b border-[var(--side-line)] bg-navy md:m-3 md:h-[calc(100vh-1.5rem)] md:rounded-3xl md:border md:shadow-[0_8px_24px_-16px_rgba(16,24,40,0.15)];
+  }
+  @media (min-width: 768px) {
+    .sidebar {
+      top: 0.75rem;
+    }
+  }
+  .sidebar-muted {
+    @apply text-slate-400;
+  }
+  .sidebar-link {
+    @apply text-slate-500 hover:text-slate-900;
+  }
+  .sidebar-toggle {
+    @apply rounded-full px-3 py-1 text-sm text-slate-600 ring-1 ring-[var(--side-line)];
+  }
+  .brand-mark {
+    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-brand-500 to-brand-800 font-display text-sm font-bold text-white;
+  }
+  .nav-search {
+    @apply mb-3 flex items-center gap-2 rounded-xl border border-[var(--side-line)] bg-white/[0.06] px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-within:border-brand-400;
+  }
+  .nav-search input::placeholder {
+    color: var(--color-slate-400);
+  }
+  .nav-group-head {
+    @apply flex w-full items-center gap-2.5 rounded-xl border border-[var(--side-line)] bg-white/[0.04] px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-white/[0.08] hover:text-slate-900;
+  }
+  .nav-group[data-open] > .nav-group-head {
+    @apply text-slate-900;
+  }
+  .nav-chevron {
+    @apply h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-150;
+  }
+  .nav-group[data-open] .nav-chevron {
+    @apply rotate-90;
+  }
+  .nav-group-body {
+    @apply mt-1 mb-2 ml-3 space-y-0.5 border-l border-[var(--side-line)] pl-2;
+  }
+  .nav-section {
+    @apply px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase;
+  }
+  .nav-link {
+    @apply relative flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-sm text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-900;
+  }
+  .nav-link[data-active] {
+    @apply bg-mint font-semibold text-ink;
+  }
+  .nav-link[data-active]::before {
+    content: "";
+    @apply absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r-full bg-brand-700;
+  }
+  .nav-icon {
+    @apply h-4 w-4 shrink-0 opacity-75;
+  }
+  .nav-link[data-active] .nav-icon {
+    @apply opacity-100;
+  }
+  .nav-badge {
+    @apply rounded-full bg-brand-700 px-1.5 text-[11px] font-semibold text-white;
+  }
+  .sidebar-user {
+    @apply mt-4 flex items-start gap-2.5 border-t border-[var(--side-line)] pt-3;
+  }
+  .avatar {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-135 from-brand-500 to-brand-800 text-xs font-semibold text-white;
+  }
+
+  /* Bar along the top of every page on computers. */
+  .topbar {
+    @apply mb-6 hidden items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-surface px-4 py-2 md:flex;
+  }
+  .icon-btn {
+    @apply relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900;
+  }
+  .icon-btn-dot {
+    @apply absolute -top-1 -right-1 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] leading-4 font-semibold text-white;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  [class*="btn"]:active,
+  a.stat:hover {
+    transform: none !important;
   }
 }

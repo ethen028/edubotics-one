@@ -164,15 +164,19 @@ export default async function OwnerDashboardPage() {
               <span className="h-2.5 w-2.5 rounded-sm bg-amber-400" /> Paid out (vendors, salaries, expense claims)
             </span>
           </div>
-          <div className="flex h-44 items-end gap-2 border-b border-slate-200 sm:gap-4">
+          <div className="flex h-44 items-end gap-2 sm:gap-4">
             {cashFlow.map((m) => (
               <div
                 key={m.key}
                 className="flex h-full flex-1 items-end justify-center gap-0.5"
                 title={`${m.label}: in ${formatINR(m.in)}, out ${formatINR(m.out)} (vendors ${formatINR(m.vendors)}, salaries ${formatINR(m.salaries)}, claims ${formatINR(m.claims)})`}
               >
-                <div className="w-1/3 max-w-6 rounded-t bg-brand-600" style={{ height: `${(m.in / flowMax) * 100}%` }} />
-                <div className="w-1/3 max-w-6 rounded-t bg-amber-400" style={{ height: `${(m.out / flowMax) * 100}%` }} />
+                <div className="bar-track w-1/3">
+                  <div className="bar-fill bg-brand-600" style={{ height: `${(m.in / flowMax) * 100}%` }} />
+                </div>
+                <div className="bar-track w-1/3">
+                  <div className="bar-fill bg-amber-400" style={{ height: `${(m.out / flowMax) * 100}%` }} />
+                </div>
               </div>
             ))}
           </div>

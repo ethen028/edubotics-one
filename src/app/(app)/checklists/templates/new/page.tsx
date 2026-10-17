@@ -32,7 +32,7 @@ export default async function NewTemplatePage({ searchParams }: PageProps<"/chec
           <Link
             key={key}
             href={`?starter=${key}`}
-            className={`rounded-lg border px-3 py-2 text-sm ${starter === key ? "border-brand-500 bg-brand-50" : "border-slate-200 bg-white hover:border-brand-300"}`}
+            className={`rounded-lg border px-3 py-2 text-sm ${starter === key ? "border-brand-500 bg-brand-50" : "border-slate-200 bg-surface hover:border-brand-300"}`}
           >
             <b>{s.name}</b>
             <span className="block text-xs text-slate-500">{s.hint}</span>
@@ -40,7 +40,7 @@ export default async function NewTemplatePage({ searchParams }: PageProps<"/chec
         ))}
         <Link
           href="?"
-          className={`rounded-lg border px-3 py-2 text-sm ${!chosen ? "border-brand-500 bg-brand-50" : "border-slate-200 bg-white hover:border-brand-300"}`}
+          className={`rounded-lg border px-3 py-2 text-sm ${!chosen ? "border-brand-500 bg-brand-50" : "border-slate-200 bg-surface hover:border-brand-300"}`}
         >
           <b>Blank</b>
           <span className="block text-xs text-slate-500">Write your own</span>

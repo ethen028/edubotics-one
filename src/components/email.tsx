@@ -104,6 +104,7 @@ const KIND: Record<EmailLog["kind"], string> = {
   INTERVIEW_INVITE: "Invite",
   CREDIT_NOTE: "Credit note",
   CERTIFICATE: "Certificate",
+  RECEIPT: "Receipt",
   EXIT_LETTER: "Relieving letter",
 };
 
