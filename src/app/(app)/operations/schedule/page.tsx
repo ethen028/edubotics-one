@@ -87,7 +87,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/operati
 
       <form className="mb-4 flex flex-wrap items-end gap-2">
         <input type="hidden" name="week" value={toDateInput(weekStart)} />
-        <select name="trainer" defaultValue={sp.trainer ?? ""} className="input w-auto">
+        <select name="trainer" aria-label="Trainer" defaultValue={sp.trainer ?? ""} className="input w-auto">
           <option value="">All trainers</option>
           <option value="me">Only me</option>
           {trainers.map((t) => (
@@ -96,7 +96,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/operati
             </option>
           ))}
         </select>
-        <select name="school" defaultValue={school ?? ""} className="input w-auto">
+        <select name="school" aria-label="School" defaultValue={school ?? ""} className="input w-auto">
           <option value="">All schools</option>
           {schools.map((o) => (
             <option key={o.id} value={o.id}>

@@ -194,7 +194,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </h1>
           <p className="text-sm text-slate-500">{roleNote}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {admin && (
             <Link href="/dashboard" className="btn-secondary">
               Owner dashboard

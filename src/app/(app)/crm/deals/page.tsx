@@ -48,7 +48,7 @@ export default async function DealsPage({ searchParams }: PageProps<"/crm/deals"
           </>
         }
       />
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex gap-4 overflow-x-auto pb-4" tabIndex={0} role="region" aria-label="Deal stages">
         {stages.map((stage) => {
           const col = deals.filter((d) => d.stage === stage);
           const total = col.reduce((s, d) => s + Number(d.value), 0);

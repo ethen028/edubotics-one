@@ -29,7 +29,7 @@ export default async function LeaveTypesPage() {
                   <td>{t.name}</td>
                   <td>
                     <form action={updateLeaveType.bind(null, t.id)} className="flex items-center gap-3">
-                      <input name="annualQuota" type="number" step="0.5" min="0" defaultValue={t.annualQuota} className="input w-20" />
+                      <input name="annualQuota" aria-label={`Days a year for ${t.name}`} type="number" step="0.5" min="0" defaultValue={t.annualQuota} className="input w-20" />
                       <label className="flex items-center gap-1 text-xs">
                         <input type="checkbox" name="paid" defaultChecked={t.paid} /> Paid
                       </label>
