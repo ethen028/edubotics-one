@@ -46,6 +46,7 @@ model User {
   ownedProjects         Project[]              @relation("ProjectOwner")
   projectMembers        ProjectMember[]
   assignedTasks         ProjectTask[]          @relation("TaskAssignee")
+  notifications         Notification[]
   createdTasks          ProjectTask[]          @relation("TaskCreator")
   decidedProjects       Project[]              @relation("ProjectApprover")
   decidedTimesheets     Timesheet[]            @relation("TimesheetApprover")
@@ -828,32 +829,74 @@ enum Priority {
 }
 
 model ProjectTask {
-  id                String          @id @default(cuid())
+  id                String              @id @default(cuid())
   projectId         String
-  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project           Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   milestoneId       String?
-  milestone         Milestone?      @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  milestone         Milestone?          @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   title             String
   description       String?
-  status            WorkStatus      @default(TODO)
-  priority          Priority        @default(MEDIUM)
-  progress          Int             @default(0) // 0–100, set by the assignee when they post an update (Task Flow)
-  dueDate           DateTime?       @db.Date
+  status            WorkStatus          @default(TODO)
+  priority          Priority            @default(MEDIUM)
+  progress          Int                 @default(0) // 0–100, set by the assignee when they post an update (Task Flow)
+  startDate         DateTime?           @db.Date
+  dueDate           DateTime?           @db.Date
   completedAt       DateTime?
   /// Set when the owner asks the assignee for an update; cleared when the assignee posts one.
   updateRequestedAt DateTime?
+  // From Task Flow v5: estimate, subtasks, "waiting on" another task, and a blocked flag with the reason.
+  estimatedHours    Decimal?            @db.Decimal(6, 2)
+  parentId          String?
+  parent            ProjectTask?        @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks          ProjectTask[]       @relation("Subtasks")
+  dependsOnId       String?
+  dependsOn         ProjectTask?        @relation("TaskDependency", fields: [dependsOnId], references: [id], onDelete: SetNull)
+  dependents        ProjectTask[]       @relation("TaskDependency")
+  blockedReason     String?
+  blockedAt         DateTime?
+  checklist         TaskChecklistItem[]
   assigneeId        String?
-  assignee          User?           @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignee          User?               @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   createdById       String
-  createdBy         User            @relation("TaskCreator", fields: [createdById], references: [id])
+  createdBy         User                @relation("TaskCreator", fields: [createdById], references: [id])
   timeEntries       TimeEntry[]
   updates           ProjectUpdate[]
   files             ProjectFile[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   @@index([assigneeId, status])
   @@index([projectId])
+  @@index([parentId])
+  @@index([dependsOnId])
+}
+
+/// A step on a task's checklist (Task Flow v5), ticked by the assignee or the project owner.
+model TaskChecklistItem {
+  id        String      @id @default(cuid())
+  taskId    String
+  task      ProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  title     String
+  position  Int         @default(0)
+  doneAt    DateTime?
+  createdAt DateTime    @default(now())
+
+  @@index([taskId, position])
+}
+
+/// A message in someone's Inbox (Task Flow v5): a task given to them, an update asked for, a week approved…
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String // see NOTIFICATION_KINDS in src/lib/notifications.ts
+  title     String
+  body      String?
+  href      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
 }
 
 /// A progress report on a project or one of its tasks: a note, a progress change and/or files (from Task Flow).

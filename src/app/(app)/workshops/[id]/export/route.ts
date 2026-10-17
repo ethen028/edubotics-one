@@ -4,8 +4,8 @@ import { todayIST } from "@/lib/time";
 import { canMarkAttendance, standing, workshopDays } from "@/lib/workshops";
 import { loadWorkshop } from "../../data";
 import { db } from "@/lib/db";
+import { csvCell as csv } from "@/lib/csv";
 
-const csv = (v: string | number | null) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Participants with contact details, attendance by day, fees and certificate numbers, for a spreadsheet. */

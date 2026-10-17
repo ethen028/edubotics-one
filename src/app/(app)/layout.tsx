@@ -11,11 +11,12 @@ import { helpdeskCounts } from "@/lib/helpdesk";
 import { myReviewTodos } from "@/lib/reviews";
 import { newOnlineApplications } from "@/lib/careers";
 import { myChecklistsNow } from "@/lib/checklists";
+import { unreadCount } from "@/lib/notifications";
 import { logout } from "../actions";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk, reviewTodos, onlineApplications, checklists] = await Promise.all([
+  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk, reviewTodos, onlineApplications, checklists, inbox] = await Promise.all([
     pendingApprovals(user),
     isAdmin(user) ? lowStockItems() : [],
     db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
@@ -24,6 +25,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     myReviewTodos(user),
     isManagerOrAdmin(user) ? newOnlineApplications() : 0,
     myChecklistsNow(user.id),
+    unreadCount(user.id),
   ]);
   const overdueChecklists = checklists.open.some((e) => e.status === "OVERDUE");
 
@@ -43,6 +45,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <nav className="flex-1 space-y-4 overflow-y-auto">
           <div className="space-y-0.5">
             <NavLink href="/">Home</NavLink>
+            <NavLink href="/inbox">
+              <span className="flex items-center justify-between">
+                Inbox
+                {inbox > 0 && (
+                  <span className="rounded-full bg-brand-300 px-1.5 text-[11px] font-semibold text-brand-900" title="Unread messages">
+                    {inbox}
+                  </span>
+                )}
+              </span>
+            </NavLink>
             {isAdmin(user) && <NavLink href="/dashboard">Owner dashboard</NavLink>}
             <NavLink href="/notices">
               <span className="flex items-center justify-between">
@@ -58,7 +70,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <div className="space-y-0.5">
             <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Work</div>
             <NavLink href="/work">My work</NavLink>
-            <NavLink href="/projects">Projects</NavLink>
+            <NavLink href="/projects/pulse">Daily pulse</NavLink>
+            <NavLink href="/projects" except={["/projects/pulse"]}>
+              Projects
+            </NavLink>
             <NavLink href="/timesheets">Timesheet</NavLink>
             <NavLink href="/checklists">
               <span className="flex items-center justify-between">

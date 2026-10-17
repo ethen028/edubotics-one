@@ -169,6 +169,34 @@ export function UpdateRequestedBadge() {
   return <Badge color="amber">Update requested</Badge>;
 }
 
+/** Task Flow v5: the assignee or owner flagged the task as stuck. */
+export function BlockedBadge({ reason }: { reason?: string | null }) {
+  return (
+    <span title={reason ?? undefined}>
+      <Badge color="red">Blocked</Badge>
+    </span>
+  );
+}
+
+/** Task Flow v5: the task waits on another one that isn't done yet. */
+export function WaitingBadge({ on }: { on: string }) {
+  return (
+    <span title={`Waiting on ${on}`}>
+      <Badge color="purple">Waiting</Badge>
+    </span>
+  );
+}
+
+/** "3/5" ticked steps on a task's checklist. */
+export function ChecklistCount({ done, total }: { done: number; total: number }) {
+  if (total === 0) return null;
+  return (
+    <span className={`text-xs tabular-nums ${done === total ? "text-emerald-700" : "text-slate-500"}`} title="Checklist steps done">
+      ☑ {done}/{total}
+    </span>
+  );
+}
+
 type FileRow = {
   id: string;
   fileName: string;
