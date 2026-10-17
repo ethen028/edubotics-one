@@ -76,7 +76,7 @@ h2 {
     @apply block w-full rounded-xl border border-slate-300 bg-surface px-3 py-2 text-sm text-slate-900 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-brand-500 focus:ring-3 focus:ring-brand-100 disabled:bg-slate-50;
   }
   .btn-primary {
-    @apply btn bg-brand-700 text-white shadow-sm hover:bg-brand-800 hover:shadow-md;
+    @apply btn bg-brand-700 text-white hover:bg-brand-800;
   }
   .btn-secondary {
     @apply btn border border-slate-300 bg-surface text-slate-700 hover:border-slate-400 hover:bg-slate-50;
@@ -102,7 +102,7 @@ h2 {
 
   /* Number cards: a short cobalt bar on top, and each card in a row takes the next soft fill. */
   .stat {
-    @apply relative flex flex-col justify-between pt-8 transition-[border-color,box-shadow,transform] duration-150;
+    @apply relative flex flex-col justify-between pt-8 transition-colors duration-150;
     background: var(--tint-1);
   }
   .stat::before {
@@ -122,7 +122,7 @@ h2 {
     border-color: var(--tint-line-4);
   }
   a.stat:hover {
-    @apply -translate-y-0.5 border-brand-300 shadow-md;
+    @apply border-brand-300;
   }
   .stat-arrow {
     @apply absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-500;
@@ -142,13 +142,18 @@ h2 {
 
   /* Little desk-calendar tile used in banners and date columns. */
   .cal-tile {
-    @apply flex w-28 shrink-0 flex-col overflow-hidden rounded-2xl bg-white text-center text-ink shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5)];
+    @apply flex w-28 shrink-0 flex-col overflow-hidden rounded-2xl bg-white text-center text-ink;
   }
   .cal-tile-month {
     @apply bg-mint py-1.5 text-xs font-bold tracking-widest uppercase;
   }
   .date-chip {
     @apply inline-flex w-11 flex-col items-center rounded-lg border border-[var(--line)] bg-slate-50 py-1 leading-none;
+  }
+
+  /* Grey placeholder blocks shown while a page loads. They pulse gently unless reduced motion is on. */
+  .skeleton {
+    @apply rounded-lg bg-slate-200 motion-safe:animate-pulse;
   }
 
   /* Chart bars drawn as pills over a striped track. */
@@ -184,17 +189,12 @@ h2 {
     @apply border-l-slate-300;
   }
 
-  /* Sign-in pages: form on the left, a cobalt welcome panel on the right. */
+  /* Sign-in pages: form on the left, a flat navy welcome panel on the right. */
   .auth-bg {
-    background:
-      radial-gradient(700px 400px at 50% -10%, rgb(54 89 217 / 0.1), transparent 70%),
-      var(--page-bg);
+    background: var(--page-bg);
   }
   .auth-panel {
-    background:
-      radial-gradient(500px 300px at 80% 10%, rgb(221 245 233 / 0.22), transparent 70%),
-      radial-gradient(400px 300px at 10% 100%, rgb(54 89 217 / 0.45), transparent 70%),
-      linear-gradient(160deg, var(--color-brand-800), var(--color-navy) 60%, #101828);
+    @apply bg-navy;
   }
 
   /* Menu: a navy panel floating beside the page on computers; a bar with a sliding drawer on phones.
@@ -256,7 +256,7 @@ h2 {
   }
 
   .brand-mark {
-    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-brand-500 to-brand-800 font-display text-sm font-bold text-white;
+    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700 font-display text-sm font-bold text-white;
   }
   .nav-search {
     @apply mb-3 flex items-center rounded-xl border border-[var(--side-line)] bg-white/[0.06] px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-within:border-brand-400;

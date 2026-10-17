@@ -293,7 +293,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                       <div className="text-xs text-slate-500">
                         {t.assignee?.name ?? "Unassigned"}
                         {t.milestone && ` · ${t.milestone.title}`}
-                        {t._count.files > 0 && ` · 📎 ${t._count.files}`}
+                        {t._count.files > 0 && ` · ${t._count.files} file${t._count.files === 1 ? "" : "s"}`}
                         {t.description && ` · ${t.description}`}
                       </div>
                     </div>

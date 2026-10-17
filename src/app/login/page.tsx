@@ -15,12 +15,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const googleError = google && google in GOOGLE_ERRORS ? GOOGLE_ERRORS[google as keyof typeof GOOGLE_ERRORS] : null;
   return (
     <main className="auth-bg flex min-h-screen items-center justify-center p-4 md:p-6">
-      <div className="grid w-full max-w-5xl overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-surface shadow-xl md:min-h-[560px] md:grid-cols-2">
+      <div className="grid w-full max-w-5xl overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-surface md:min-h-[560px] md:grid-cols-2">
         <div className="flex items-center justify-center p-6 sm:p-10">
           <div className="w-full max-w-sm">
             <div className="mb-8">
               <div className="mb-6 flex items-center gap-2.5">
-                <div className="brand-mark h-10 w-10 rounded-xl shadow-md">E1</div>
+                <div className="brand-mark h-10 w-10 rounded-xl">E1</div>
                 <span className="font-semibold">Edubotics One</span>
               </div>
               <h1 className="text-3xl font-bold tracking-tight">Sign in</h1>

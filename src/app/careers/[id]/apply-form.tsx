@@ -89,7 +89,12 @@ export function ApplyForm({ jobId, initialError, companyName }: { jobId: string;
       </div>
       <label className="flex items-start gap-2 text-sm text-slate-600">
         <input name="consent" type="checkbox" required className="mt-1" />
-        <span>I agree that {companyName} may keep my details and resume to consider me for this and future jobs.</span>
+        <span>I agree that {companyName} may keep my details and resume to consider me for this and future jobs, as set out in{" "}
+          <a href="/careers/privacy" target="_blank" className="link">
+            how we use your application
+          </a>
+          .
+        </span>
       </label>
       <button type="submit" disabled={sending} className="btn-primary w-full sm:w-auto">
         {sending ? "Sending…" : "Send application"}

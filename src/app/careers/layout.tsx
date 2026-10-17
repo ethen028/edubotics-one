@@ -21,6 +21,10 @@ export default async function CareersLayout({ children }: LayoutProps<"/careers"
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">{children}</main>
       <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-500">
         {companyName}
+        {" · "}
+        <Link href="/careers/privacy" className="link">
+          How we use your application
+        </Link>
         {contactEmail && (
           <>
             {" · Questions about a job? "}

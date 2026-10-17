@@ -96,7 +96,7 @@ export default async function NoticesPage({ searchParams }: PageProps<"/notices"
                     <p className="mt-2 text-xs text-slate-500">
                       {n.author.name} · {formatDate(n.createdAt)}
                       {n.version > 1 && ` · updated ${formatDate(n.updatedAt)}`}
-                      {n.attachment && ` · 📎 ${n.attachment.fileName}`}
+                      {n.attachment && ` · Attached: ${n.attachment.fileName}`}
                     </p>
                   </div>
                   {n.requiresAck && (
