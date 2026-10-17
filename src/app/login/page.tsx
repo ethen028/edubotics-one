@@ -14,13 +14,13 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const withGoogle = !!settings && !!googleSetup(settings);
   const googleError = google && google in GOOGLE_ERRORS ? GOOGLE_ERRORS[google as keyof typeof GOOGLE_ERRORS] : null;
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main className="auth-bg flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">
+          <div className="brand-mark mx-auto mb-3 h-12 w-12 rounded-xl text-lg shadow-md">
             E1
           </div>
-          <h1 className="text-xl font-semibold">Edubotics One</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Edubotics One</h1>
           <p className="text-sm text-slate-500">Sign in with your work account</p>
         </div>
         {googleError && (
