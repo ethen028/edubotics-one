@@ -31,7 +31,7 @@ export default async function WorkshopsPage({ searchParams }: PageProps<"/worksh
       orderBy: { startDate: "desc" },
     }),
     db.workshopRegistration.count({ where: { status: "REGISTERED", workshop: { startDate: { gte: since }, status: { not: "CANCELLED" } } } }),
-    manager ? db.workshopPayment.aggregate({ where: { paidOn: { gte: since } }, _sum: { amount: true } }) : null,
+    manager ? db.workshopPayment.aggregate({ where: { paidOn: { gte: since }, cancelledAt: null }, _sum: { amount: true } }) : null,
     db.workshopCertificate.count({ where: { fy, status: "ISSUED" } }),
     sp.cert
       ? db.workshopCertificate.findFirst({

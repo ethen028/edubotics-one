@@ -42,7 +42,7 @@ export async function accountsSummary(fyParam?: string) {
       where: { receivedOn: inYear, invoice: { status: { not: "CANCELLED" } } },
       select: { receivedOn: true, amount: true, tds: true },
     }),
-    db.workshopPayment.findMany({ where: { paidOn: inYear }, select: { paidOn: true, amount: true } }),
+    db.workshopPayment.findMany({ where: { paidOn: inYear, cancelledAt: null }, select: { paidOn: true, amount: true, gstRate: true, placeOfSupply: true } }),
     db.vendorBill.findMany({ where: { status: "OPEN", billDate: inYear }, select: { billDate: true, subtotal: true, tax: true } }),
     db.vendorPayment.findMany({ where: { paidOn: inYear, bill: { status: "OPEN" } }, select: { paidOn: true, amount: true, tds: true } }),
     // Runs earned in this year, plus runs from the year before that were paid in this one.
@@ -66,7 +66,18 @@ export async function accountsSummary(fyParam?: string) {
   ]);
 
   const rows = monthlyMoney(
-    { invoices, creditNotes, refunds, invoicePayments, workshopPayments, bills, vendorPayments, payrollRuns, claims, claimsPaidByHand },
+    {
+      invoices,
+      creditNotes,
+      refunds,
+      invoicePayments,
+      workshopPayments: workshopPayments.map((p) => ({ ...p, interState: p.placeOfSupply !== settings.companyState })),
+      bills,
+      vendorPayments,
+      payrollRuns,
+      claims,
+      claimsPaidByHand,
+    },
     months,
   );
 

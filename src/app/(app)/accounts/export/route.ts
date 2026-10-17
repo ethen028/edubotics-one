@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     ["Month", "label"],
     ["Invoiced (before GST)", "sales"],
     ["Credit notes", "credited"],
-    ["Workshop fees", "workshopFees"],
+    ["Workshop fees (before GST)", "workshopFees"],
     ["Income", "income"],
     ["Vendor bills (before GST)", "purchases"],
     ["Salaries", "salaries"],

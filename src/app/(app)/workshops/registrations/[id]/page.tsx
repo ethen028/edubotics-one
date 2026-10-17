@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { mailSetup } from "@/lib/mail";
-import { certificateEmail } from "@/lib/email-templates";
+import { certificateEmail, receiptEmail } from "@/lib/email-templates";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { EmailComposer, EmailHistory, emailLogSelect } from "@/components/email";
 import { Badge, Field, Options, PageHeader } from "@/components/ui";
@@ -14,25 +14,29 @@ import { PAYMENT_METHODS, methodLabel } from "@/lib/invoices";
 import { canManageWorkshop, dateSpan, standing, workshopDays } from "@/lib/workshops";
 import {
   cancelCertificate,
+  cancelReceipt,
   deleteRegistration,
   issueCertificate,
   recordPayment,
-  removePayment,
   setRegistrationStatus,
   updateRegistration,
 } from "../../actions";
-import { emailCertificate } from "../../../emails/actions";
+import { emailCertificate, emailReceipt } from "../../../emails/actions";
 
 export const metadata = { title: "Participant" };
 
-export default async function RegistrationPage({ params }: PageProps<"/workshops/registrations/[id]">) {
+export default async function RegistrationPage({ params, searchParams }: PageProps<"/workshops/registrations/[id]">) {
   const user = await requireUser();
   const { id } = await params;
+  const { receipt: receiptParam } = await searchParams;
   const r = await db.workshopRegistration.findUnique({
     where: { id },
     include: {
       workshop: { include: { organization: { select: { name: true } } } },
-      payments: { include: { recordedBy: { select: { name: true } } }, orderBy: { paidOn: "asc" } },
+      payments: {
+        include: { recordedBy: { select: { name: true } }, emails: { select: emailLogSelect, orderBy: { createdAt: "desc" } } },
+        orderBy: [{ paidOn: "asc" }, { createdAt: "asc" }],
+      },
       attendance: true,
       certificate: { include: { emails: { select: emailLogSelect, orderBy: { createdAt: "desc" } } } },
       addedBy: { select: { name: true } },
@@ -49,6 +53,10 @@ export default async function RegistrationPage({ params }: PageProps<"/workshops
   const money = isManagerOrAdmin(user);
   const live = r.status === "REGISTERED";
   const cert = r.certificate;
+  // The receipt the email box sends: the one picked from the list, else the latest.
+  const activeReceipts = r.payments.filter((p) => !p.cancelledAt);
+  const receipt = activeReceipts.find((p) => p.id === receiptParam) ?? activeReceipts.at(-1);
+  const receiptEmails = r.payments.flatMap((p) => p.emails).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   return (
     <>
@@ -139,16 +147,40 @@ export default async function RegistrationPage({ params }: PageProps<"/workshops
               {r.payments.length > 0 && (
                 <ul className="mb-4 divide-y divide-slate-100 text-sm">
                   {r.payments.map((p) => (
-                    <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                      <span>
-                        {formatINR(p.amount)} on {formatDate(p.paidOn)} · {methodLabel[p.method]}
-                        {p.reference && ` · ${p.reference}`}
-                        <span className="text-xs text-slate-500"> · recorded by {p.recordedBy.name}</span>
-                      </span>
-                      {isAdmin(user) && (
-                        <form action={removePayment.bind(null, p.id)}>
-                          <button className="text-xs text-slate-400 hover:text-red-600">Remove</button>
-                        </form>
+                    <li key={p.id} className="py-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className={p.cancelledAt ? "text-slate-400" : undefined}>
+                          <span className="font-medium">{p.number}</span> · <span className={p.cancelledAt ? "line-through" : undefined}>{formatINR(p.amount)}</span> on{" "}
+                          {formatDate(p.paidOn)} · {methodLabel[p.method]}
+                          {p.reference && ` · ${p.reference}`}
+                          <span className="text-xs text-slate-500"> · recorded by {p.recordedBy.name}</span>{" "}
+                          {p.cancelledAt ? (
+                            <Badge color="red">Cancelled</Badge>
+                          ) : (
+                            p.emails.some((e) => e.status === "SENT") && <Badge color="green">Emailed</Badge>
+                          )}
+                        </span>
+                        <span className="flex items-center gap-3 text-xs">
+                          <a href={`/workshops/receipts/${p.id}/pdf`} target="_blank" className="link">
+                            Receipt
+                          </a>
+                          {!p.cancelledAt && (
+                            <Link href={`?receipt=${p.id}#email-receipt`} scroll={false} className="link">
+                              Email
+                            </Link>
+                          )}
+                        </span>
+                      </div>
+                      {p.cancelledAt && <p className="mt-0.5 text-xs text-slate-500">“{p.cancelReason}”</p>}
+                      {!p.cancelledAt && isAdmin(user) && (
+                        <details className="mt-1 text-xs">
+                          <summary className="cursor-pointer text-slate-400 hover:text-red-600">Cancel receipt</summary>
+                          <ActionForm action={cancelReceipt.bind(null, p.id)} className="mt-2 flex flex-wrap items-end gap-2">
+                            <input name="reason" required className="input max-w-xs" placeholder="Why, e.g. entered twice" />
+                            <SubmitButton className="btn-danger">Cancel receipt</SubmitButton>
+                          </ActionForm>
+                          <p className="mt-1 text-slate-500">For a payment entered by mistake. The number stays used and the receipt shows as cancelled.</p>
+                        </details>
                       )}
                     </li>
                   ))}
@@ -176,6 +208,29 @@ export default async function RegistrationPage({ params }: PageProps<"/workshops
                 </ActionForm>
               )}
             </section>
+          )}
+          {perPerson && money && receipt && (
+            <div id="email-receipt" className="scroll-mt-4 space-y-6">
+              <EmailComposer
+                key={receipt.id}
+                title={`Email receipt ${receipt.number}`}
+                action={emailReceipt.bind(null, receipt.id)}
+                draft={{
+                  to: r.email ?? "",
+                  ...receiptEmail(
+                    { name: r.name, workshop: w.title, dates: dateSpan(w), number: receipt.number, amount: formatINR(receipt.amount) },
+                    user.name,
+                    settings,
+                  ),
+                }}
+                attachments={[`Receipt ${receipt.number.replace(/\//g, "-")}.pdf`]}
+                setup={mailSetup(settings)}
+                admin={isAdmin(user)}
+                submitLabel="Send receipt"
+                open={receipt.id === receiptParam}
+              />
+              <EmailHistory emails={receiptEmails} title="Receipt emails" />
+            </div>
           )}
         </div>
 
