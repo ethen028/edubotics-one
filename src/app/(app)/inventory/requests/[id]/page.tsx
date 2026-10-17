@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -212,7 +212,7 @@ export default async function RequestPage({ params }: PageProps<"/inventory/requ
 
           {canCancel && (
             <form action={cancelRequest.bind(null, request.id)}>
-              <button className="text-sm text-slate-500 hover:text-red-600 hover:underline">Cancel this request</button>
+              <ConfirmButton message={"Cancel this stock request?"} className="text-sm text-slate-500 hover:text-red-600 hover:underline">Cancel this request</ConfirmButton>
             </form>
           )}
         </div>

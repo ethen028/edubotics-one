@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CandidateFile, Interview, Offer } from "@prisma/client";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Field, Options } from "@/components/ui";
 import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
 import { FILE_KINDS, INTERVIEW_MODES, INTERVIEW_ROUNDS } from "@/lib/recruitment";
@@ -232,7 +232,7 @@ export function FilesList({ files, canEdit }: { files: Omit<CandidateFile, "data
               </span>
               {canEdit && (
                 <form action={deleteCandidateFile.bind(null, f.id)}>
-                  <button className="text-xs text-red-600 hover:underline">Remove</button>
+                  <ConfirmButton message={`Delete the file "${f.fileName}"?`} className="text-xs text-red-600 hover:underline">Remove</ConfirmButton>
                 </form>
               )}
             </li>

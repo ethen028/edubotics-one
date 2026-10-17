@@ -22,7 +22,7 @@ import { requestNo } from "@/lib/inventory";
 import { mailSetup } from "@/lib/mail";
 import { exitLetterEmail } from "@/lib/email-templates";
 import { todayIST } from "@/lib/time";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Field, PageHeader } from "@/components/ui";
 import { EmailComposer, EmailHistory, emailLogSelect } from "@/components/email";
 import { formatDate, formatINR, toDateInput } from "@/lib/format";
@@ -292,9 +292,9 @@ export default async function ExitPage({ params }: PageProps<"/hr/exits/[id]">) 
                   </div>
                   {manage && (
                     <form action={deleteExitTask.bind(null, t.id)}>
-                      <button className="text-xs text-slate-400 hover:text-red-600" title="Remove">
+                      <ConfirmButton message={"Remove this leaving-checklist task?"} className="text-xs text-slate-400 hover:text-red-600" title="Remove">
                         ✕
-                      </button>
+                      </ConfirmButton>
                     </form>
                   )}
                 </li>

@@ -11,6 +11,7 @@ import { OPEN_STAGES, candidateAccess, canOffer } from "@/lib/recruitment";
 import { CandidateForm } from "../../forms";
 import { deleteCandidate, updateCandidate } from "../../actions";
 import { StageBadge } from "../../ui";
+import { ConfirmButton } from "@/components/action-form";
 import {
   FilesList,
   HireForm,
@@ -137,7 +138,7 @@ export default async function CandidatePage({ params }: PageProps<"/recruitment/
             </Link>
             {admin && !candidate.employeeId && (
               <form action={deleteCandidate.bind(null, candidate.id)}>
-                <button className="btn-danger">Delete</button>
+                <ConfirmButton message={`Delete ${candidate.name}, their files and interview notes for good?`} className="btn-danger">Delete</ConfirmButton>
               </form>
             )}
           </>

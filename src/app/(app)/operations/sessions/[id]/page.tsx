@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Field, PageHeader } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -201,7 +201,7 @@ export default async function SessionPage({ params }: PageProps<"/operations/ses
               <h2 className="mb-3 font-semibold">Reschedule or reassign</h2>
               <RescheduleForm action={updateSession.bind(null, id)} trainers={trainers} session={session} />
               <form action={deleteSession.bind(null, id)} className="mt-4 border-t border-slate-100 pt-3">
-                <button className="text-xs text-slate-500 hover:text-red-600">Delete this session</button>
+                <ConfirmButton message={"Delete this session from the schedule?"} className="text-xs text-slate-500 hover:text-red-600">Delete this session</ConfirmButton>
               </form>
             </section>
           )}

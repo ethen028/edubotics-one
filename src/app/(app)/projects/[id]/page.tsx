@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Empty, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
 import { payableOf } from "@/lib/expenses";
@@ -159,7 +159,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             )}
             {isAdmin(user) && (
               <form action={deleteProject.bind(null, project.id)}>
-                <button className="btn-danger">Delete</button>
+                <ConfirmButton message={`Delete the project "${project.name}" for good? Its tasks, milestones, updates, files and team list are deleted with it and can't be brought back.`} typeToConfirm={project.name} className="btn-danger">Delete</ConfirmButton>
               </form>
             )}
           </>
@@ -321,9 +321,9 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                     )}
                     {canEdit && (
                       <form action={deleteTask.bind(null, t.id)}>
-                        <button className="text-xs text-slate-400 hover:text-red-600" title="Delete task">
+                        <ConfirmButton message={`Delete the task "${t.title}" and its subtasks, checklist and files?`} className="text-xs text-slate-400 hover:text-red-600" title="Delete task">
                           ✕
-                        </button>
+                        </ConfirmButton>
                       </form>
                     )}
                   </li>
@@ -391,7 +391,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                   </span>
                   {canEdit && m.user.id !== project.owner.id && (
                     <form action={removeMember.bind(null, m.id)}>
-                      <button className="text-xs text-slate-400 hover:text-red-600">Remove</button>
+                      <ConfirmButton message={"Remove this person from the project team?"} className="text-xs text-slate-400 hover:text-red-600">Remove</ConfirmButton>
                     </form>
                   )}
                 </li>
@@ -495,7 +495,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                           <button className="link text-xs">{m.doneAt ? "Reopen" : "Done"}</button>
                         </form>
                         <form action={deleteMilestone.bind(null, m.id)}>
-                          <button className="text-xs text-slate-400 hover:text-red-600">✕</button>
+                          <ConfirmButton message={`Delete the milestone "${m.title}"?`} className="text-xs text-slate-400 hover:text-red-600">✕</ConfirmButton>
                         </form>
                       </span>
                     ) : (

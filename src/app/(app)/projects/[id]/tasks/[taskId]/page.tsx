@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Field, PageHeader } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -225,9 +225,9 @@ export default async function TaskPage({ params }: PageProps<"/projects/[id]/tas
                       )}
                       {canUpdate && (
                         <form action={deleteChecklistItem.bind(null, c.id)}>
-                          <button className="text-xs text-slate-400 hover:text-red-600" title="Remove step">
+                          <ConfirmButton message={`Remove the step "${c.title}"?`} className="text-xs text-slate-400 hover:text-red-600" title="Remove step">
                             ✕
-                          </button>
+                          </ConfirmButton>
                         </form>
                       )}
                     </li>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Asset, EmployeeDocument, OnboardingTask, PerformanceReview, ReviewCycle, SalaryStructure, TrainingAssignment, TrainingModule } from "@prisma/client";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
 import { DOCUMENT_TYPES, TASK_CATEGORIES } from "@/lib/hr-constants";
@@ -83,9 +83,9 @@ export function OnboardingSection({
               )}
               {canEdit && (
                 <form action={deleteTask.bind(null, t.id)}>
-                  <button className="text-xs text-slate-400 hover:text-red-600" title="Remove task">
+                  <ConfirmButton message={`Remove the onboarding task "${t.title}"?`} className="text-xs text-slate-400 hover:text-red-600" title="Remove task">
                     ✕
-                  </button>
+                  </ConfirmButton>
                 </form>
               )}
             </li>
@@ -143,9 +143,9 @@ export function DocumentsSection({
                 <Badge color={DOC_COLOR[d.status]}>{humanize(d.status)}</Badge>
                 {(admin || (isSelf && d.status !== "VERIFIED")) && (
                   <form action={deleteDocument.bind(null, d.id)}>
-                    <button className="text-xs text-slate-400 hover:text-red-600" title="Delete">
+                    <ConfirmButton message={`Delete the document "${d.fileName}" for good?`} className="text-xs text-slate-400 hover:text-red-600" title="Delete">
                       ✕
-                    </button>
+                    </ConfirmButton>
                   </form>
                 )}
               </div>
@@ -230,9 +230,9 @@ export function TrainingSection({
               )}
               {canEdit && (
                 <form action={removeTraining.bind(null, a.id)}>
-                  <button className="text-xs text-slate-400 hover:text-red-600" title="Unassign">
+                  <ConfirmButton message={`Take "${a.module.title}" off this person's training?`} className="text-xs text-slate-400 hover:text-red-600" title="Unassign">
                     ✕
-                  </button>
+                  </ConfirmButton>
                 </form>
               )}
             </li>
@@ -338,9 +338,9 @@ export function SalarySection({
                 {admin && (
                   <td>
                     <form action={deleteSalary.bind(null, s.id)}>
-                      <button className="text-xs text-slate-400 hover:text-red-600" title="Delete">
+                      <ConfirmButton message={"Delete this salary entry? Payslips already made keep their amounts."} className="text-xs text-slate-400 hover:text-red-600" title="Delete">
                         ✕
-                      </button>
+                      </ConfirmButton>
                     </form>
                   </td>
                 )}

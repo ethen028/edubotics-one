@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Field, PageHeader, Stat } from "@/components/ui";
 import { formatDate, formatDateTime, toDateInput } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -80,7 +80,7 @@ export default async function BillPage({ params }: PageProps<"/purchases/bills/[
                       <td className="text-right text-sm">{Number(p.tds) > 0 ? formatINR2(p.tds) : "—"}</td>
                       <td className="text-right">
                         <form action={deletePayment.bind(null, p.id)}>
-                          <button className="text-xs text-slate-500 hover:text-red-600">Remove</button>
+                          <ConfirmButton message={"Remove this payment from the bill? It goes back to unpaid."} className="text-xs text-slate-500 hover:text-red-600">Remove</ConfirmButton>
                         </form>
                       </td>
                     </tr>
@@ -180,7 +180,7 @@ export default async function BillPage({ params }: PageProps<"/purchases/bills/[
           </section>
           {bill.status === "OPEN" && bill.payments.length === 0 && (
             <form action={cancelBill.bind(null, bill.id)}>
-              <button className="text-sm text-slate-500 hover:text-red-600 hover:underline">Cancel this bill (entered by mistake)</button>
+              <ConfirmButton message={"Cancel this bill? It stops counting as money owed to the vendor."} className="text-sm text-slate-500 hover:text-red-600 hover:underline">Cancel this bill (entered by mistake)</ConfirmButton>
             </form>
           )}
         </div>

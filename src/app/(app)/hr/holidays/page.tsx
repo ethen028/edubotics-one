@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { yearBounds } from "@/lib/leave";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { confirmHoliday, createHoliday, deleteHoliday } from "../actions";
@@ -65,7 +65,7 @@ export default async function HolidaysPage({ searchParams }: PageProps<"/hr/holi
                             </form>
                           )}
                           <form action={deleteHoliday.bind(null, h.id)}>
-                            <button className="btn-danger btn-sm">Remove</button>
+                            <ConfirmButton message={`Remove the holiday ${h.name}?`} className="btn-danger btn-sm">Remove</ConfirmButton>
                           </form>
                         </div>
                       </td>

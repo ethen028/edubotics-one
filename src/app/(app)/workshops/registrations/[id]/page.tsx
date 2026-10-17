@@ -5,7 +5,7 @@ import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { mailSetup } from "@/lib/mail";
 import { certificateEmail, receiptEmail } from "@/lib/email-templates";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { EmailComposer, EmailHistory, emailLogSelect } from "@/components/email";
 import { Badge, Field, Options, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, toDateInput } from "@/lib/format";
@@ -309,7 +309,7 @@ export default async function RegistrationPage({ params, searchParams }: PagePro
             )}
             {!cert && r.payments.length === 0 && r.attendance.length === 0 && (
               <form action={deleteRegistration.bind(null, r.id)}>
-                <button className="text-slate-400 hover:text-red-600">Delete (added by mistake)</button>
+                <ConfirmButton message={"Delete this registration? Only for someone added by mistake."} className="text-slate-400 hover:text-red-600">Delete (added by mistake)</ConfirmButton>
               </form>
             )}
             <p className="text-slate-400">

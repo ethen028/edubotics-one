@@ -14,6 +14,7 @@ import { formatMoney, payStateColor, payStateLabel } from "@/lib/invoices";
 import { invoicesWithBalance } from "../../../invoices/data";
 import { quotesWithState } from "../../../quotes/data";
 import { quoteStateColor, quoteStateLabel } from "@/lib/quotes";
+import { ConfirmButton } from "@/components/action-form";
 
 export default async function OrganizationPage({ params }: PageProps<"/crm/organizations/[id]">) {
   const user = await requireUser();
@@ -64,7 +65,7 @@ export default async function OrganizationPage({ params }: PageProps<"/crm/organ
             )}
             {isAdmin(user) && (
               <form action={deleteOrganization.bind(null, org.id)}>
-                <button className="btn-danger">Delete</button>
+                <ConfirmButton message={`Delete ${org.name} and its activity history for good?`} className="btn-danger">Delete</ConfirmButton>
               </form>
             )}
           </>

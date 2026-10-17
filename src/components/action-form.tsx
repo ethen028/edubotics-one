@@ -45,3 +45,43 @@ export function SubmitButton({
     </button>
   );
 }
+
+/**
+ * A submit button for something that can't be undone (deleting, removing, cancelling). It asks
+ * first, naming what will go; with `typeToConfirm` the person has to type that text (a project's
+ * name, say) before it goes ahead.
+ */
+export function ConfirmButton({
+  children,
+  message,
+  typeToConfirm,
+  className,
+  title,
+}: {
+  children: ReactNode;
+  message: string;
+  typeToConfirm?: string;
+  className?: string;
+  title?: string;
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className={className}
+      title={title}
+      aria-label={title}
+      onClick={(e) => {
+        if (typeToConfirm) {
+          const typed = window.prompt(`${message}\n\nType "${typeToConfirm}" to confirm.`);
+          if (typed?.trim().toLowerCase() !== typeToConfirm.trim().toLowerCase()) e.preventDefault();
+        } else if (!window.confirm(message)) {
+          e.preventDefault();
+        }
+      }}
+    >
+      {children}
+    </button>
+  );
+}
