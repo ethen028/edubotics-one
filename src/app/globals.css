@@ -36,6 +36,14 @@
   --page-bg: #f5f7fa;
   --line: #dee5ed;
   --side-line: rgb(255 255 255 / 0.1);
+  /* Soft fills for the number cards, in turn: white, mint, lavender, sand. */
+  --tint-1: var(--color-surface);
+  --tint-2: #e3f6ec;
+  --tint-3: #eaeefc;
+  --tint-4: #fdf2df;
+  --tint-line-2: #cbebd9;
+  --tint-line-3: #d7dff8;
+  --tint-line-4: #f5e1bb;
 }
 
 body {
@@ -92,9 +100,26 @@ h2 {
     @apply font-medium text-brand-700 hover:underline;
   }
 
-  /* Number cards. The first one in a row is filled in cobalt, like the client's reference. */
+  /* Number cards: a short cobalt bar on top, and each card in a row takes the next soft fill. */
   .stat {
-    @apply relative flex flex-col justify-between transition-[border-color,box-shadow,transform] duration-150;
+    @apply relative flex flex-col justify-between pt-8 transition-[border-color,box-shadow,transform] duration-150;
+    background: var(--tint-1);
+  }
+  .stat::before {
+    content: "";
+    @apply absolute top-4 left-5 h-1 w-6 rounded-full bg-brand-700;
+  }
+  .grid > .stat:nth-child(4n + 2) {
+    background: var(--tint-2);
+    border-color: var(--tint-line-2);
+  }
+  .grid > .stat:nth-child(4n + 3) {
+    background: var(--tint-3);
+    border-color: var(--tint-line-3);
+  }
+  .grid > .stat:nth-child(4n + 4) {
+    background: var(--tint-4);
+    border-color: var(--tint-line-4);
   }
   a.stat:hover {
     @apply -translate-y-0.5 border-brand-300 shadow-md;
@@ -102,28 +127,28 @@ h2 {
   .stat-arrow {
     @apply absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-500;
   }
-  .grid > .stat:first-child {
-    @apply border-transparent text-white;
-    background:
-      radial-gradient(300px 140px at 100% 0%, rgb(221 245 233 / 0.22), transparent 70%),
-      linear-gradient(135deg, var(--color-brand-700), var(--color-navy));
+
+  /* The navy banner at the top of overview pages (Home, Holidays): flat, with one faint ring on the right. */
+  .hero-card {
+    @apply relative overflow-hidden rounded-[1.5rem] bg-navy;
   }
-  .grid > .stat:first-child .stat-label {
-    @apply text-white/80!;
+  .hero-card::before {
+    content: "";
+    @apply pointer-events-none absolute -top-24 -right-24 h-80 w-80 rounded-full border-[56px] border-white/[0.05];
   }
-  .grid > .stat:first-child .stat-value {
-    @apply text-white!;
-  }
-  .grid > .stat:first-child .stat-arrow {
-    @apply border-transparent! bg-white! text-brand-800!;
+  .hero-card > * {
+    @apply relative;
   }
 
-  /* The dark highlight panel on Home ("Next priority"). */
-  .hero-card {
-    @apply rounded-[1.25rem] shadow-lg;
-    background:
-      radial-gradient(600px 200px at 90% 0%, rgb(221 245 233 / 0.22), transparent 70%),
-      linear-gradient(135deg, var(--color-brand-700), var(--color-navy));
+  /* Little desk-calendar tile used in banners and date columns. */
+  .cal-tile {
+    @apply flex w-28 shrink-0 flex-col overflow-hidden rounded-2xl bg-white text-center text-ink shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5)];
+  }
+  .cal-tile-month {
+    @apply bg-mint py-1.5 text-xs font-bold tracking-widest uppercase;
+  }
+  .date-chip {
+    @apply inline-flex w-11 flex-col items-center rounded-lg border border-[var(--line)] bg-slate-50 py-1 leading-none;
   }
 
   /* Chart bars drawn as pills over a striped track. */
@@ -199,6 +224,27 @@ h2 {
   }
   .brand-mark {
     @apply flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-brand-500 to-brand-800 font-display text-sm font-bold text-white;
+  }
+  .nav-search {
+    @apply mb-3 flex items-center gap-2 rounded-xl border border-[var(--side-line)] bg-white/[0.06] px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-within:border-brand-400;
+  }
+  .nav-search input::placeholder {
+    color: var(--color-slate-400);
+  }
+  .nav-group-head {
+    @apply flex w-full items-center gap-2.5 rounded-xl border border-[var(--side-line)] bg-white/[0.04] px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-white/[0.08] hover:text-slate-900;
+  }
+  .nav-group[data-open] > .nav-group-head {
+    @apply text-slate-900;
+  }
+  .nav-chevron {
+    @apply h-3.5 w-3.5 shrink-0 opacity-70 transition-transform duration-150;
+  }
+  .nav-group[data-open] .nav-chevron {
+    @apply rotate-90;
+  }
+  .nav-group-body {
+    @apply mt-1 mb-2 ml-3 space-y-0.5 border-l border-[var(--side-line)] pl-2;
   }
   .nav-section {
     @apply px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase;
