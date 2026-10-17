@@ -108,7 +108,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
             <h2 className="font-semibold">Needs attention</h2>
             <p className="mb-3 text-xs text-slate-500">Overdue, blocked or update requested</p>
             {attention.length === 0 ? (
-              <p className="text-sm text-slate-500">Nothing overdue. 🎉</p>
+              <p className="text-sm text-slate-500">Nothing overdue.</p>
             ) : (
               <ul className="divide-y divide-slate-100 text-sm">
                 {attention.map((t) => (
