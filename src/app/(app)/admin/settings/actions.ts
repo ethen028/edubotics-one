@@ -193,12 +193,27 @@ export async function updateCareersSettings(_: FormState, formData: FormData): P
     .object({
       careersIntro: text(1500),
       careersContactEmail: text(120).pipe(z.string().email("Enter a valid contact email, or leave it blank.").nullable()),
+      applicantRetentionMonths: z.coerce.number().int("Enter whole months.").min(0).max(120, "Keep it to 120 months or less."),
     })
-    .safeParse({ careersIntro: formData.get("careersIntro") ?? "", careersContactEmail: formData.get("careersContactEmail") ?? "" });
+    .safeParse({
+      careersIntro: formData.get("careersIntro") ?? "",
+      careersContactEmail: formData.get("careersContactEmail") ?? "",
+      applicantRetentionMonths: formData.get("applicantRetentionMonths") ?? 12,
+    });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const careersEnabled = formData.get("careersEnabled") === "on";
   const before = await getSettings();
   await db.companySettings.update({ where: { id: 1 }, data: { ...parsed.data, careersEnabled } });
+  if (before.applicantRetentionMonths !== parsed.data.applicantRetentionMonths) {
+    await logActivity(
+      admin,
+      "SETTINGS",
+      "settings.applicant-retention",
+      parsed.data.applicantRetentionMonths
+        ? `Turned-down applicants are now deleted after ${parsed.data.applicantRetentionMonths} months`
+        : "Turned-down applicants are now kept with no time limit",
+    );
+  }
   if (before.careersEnabled !== careersEnabled) {
     await logActivity(admin, "SETTINGS", "settings.careers", `Switched the careers page ${careersEnabled ? "on" : "off"}`);
   }

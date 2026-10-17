@@ -26,6 +26,15 @@ const optionalDate = z
   .nullable()
   .optional();
 
+/** An optional ID such as PAN or IFSC: spaces dropped, capitals, and checked against its shape. */
+const idField = (shape: RegExp, message: string) =>
+  z
+    .string()
+    .optional()
+    .transform((v) => (v ?? "").replace(/\s+/g, "").toUpperCase())
+    .refine((v) => v === "" || shape.test(v), message)
+    .transform((v) => (v === "" ? null : v));
+
 function firstError(error: z.ZodError) {
   const issue = error.issues[0];
   return `${issue.path.join(".") || "Form"}: ${issue.message}`;
@@ -63,6 +72,13 @@ const employeeSchema = z.object({
   state: optional,
   emergencyName: optional,
   emergencyPhone: optional,
+  bankAccountName: optional,
+  bankAccountNo: idField(/^\d{9,18}$/, "Bank account number: 9 to 18 digits"),
+  bankIfsc: idField(/^[A-Z]{4}0[A-Z0-9]{6}$/, "IFSC: 11 characters, like SBIN0070123"),
+  bankName: optional,
+  pan: idField(/^[A-Z]{5}\d{4}[A-Z]$/, "PAN: 10 characters, like ABCDE1234F"),
+  uan: idField(/^\d{12}$/, "UAN: 12 digits"),
+  esiNumber: idField(/^\d{10}$/, "ESI number: 10 digits"),
 });
 
 export async function createEmployee(_: FormState, formData: FormData): Promise<FormState> {

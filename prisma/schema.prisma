@@ -160,6 +160,14 @@ model Employee {
   state            String?                @default("Kerala")
   emergencyName    String?
   emergencyPhone   String?
+  // For paying salary and statutory returns. Seen only by the person and admins.
+  bankAccountName  String?
+  bankAccountNo    String?
+  bankIfsc         String?
+  bankName         String?
+  pan              String?
+  uan              String? // EPF Universal Account Number, 12 digits
+  esiNumber        String? // ESI insurance number, 10 digits
   userId           String?                @unique
   user             User?                  @relation(fields: [userId], references: [id])
   leaveRequests    LeaveRequest[]         @relation("LeaveApplicant")
@@ -295,6 +303,7 @@ model CompanySettings {
   careersEnabled      Boolean @default(false)
   careersIntro        String?
   careersContactEmail String?
+  applicantRetentionMonths Int @default(12) // rejected or withdrawn applicants are deleted this long after their last change; 0 keeps them
 
   // Sign-in and safety
   loginMaxAttempts Int @default(5) // wrong passwords in a row before the account is locked
