@@ -49,7 +49,7 @@ export function Field({ label, children, className }: { label: string; children:
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-8 text-center text-sm text-slate-500">{children}</div>;
+  return <div className="rounded-xl border border-dashed border-slate-300 bg-surface/60 p-8 text-center text-sm text-slate-500">{children}</div>;
 }
 
 export function Stat({ label, value, href }: { label: string; value: ReactNode; href?: string }) {

@@ -95,7 +95,7 @@ export default async function SessionPage({ params }: PageProps<"/operations/ses
                   {OUTCOMES.map(([value, label, hint]) => (
                     <label
                       key={value}
-                      className="flex cursor-pointer gap-2 rounded-xl border border-slate-300 bg-white p-3 text-sm has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50"
+                      className="flex cursor-pointer gap-2 rounded-xl border border-slate-300 bg-surface p-3 text-sm has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50"
                     >
                       <input
                         type="radio"

@@ -115,7 +115,7 @@ export default async function ChecklistRunPage({ params, searchParams }: PagePro
                 <div className="flex items-start gap-3">
                   <span
                     className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm ${
-                      tick ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 bg-white"
+                      tick ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 bg-surface"
                     }`}
                     aria-hidden
                   >

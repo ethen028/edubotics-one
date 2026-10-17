@@ -74,7 +74,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
           <Link
             key={k}
             href={`?show=${k}`}
-            className={`rounded-full px-3 py-1 ${k === filter[0] ? "bg-brand-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}
+            className={`rounded-full px-3 py-1 ${k === filter[0] ? "bg-brand-600 text-white" : "bg-surface text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}
           >
             {label} ({invoices.filter((i) => test(i.state)).length})
           </Link>

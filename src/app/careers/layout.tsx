@@ -9,7 +9,7 @@ export default async function CareersLayout({ children }: LayoutProps<"/careers"
   const { companyName, contactEmail } = await careersSettings();
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-[var(--side-line)] bg-white">
+      <header className="border-b border-[var(--side-line)] bg-surface">
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-4">
           <div className="brand-mark h-9 w-9">E</div>
           <Link href="/careers" className="leading-tight">

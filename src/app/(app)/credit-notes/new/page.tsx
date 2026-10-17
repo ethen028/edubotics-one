@@ -38,7 +38,7 @@ export default async function NewCreditNotePage({ searchParams }: PageProps<"/cr
         }
       />
       <div className="max-w-5xl space-y-4">
-        <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-surface p-4 text-sm sm:grid-cols-4">
           <div>
             <div className="text-xs text-slate-500">Invoice total</div>
             <div className="font-semibold">{formatMoney(invoice.total)}</div>

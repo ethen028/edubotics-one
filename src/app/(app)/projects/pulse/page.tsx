@@ -63,7 +63,7 @@ export default async function PulsePage({ searchParams }: PageProps<"/projects/p
           <Link
             key={r}
             href={`?range=${r}`}
-            className={`rounded-full px-3 py-1 text-sm ${r === range ? "bg-brand-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:ring-brand-400"}`}
+            className={`rounded-full px-3 py-1 text-sm ${r === range ? "bg-brand-600 text-white" : "bg-surface text-slate-600 ring-1 ring-slate-200 hover:ring-brand-400"}`}
             aria-current={r === range ? "true" : undefined}
           >
             {pulseRangeLabel[r]}

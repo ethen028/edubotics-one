@@ -7,7 +7,13 @@ import { deviceName } from "@/lib/devices";
 import { formatDateTime } from "@/lib/format";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Field, PageHeader } from "@/components/ui";
-import { changePassword, signOutOtherDevices } from "../../actions";
+import { changePassword, setTheme, signOutOtherDevices } from "../../actions";
+
+const THEMES = [
+  { value: "LIGHT", label: "Light" },
+  { value: "DARK", label: "Dark" },
+  { value: "SYSTEM", label: "Match my device" },
+] as const;
 
 export const metadata = { title: "My account" };
 
@@ -43,6 +49,24 @@ export default async function AccountPage() {
         </ActionForm>
 
         <div className="space-y-6">
+          <form action={setTheme} className="card">
+            <h2 className="font-semibold">Appearance</h2>
+            <p className="mt-1 mb-3 text-xs text-slate-500">Applies on every device you sign in on. Printed pages always come out light.</p>
+            <div className="flex flex-wrap gap-2">
+              {THEMES.map((t) => (
+                <button
+                  key={t.value}
+                  name="theme"
+                  value={t.value}
+                  aria-pressed={user.theme === t.value}
+                  className={user.theme === t.value ? "btn-primary" : "btn-secondary"}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </form>
+
           <div className="card">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-semibold">Where you&apos;re signed in</h2>

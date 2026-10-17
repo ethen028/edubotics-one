@@ -31,7 +31,7 @@ export function StageRail({ stage }: { stage: ProjectStage }) {
                 done
                   ? "bg-brand-600 text-white"
                   : active
-                    ? "bg-white text-brand-700 ring-2 ring-brand-600"
+                    ? "bg-surface text-brand-700 ring-2 ring-brand-600"
                     : "bg-slate-100 text-slate-400"
               }`}
             >
@@ -110,7 +110,7 @@ export function StatusRing({ counts }: { counts: Record<TaskHealth, number> }) {
   return (
     <div className="flex flex-wrap items-center gap-6">
       <svg viewBox="0 0 140 140" className="h-36 w-36 shrink-0" role="img" aria-label="Tasks by status">
-        <circle cx="70" cy="70" r={r} fill="none" stroke="#eef1f4" strokeWidth="18" />
+        <circle cx="70" cy="70" r={r} fill="none" strokeWidth="18" className="stroke-slate-100" />
         {total > 0 &&
           HEALTH.filter((h) => counts[h.key] > 0).map((h) => {
             const len = (counts[h.key] / total) * c;
