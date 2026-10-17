@@ -7,12 +7,16 @@ import { deviceName } from "@/lib/devices";
 import { formatDateTime } from "@/lib/format";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Field, PageHeader } from "@/components/ui";
-import { changePassword, setTheme, signOutOtherDevices } from "../../actions";
+import { changePassword, setAppearance, signOutOtherDevices } from "../../actions";
 
 const THEMES = [
   { value: "LIGHT", label: "Light" },
   { value: "DARK", label: "Dark" },
   { value: "SYSTEM", label: "Match my device" },
+] as const;
+const LOOKS = [
+  { value: "CLEAN", label: "Clean" },
+  { value: "DEPTH", label: "Depth" },
 ] as const;
 
 export const metadata = { title: "My account" };
@@ -49,21 +53,46 @@ export default async function AccountPage() {
         </ActionForm>
 
         <div className="space-y-6">
-          <form action={setTheme} className="card">
-            <h2 className="font-semibold">Appearance</h2>
-            <p className="mt-1 mb-3 text-xs text-slate-500">Applies on every device you sign in on. Printed pages always come out light.</p>
-            <div className="flex flex-wrap gap-2">
-              {THEMES.map((t) => (
-                <button
-                  key={t.value}
-                  name="theme"
-                  value={t.value}
-                  aria-pressed={user.theme === t.value}
-                  className={user.theme === t.value ? "btn-primary" : "btn-secondary"}
-                >
-                  {t.label}
-                </button>
-              ))}
+          <form action={setAppearance} className="card space-y-4">
+            <div>
+              <h2 className="font-semibold">Appearance</h2>
+              <p className="mt-1 text-xs text-slate-500">Applies on every device you sign in on. Printed pages always come out light.</p>
+            </div>
+            <div>
+              <div className="label">Colours</div>
+              <div className="flex flex-wrap gap-2">
+                {THEMES.map((t) => (
+                  <button
+                    key={t.value}
+                    name="theme"
+                    value={t.value}
+                    aria-pressed={user.theme === t.value}
+                    className={user.theme === t.value ? "btn-primary" : "btn-secondary"}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="label">Style</div>
+              <div className="flex flex-wrap gap-2">
+                {LOOKS.map((l) => (
+                  <button
+                    key={l.value}
+                    name="look"
+                    value={l.value}
+                    aria-pressed={user.look === l.value}
+                    className={user.look === l.value ? "btn-primary" : "btn-secondary"}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Clean is flat and calm. Depth has raised cards, glossy buttons, a glass menu and a colour for each number card. Depth
+                shows in light colours only.
+              </p>
             </div>
           </form>
 

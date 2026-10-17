@@ -22,7 +22,7 @@ export function Sidebar({ header, children }: { header: ReactNode; children: Rea
         {/* Clicking a link on mobile closes the menu. */}
         <div
           onClick={(e) => (e.target as HTMLElement).closest("a") && setOpen(false)}
-          className={`${open ? "flex" : "hidden"} mt-4 flex-1 flex-col overflow-y-auto md:mt-0 md:flex`}
+          className={`sidebar-menu ${open ? "flex" : "hidden"} mt-4 flex-1 flex-col overflow-y-auto md:mt-0 md:flex`}
         >
           {children}
         </div>

@@ -21,6 +21,11 @@ enum Theme {
   SYSTEM // follows the light or dark setting of the person's computer or phone
 }
 
+enum Look {
+  CLEAN // flat white cards (the client-reference look)
+  DEPTH // raised surfaces, glossy buttons, glass menu, a colour per number card; light mode only
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -36,6 +41,7 @@ model User {
   lastLoginAt        DateTime?
   googleSub          String?       @unique // the Google account linked on first Google sign-in
   theme              Theme         @default(LIGHT) // picked in My account
+  look               Look          @default(CLEAN) // picked in My account
   sessions           Session[]
   activityLog        ActivityLog[]
   createdAt          DateTime      @default(now())

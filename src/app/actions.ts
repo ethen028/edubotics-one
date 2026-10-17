@@ -95,13 +95,17 @@ export async function changePassword(_: FormState, formData: FormData): Promise<
   return { ok: ended ? `Password changed. ${ended} other ${ended === 1 ? "device was" : "devices were"} signed out.` : "Password changed." };
 }
 
-/** Light, dark, or follow the device: saved on the person, so it applies on every device they use. */
-export async function setTheme(formData: FormData) {
+/** Light, dark, or follow the device, and the Clean or Depth style: saved on the person, so it applies on every device they use. */
+export async function setAppearance(formData: FormData) {
   const current = await getCurrentSession();
   if (!current) redirect("/login");
   const theme = z.enum(["LIGHT", "DARK", "SYSTEM"]).safeParse(formData.get("theme"));
-  if (!theme.success) return;
-  await db.user.update({ where: { id: current.user.id }, data: { theme: theme.data } });
+  const look = z.enum(["CLEAN", "DEPTH"]).safeParse(formData.get("look"));
+  if (!theme.success && !look.success) return;
+  await db.user.update({
+    where: { id: current.user.id },
+    data: { ...(theme.success ? { theme: theme.data } : {}), ...(look.success ? { look: look.data } : {}) },
+  });
   revalidatePath("/", "layout");
 }
 
