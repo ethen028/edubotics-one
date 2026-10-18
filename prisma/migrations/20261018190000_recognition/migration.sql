@@ -19,3 +19,6 @@ CREATE INDEX "Recognition_featuredAt_idx" ON "Recognition"("featuredAt");
 ALTER TABLE "Recognition" ADD CONSTRAINT "Recognition_fromId_fkey" FOREIGN KEY ("fromId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "Recognition" ADD CONSTRAINT "Recognition_toId_fkey" FOREIGN KEY ("toId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "Recognition" ADD CONSTRAINT "Recognition_featuredById_fkey" FOREIGN KEY ("featuredById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- Private by default for any non-owner database role, like every other table.
+ALTER TABLE "Recognition" ENABLE ROW LEVEL SECURITY;
