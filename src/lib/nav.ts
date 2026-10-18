@@ -52,7 +52,7 @@ export function buildNav(user: NavUser, c: NavCounts): NavGroupData[] {
     {
       title: "Overview",
       icon: "grid",
-      paths: ["/", "/inbox", "/messages", "/calendar", "/dashboard", "/notices", "/guide"],
+      paths: ["/", "/inbox", "/messages", "/calendar", "/dashboard", "/notices", "/recognition", "/guide"],
       items: [
         { href: "/", label: "Home" },
         { href: "/calendar", label: "Calendar" },
@@ -60,6 +60,7 @@ export function buildNav(user: NavUser, c: NavCounts): NavGroupData[] {
         { href: "/messages", label: "Messages", badge: c.messages, tone: "brand", title: "Unread messages from colleagues" },
         ...(admin ? [{ href: "/dashboard", label: "Owner dashboard" }] : []),
         { href: "/notices", label: "Notice board", badge: c.toAcknowledge, tone: "amber" as const },
+        { href: "/recognition", label: "Recognition" },
         { href: "/guide", label: "Getting started" },
       ],
     },

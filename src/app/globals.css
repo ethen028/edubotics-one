@@ -137,6 +137,14 @@ h2 {
     @apply relative;
   }
 
+  /* Recognition in the spotlight on Home: a soft violet card with the person's initials. */
+  .recognition-spotlight {
+    @apply relative overflow-hidden rounded-[1.5rem] border border-brand-200 bg-linear-120 from-brand-50 to-surface;
+  }
+  .recognition-spotlight-avatar {
+    @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-135 from-brand-500 to-brand-800 text-sm font-semibold text-white;
+  }
+
   /* Little desk-calendar tile used in banners and date columns. */
   .cal-tile {
     @apply flex w-28 shrink-0 flex-col overflow-hidden rounded-2xl bg-white text-center text-ink;

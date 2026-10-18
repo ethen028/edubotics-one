@@ -72,6 +72,16 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
                 Record an exit
               </Link>
             )}
+            {employee.userId && (
+              <Link href={`/recognition?person=${employee.userId}`} className="btn-secondary">
+                Recognition
+              </Link>
+            )}
+            {employee.userId && !isSelf && employee.user?.active && (
+              <Link href={`/recognition/give?to=${employee.userId}`} className="btn-secondary">
+                Thank {employee.firstName}
+              </Link>
+            )}
             <Link href="/hr/employees" className="btn-secondary">
               Back to people
             </Link>
