@@ -25,6 +25,7 @@ import { ReviewTodos } from "./hr/reviews/ui";
 import { myReviewTodos } from "@/lib/reviews";
 import { openExitOf } from "@/lib/exits";
 import { ChecklistsHomeCard } from "./checklists/home-card";
+import { CalendarCard, InboxCard, PlanCard } from "./home-widgets";
 
 export const metadata = { title: "Home" };
 
@@ -387,7 +388,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </section>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
+          <PlanCard user={user} today={today} />
+          <CalendarCard user={user} today={today} />
+          <InboxCard user={user} />
           <ChecklistsHomeCard user={user} />
           {(mySessions.length > 0 || myLogsDue > 0 || allLogsDue > 0) && (
             <section className="card">
