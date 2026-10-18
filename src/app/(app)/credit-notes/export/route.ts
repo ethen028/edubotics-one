@@ -1,8 +1,8 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { creditReasonLabel } from "@/lib/credit-notes";
+import { csvCell as csv } from "@/lib/csv";
 
-const csv = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Every credit note with its original invoice, for the accountant's GST return (credit/debit notes section). */

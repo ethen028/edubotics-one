@@ -1,7 +1,8 @@
+import { isHrOrAdmin, HR_DOCUMENT_TYPES } from "@/lib/permissions";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { isAdmin, requireUser } from "@/lib/auth";
-import { managedEmployees } from "@/lib/team";
+import { requireUser } from "@/lib/auth";
+import { peopleEmployees } from "@/lib/team";
 import { Badge, Empty, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { ProgressBar, progressOf } from "../employees/[id]/sections";
@@ -9,14 +10,14 @@ import { ProgressBar, progressOf } from "../employees/[id]/sections";
 export const metadata = { title: "Onboarding" };
 
 export default async function OnboardingPage() {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
-  const team = await managedEmployees(user);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
+  const team = await peopleEmployees(user);
   const ids = team.map((e) => e.id);
   const [tasks, documents, joiners] = await Promise.all([
     db.onboardingTask.findMany({ where: { employeeId: { in: ids } }, orderBy: { dueDate: "asc" } }),
-    isAdmin(user)
+    isHrOrAdmin(user)
       ? db.employeeDocument.findMany({
-          where: { status: { in: ["PENDING", "UNDER_REVIEW"] }, employeeId: { not: user.employee?.id } },
+          where: { ...(user.role === "HR" ? { type: { in: [...HR_DOCUMENT_TYPES] } } : {}), status: { in: ["PENDING", "UNDER_REVIEW"] }, employeeId: { not: user.employee?.id } },
           omit: { data: true },
           include: { employee: { select: { id: true, firstName: true, lastName: true } } },
           orderBy: { createdAt: "asc" },
@@ -33,7 +34,7 @@ export default async function OnboardingPage() {
     <>
       <PageHeader title="Onboarding" subtitle="New joiners and anyone with open checklist tasks. Open a person to manage their checklist." />
 
-      {isAdmin(user) && (
+      {isHrOrAdmin(user) && (
         <div className="card mb-6 text-sm">
           <h2 className="mb-3 font-semibold">Documents waiting for verification</h2>
           {documents.length === 0 ? (

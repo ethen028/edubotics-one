@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Field, PageHeader } from "@/components/ui";
 import { formatDate, toDateInput } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -91,7 +91,7 @@ export default async function QuotePage({ params }: PageProps<"/quotes/[id]">) {
               </Link>
               {isDraft && (
                 <form action={deleteQuoteDraft.bind(null, quote.id)}>
-                  <button className="btn-danger">Delete draft</button>
+                  <ConfirmButton message={"Delete this draft quote?"} className="btn-danger">Delete draft</ConfirmButton>
                 </form>
               )}
               {(quote.status === "SENT" || quote.status === "DECLINED") && (

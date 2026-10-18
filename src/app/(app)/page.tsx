@@ -25,6 +25,7 @@ import { ReviewTodos } from "./hr/reviews/ui";
 import { myReviewTodos } from "@/lib/reviews";
 import { openExitOf } from "@/lib/exits";
 import { ChecklistsHomeCard } from "./checklists/home-card";
+import { CalendarCard, InboxCard, PlanCard } from "./home-widgets";
 
 export const metadata = { title: "Home" };
 
@@ -184,17 +185,17 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </Link>
       )}
 
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div className="overview-header mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs font-semibold tracking-wider text-brand-700 uppercase">
             {today.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}
           </div>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-900">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 lg:text-4xl">
             {greeting()}, {user.name.split(" ")[0]}
           </h1>
-          <p className="text-sm text-slate-500">{roleNote}</p>
+          <p className="mt-3 text-sm text-slate-500">{roleNote}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {admin && (
             <Link href="/dashboard" className="btn-secondary">
               Owner dashboard
@@ -225,7 +226,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       )}
 
       {focus && (
-        <section className="mb-6 rounded-2xl bg-brand-900 p-5 text-white shadow-lg">
+        <section className="hero-card mb-6 p-5 text-white">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-semibold tracking-widest text-brand-300">NEXT PRIORITY</div>
@@ -258,7 +259,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </section>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="overview-stats mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label={`My open tasks · ${dueToday} due or overdue`} value={myTasks.length} href="/work" />
         <Stat label={`Active projects${lateProjects ? ` · ${lateProjects} late` : ""}`} value={projects.length} href="/projects" />
         <Stat label="Hours this week" value={weekHours} href="/timesheets" />
@@ -387,7 +388,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </section>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
+          <PlanCard user={user} today={today} />
+          <CalendarCard user={user} today={today} />
+          <InboxCard user={user} />
           <ChecklistsHomeCard user={user} />
           {(mySessions.length > 0 || myLogsDue > 0 || allLogsDue > 0) && (
             <section className="card">
@@ -459,7 +463,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 {notices.map((n) => (
                   <li key={n.id}>
                     <Link href={`/notices/${n.id}`} className="font-medium hover:underline">
-                      {n.pinned && "📌 "}
+                      {n.pinned && <span className="mr-1.5 text-xs font-semibold text-brand-700">Pinned</span>}
                       {n.title}
                     </Link>
                     <p className="line-clamp-2 text-slate-600">{n.body}</p>

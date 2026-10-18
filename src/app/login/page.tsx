@@ -4,55 +4,86 @@ import { db } from "@/lib/db";
 import { GOOGLE_ERRORS, googleSetup } from "@/lib/google-sign-in";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { login } from "../actions";
+import Link from "next/link";
 
 export const metadata = { title: "Sign in" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (await getCurrentUser()) redirect("/");
-  const { google } = (await searchParams) as Record<string, string | undefined>;
+  const { google, reset } = (await searchParams) as Record<string, string | undefined>;
   const settings = await db.companySettings.findUnique({ where: { id: 1 } });
   const withGoogle = !!settings && !!googleSetup(settings);
   const googleError = google && google in GOOGLE_ERRORS ? GOOGLE_ERRORS[google as keyof typeof GOOGLE_ERRORS] : null;
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">
-            E1
-          </div>
-          <h1 className="text-xl font-semibold">Edubotics One</h1>
-          <p className="text-sm text-slate-500">Sign in with your work account</p>
-        </div>
-        {googleError && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{googleError}</div>
-        )}
-        {withGoogle && (
-          <>
-            <a href="/auth/google" className="btn-secondary flex w-full items-center justify-center gap-2 py-2.5">
-              <GoogleMark />
-              Sign in with Google
-            </a>
-            <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
-              <span className="h-px flex-1 bg-slate-200" />
-              or with your password
-              <span className="h-px flex-1 bg-slate-200" />
+    <main id="main-content" tabIndex={-1} className="auth-bg flex min-h-screen items-center justify-center p-4 md:p-6">
+      <div className="grid w-full max-w-5xl overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-surface md:min-h-[560px] md:grid-cols-2">
+        <div className="flex items-center justify-center p-6 sm:p-10">
+          <div className="w-full max-w-sm">
+            <div className="mb-8">
+              <div className="mb-6 flex items-center gap-2.5">
+                <div className="brand-mark h-10 w-10 rounded-xl">E1</div>
+                <span className="font-semibold">Edubotics One</span>
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">Sign in</h1>
+              <p className="mt-1 text-sm text-slate-500">Welcome back. Use your work email and password.</p>
             </div>
-          </>
-        )}
-        <ActionForm action={login} className="card space-y-4">
-          <label className="block">
-            <span className="label">Email</span>
-            <input name="email" type="email" required autoComplete="email" className="input" />
-          </label>
-          <label className="block">
-            <span className="label">Password</span>
-            <input name="password" type="password" required autoComplete="current-password" className="input" />
-          </label>
-          <SubmitButton className="btn-primary w-full" pendingLabel="Signing in…">
-            Sign in
-          </SubmitButton>
-        </ActionForm>
-        <p className="mt-4 text-center text-xs text-slate-500">Forgot your password? Ask an admin to set a new one.</p>
+            {googleError && (
+              <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{googleError}</div>
+            )}
+            {reset && <p role="status" className="mb-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">Password reset. Sign in with your new password.</p>}
+            {withGoogle && (
+              <>
+                <a href="/auth/google" className="btn-secondary flex w-full items-center justify-center gap-2 py-2.5">
+                  <GoogleMark />
+                  Sign in with Google
+                </a>
+                <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
+                  <span className="h-px flex-1 bg-slate-200" />
+                  or with your password
+                  <span className="h-px flex-1 bg-slate-200" />
+                </div>
+              </>
+            )}
+            <ActionForm action={login} className="space-y-4">
+              <label className="block">
+                <span className="label">Email</span>
+                <input name="email" type="email" required autoComplete="email" className="input" />
+              </label>
+              <label className="block">
+                <span className="label">Password</span>
+                <input name="password" type="password" required autoComplete="current-password" className="input" />
+              </label>
+              <SubmitButton className="btn-primary w-full py-2.5" pendingLabel="Signing in…">
+                Sign in
+              </SubmitButton>
+            </ActionForm>
+            <p className="mt-4 text-center text-xs text-slate-500">
+              <Link href="/forgot-password" className="link">Forgot your password?</Link>
+            </p>
+            <p className="mt-6 text-center text-xs text-slate-500">
+              <Link href="/privacy" className="hover:underline">Privacy</Link> · <Link href="/terms" className="hover:underline">Terms</Link>
+            </p>
+          </div>
+        </div>
+        <div className="auth-panel hidden flex-col justify-between p-10 text-white md:flex">
+          <div className="text-xs font-semibold tracking-[0.2em] text-white/70 uppercase">Edubotics Global</div>
+          <div>
+            <p className="text-4xl leading-tight font-semibold tracking-tight">
+              Welcome
+              <br />
+              back.
+            </p>
+            <p className="mt-3 max-w-xs text-sm text-white/75">
+              Your schools, projects, people and payments, all in one place for the whole team.
+            </p>
+          </div>
+          <div className="flex gap-6 text-xs text-white/70">
+            <span>CRM</span>
+            <span>Projects</span>
+            <span>HR</span>
+            <span>Billing</span>
+          </div>
+        </div>
       </div>
     </main>
   );

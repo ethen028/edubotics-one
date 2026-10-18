@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { isManagerOrAdmin, requireUser } from "@/lib/auth";
-import { Empty, PageHeader, Stat } from "@/components/ui";
+import { Empty, PageHeader } from "@/components/ui";
+import { NavIcon } from "@/components/nav-icon";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { todayIST } from "@/lib/time";
 import { OPEN_PROJECT_STAGES, kindLabel, progress, projectScope, scopeLabel } from "@/lib/projects";
-import { ProgressBar, StageBadge, StatusRing, UpdateRequestedBadge, healthCounts, updateInclude } from "./ui";
+import { BlockedBadge, ProgressBar, StageBadge, StatusRing, UpdateRequestedBadge, healthCounts, updateInclude } from "./ui";
 
 export const metadata = { title: "Projects" };
 
@@ -28,7 +29,9 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
           progress: true,
           dueDate: true,
           updateRequestedAt: true,
-          assignee: { select: { name: true } },
+          blockedAt: true,
+          blockedReason: true,
+          assignee: { select: { id: true, name: true } },
         },
       },
       milestones: { where: { doneAt: null }, orderBy: { dueDate: { sort: "asc", nulls: "last" } }, take: 1 },
@@ -48,8 +51,18 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
   // Task Flow's overview: tasks by status, what needs attention, and the latest reports.
   const activeTasks = open.flatMap((p) => p.tasks.map((t) => ({ ...t, project: { id: p.id, name: p.name } })));
   const counts = healthCounts(activeTasks, today);
+  const workload = new Map<string, { id: string; name: string; open: number; done: number }>();
+  for (const task of activeTasks) {
+    if (!task.assignee) continue;
+    const member = workload.get(task.assignee.id) ?? { id: task.assignee.id, name: task.assignee.name, open: 0, done: 0 };
+    if (task.status === "DONE") member.done++; else member.open++;
+    workload.set(task.assignee.id, member);
+  }
+  const team = [...workload.values()].sort((a, b) => b.open - a.open || a.name.localeCompare(b.name)).slice(0, 5);
+  const nextMilestones = open.flatMap(project => project.milestones.map(milestone => ({ ...milestone, project })))
+    .filter(milestone => milestone.dueDate).sort((a, b) => a.dueDate!.getTime() - b.dueDate!.getTime()).slice(0, 3);
   const attention = activeTasks
-    .filter((t) => t.status !== "DONE" && ((t.dueDate && t.dueDate < today) || t.updateRequestedAt))
+    .filter((t) => t.status !== "DONE" && ((t.dueDate && t.dueDate < today) || t.updateRequestedAt || t.blockedAt))
     .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity))
     .slice(0, 6);
   const recent = await db.projectUpdate.findMany({
@@ -60,7 +73,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
   });
 
   return (
-    <>
+    <div className="project-dashboard">
       <PageHeader
         title="Projects"
         subtitle={scopeLabel(user)}
@@ -68,6 +81,12 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
           <>
             <Link href={`?done=${showDone ? "0" : "1"}`} className="btn-secondary">
               {showDone ? "Hide completed" : "Show completed"}
+            </Link>
+            <Link href="/projects/pulse" className="btn-secondary">
+              Daily pulse
+            </Link>
+            <Link href="/projects/timeline" className="btn-secondary">
+              Timeline
             </Link>
             {isManagerOrAdmin(user) && (
               <Link href="/projects/people" className="btn-secondary">
@@ -83,24 +102,24 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
         }
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Active projects" value={open.length} />
-        <Stat label="Past due date" value={late} />
-        <Stat label="Overdue tasks" value={overdueTasks} href="/work" />
-        <Stat label="Waiting for approval" value={awaiting} href={isManagerOrAdmin(user) ? "/approvals" : undefined} />
+      <div className="project-metrics mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <div className="project-metric project-metric-primary"><div><span>Active projects</span><NavIcon name="work" /></div><strong>{open.length}</strong><p>In your project workspace</p></div>
+        <div className={`project-metric ${late ? "metric-attention" : ""}`}><div><span>Projects past due</span><NavIcon name="calendar" /></div><strong>{late}</strong><p>{late ? "Review dates and next steps" : "No project deadlines missed"}</p></div>
+        <Link className={`project-metric ${overdueTasks ? "metric-attention" : ""}`} href="/work"><div><span>Overdue tasks</span><NavIcon name="clock" /></div><strong>{overdueTasks}</strong><p>Open your work queue</p></Link>
+        {isManagerOrAdmin(user) ? <Link className="project-metric" href="/approvals"><div><span>Awaiting approval</span><NavIcon name="check" /></div><strong>{awaiting}</strong><p>Review pending decisions</p></Link> : <div className="project-metric"><div><span>Awaiting approval</span><NavIcon name="check" /></div><strong>{awaiting}</strong><p>Projects in the approval stage</p></div>}
       </div>
 
       {activeTasks.length > 0 && (
-        <div className="mb-6 grid gap-6 lg:grid-cols-3">
-          <section className="card">
-            <h2 className="mb-4 font-semibold">Project status overview</h2>
+        <div className="mb-6 grid gap-5 xl:grid-cols-2">
+          <section className="card project-health-card">
+            <div className="dashboard-section-heading"><div><h2>Delivery health</h2><p>Tasks across active projects</p></div><NavIcon name="chart" /></div>
             <StatusRing counts={counts} />
           </section>
           <section className="card">
             <h2 className="font-semibold">Needs attention</h2>
-            <p className="mb-3 text-xs text-slate-500">Overdue or update requested</p>
+            <p className="mb-3 text-xs text-slate-500">Overdue, blocked or update requested</p>
             {attention.length === 0 ? (
-              <p className="text-sm text-slate-500">Nothing overdue. 🎉</p>
+              <div className="dashboard-clear-state"><NavIcon name="check" /><h3>No tasks need attention</h3><p>No overdue tasks or outstanding update requests.</p><Link href="/work" className="link">View my work</Link></div>
             ) : (
               <ul className="divide-y divide-slate-100 text-sm">
                 {attention.map((t) => (
@@ -113,6 +132,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
                       <span>· {t.project.name}</span>
                       {t.dueDate && t.dueDate < today && <span className="font-medium text-red-600">· due {formatDate(t.dueDate)}</span>}
                       {t.updateRequestedAt && <UpdateRequestedBadge />}
+                      {t.blockedAt && <BlockedBadge reason={t.blockedReason} />}
                     </div>
                   </li>
                 ))}
@@ -143,8 +163,16 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
               </ul>
             )}
           </section>
+          <section className="card">
+            <div className="dashboard-section-heading"><div><h2>Team contribution</h2><p>Assigned tasks in your active projects</p></div><NavIcon name="crm" /></div>
+            {team.length === 0 ? <p className="text-sm text-slate-500">Assign tasks to see the team workload here.</p> : <ul className="team-contributions">{team.map(member => <li key={member.id}><span className="member-initials" aria-hidden="true">{member.name.split(" ").map(part => part[0]).slice(0, 2).join("")}</span><span className="min-w-0 flex-1"><b className="block truncate">{member.name}</b><span className="text-xs text-slate-500">{member.done} completed</span></span><span className="workload-count">{member.open} open</span></li>)}</ul>}
+          </section>
         </div>
       )}
+
+      {nextMilestones.length > 0 && <section className="milestone-strip mb-6" aria-label="Upcoming milestones"><h2>Next milestones</h2><div>{nextMilestones.map(milestone => <Link key={milestone.id} href={`/projects/${milestone.project.id}`}><NavIcon name="calendar" /><span><b>{milestone.title}</b><small>{milestone.project.name} · {formatDate(milestone.dueDate!)}</small></span></Link>)}</div></section>}
+
+      <div className="directory-heading"><h2>{showDone ? "All projects" : "Active projects"}</h2><span>{projects.length} {projects.length === 1 ? "project" : "projects"} in this view</span></div>
 
       {projects.length === 0 ? (
         <Empty>
@@ -159,7 +187,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
             const next = p.milestones[0];
             const isLate = p.stage !== "COMPLETE" && p.dueDate && p.dueDate < today;
             return (
-              <Link key={p.id} href={`/projects/${p.id}`} className="card block transition hover:border-brand-400">
+              <Link key={p.id} href={`/projects/${p.id}`} className="card project-card block transition hover:border-brand-400">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate font-semibold text-slate-900">{p.name}</div>
@@ -188,6 +216,6 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
           })}
         </div>
       )}
-    </>
+    </div>
   );
 }

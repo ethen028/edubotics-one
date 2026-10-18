@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "./db";
 import { todayIST } from "./time";
+import { allowRequest } from "./rate-limit";
+import { trustedClientAddress } from "./http-security";
 
 /**
  * The careers page is the one part of Edubotics One meant for people outside the company.
@@ -60,27 +62,19 @@ export function newOnlineApplications() {
 }
 
 // ─── Flood protection ──────────────────────────────────────────────────────
-// The app runs as one process on the office computer, so a small in-memory window is enough
-// to stop one address (or a bot) filling Recruitment with junk. It resets on restart.
+// Counters live in PostgreSQL, so workers and restarts share the same limits.
 
 const WINDOW_MS = 60 * 60 * 1000;
 const PER_ADDRESS = 5;
 const OVERALL = 60;
-const hits = new Map<string, number[]>();
 
-/** Records an attempt and says whether it is within the limits (5 an hour per address, 60 an hour overall). */
-export function allowApplication(address: string, now = Date.now()) {
-  const recent = (key: string) => (hits.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
-  const mine = recent(address);
-  const all = recent("*");
-  if (mine.length >= PER_ADDRESS || all.length >= OVERALL) return false;
-  hits.set(address, [...mine, now]);
-  hits.set("*", [...all, now]);
-  if (hits.size > 5000) hits.clear(); // keep memory bounded if many addresses come by
-  return true;
+/** Counts attempts before parsing uploads (5 an hour per address, 60 an hour overall). */
+export async function allowApplication(address: string) {
+  return await allowRequest("application-address", address, PER_ADDRESS, WINDOW_MS) &&
+    await allowRequest("application-global", "all", OVERALL, WINDOW_MS);
 }
 
 /** The visitor's address, as passed on by a tunnel or reverse proxy in front of the app. */
 export function clientAddress(headers: Headers) {
-  return headers.get("cf-connecting-ip") ?? headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? headers.get("x-real-ip") ?? "unknown";
+  return trustedClientAddress(headers);
 }

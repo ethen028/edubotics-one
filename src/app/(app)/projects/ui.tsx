@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Priority, ProjectStage, WorkStatus } from "@prisma/client";
 import { Badge } from "@/components/ui";
+import { Icon } from "@/components/icons";
 import { formatDate, formatDateTime, humanize } from "@/lib/format";
 import { taskHealth, type TaskHealth } from "@/lib/projects";
 import { formatSize } from "@/lib/project-files";
@@ -31,7 +32,7 @@ export function StageRail({ stage }: { stage: ProjectStage }) {
                 done
                   ? "bg-brand-600 text-white"
                   : active
-                    ? "bg-white text-brand-700 ring-2 ring-brand-600"
+                    ? "bg-surface text-brand-700 ring-2 ring-brand-600"
                     : "bg-slate-100 text-slate-400"
               }`}
             >
@@ -94,9 +95,9 @@ export const WORK_STATUSES: WorkStatus[] = ["TODO", "IN_PROGRESS", "REVIEW", "DO
 
 const HEALTH: { key: TaskHealth; label: string; color: string }[] = [
   { key: "TODO", label: "To do", color: "#94a3b8" },
-  { key: "IN_PROGRESS", label: "In progress", color: "#0b6b5b" },
+  { key: "IN_PROGRESS", label: "In progress", color: "#5546f0" },
   { key: "REVIEW", label: "Review", color: "#8b5cf6" },
-  { key: "DONE", label: "Done", color: "#4aa28a" },
+  { key: "DONE", label: "Done", color: "#10b981" },
   { key: "OVERDUE", label: "Overdue", color: "#dc2626" },
 ];
 
@@ -110,7 +111,7 @@ export function StatusRing({ counts }: { counts: Record<TaskHealth, number> }) {
   return (
     <div className="flex flex-wrap items-center gap-6">
       <svg viewBox="0 0 140 140" className="h-36 w-36 shrink-0" role="img" aria-label="Tasks by status">
-        <circle cx="70" cy="70" r={r} fill="none" stroke="#eef2f0" strokeWidth="18" />
+        <circle cx="70" cy="70" r={r} fill="none" strokeWidth="18" className="stroke-slate-100" />
         {total > 0 &&
           HEALTH.filter((h) => counts[h.key] > 0).map((h) => {
             const len = (counts[h.key] / total) * c;
@@ -169,6 +170,34 @@ export function UpdateRequestedBadge() {
   return <Badge color="amber">Update requested</Badge>;
 }
 
+/** Task Flow v5: the assignee or owner flagged the task as stuck. */
+export function BlockedBadge({ reason }: { reason?: string | null }) {
+  return (
+    <span title={reason ?? undefined}>
+      <Badge color="red">Blocked</Badge>
+    </span>
+  );
+}
+
+/** Task Flow v5: the task waits on another one that isn't done yet. */
+export function WaitingBadge({ on }: { on: string }) {
+  return (
+    <span title={`Waiting on ${on}`}>
+      <Badge color="purple">Waiting</Badge>
+    </span>
+  );
+}
+
+/** "3/5" ticked steps on a task's checklist. */
+export function ChecklistCount({ done, total }: { done: number; total: number }) {
+  if (total === 0) return null;
+  return (
+    <span className={`text-xs tabular-nums ${done === total ? "text-emerald-700" : "text-slate-500"}`} title="Checklist steps done">
+      ☑ {done}/{total}
+    </span>
+  );
+}
+
 type FileRow = {
   id: string;
   fileName: string;
@@ -188,8 +217,9 @@ export function FileList({ files, canDelete }: { files: FileRow[]; canDelete?: (
         return (
           <li key={f.id} className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <a href={`/api/project-files/${f.id}`} target="_blank" rel="noreferrer" className="link block truncate">
-                📎 {f.fileName}
+              <a href={`/api/project-files/${f.id}`} target="_blank" rel="noreferrer" className="link flex items-center gap-1.5 truncate">
+                <Icon name="paperclip" className="h-3.5 w-3.5 shrink-0" />
+                {f.fileName}
               </a>
               <div className="text-xs text-slate-500">
                 {formatSize(f.size)}
@@ -256,8 +286,9 @@ export function UpdateFeed({ updates, projectId, showTask = false }: { updates: 
           {u.files.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
               {u.files.map((f) => (
-                <a key={f.id} href={`/api/project-files/${f.id}`} target="_blank" rel="noreferrer" className="link text-xs">
-                  📎 {f.fileName}
+                <a key={f.id} href={`/api/project-files/${f.id}`} target="_blank" rel="noreferrer" className="link inline-flex items-center gap-1 text-xs">
+                  <Icon name="paperclip" className="h-3 w-3" />
+                  {f.fileName}
                 </a>
               ))}
             </div>

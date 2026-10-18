@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isManagerOrAdmin, requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
 import { formatDate, formatINR } from "@/lib/format";
 import { todayIST } from "@/lib/time";
 import { PAYMENT_METHODS, methodLabel } from "@/lib/invoices";
 import {
   audienceLabel,
+  kindLabel,
   canManageWorkshop,
   canMarkAttendance,
   dateSpan,
@@ -73,7 +74,7 @@ export default async function WorkshopPage({ params }: PageProps<"/workshops/[id
               </>
             )}
             {" · "}
-            {audienceLabel[w.audience]}
+            {kindLabel[w.kind]} · {audienceLabel[w.audience]}
           </>
         }
         actions={
@@ -319,7 +320,7 @@ export default async function WorkshopPage({ params }: PageProps<"/workshops/[id
                     </span>
                     {canManage && (
                       <form action={removeTrainer.bind(null, w.id, t.userId)}>
-                        <button className="text-xs text-slate-400 hover:text-red-600">Remove</button>
+                        <ConfirmButton message={"Take this trainer off the workshop?"} className="text-xs text-slate-400 hover:text-red-600">Remove</ConfirmButton>
                       </form>
                     )}
                   </li>
@@ -403,7 +404,7 @@ export default async function WorkshopPage({ params }: PageProps<"/workshops/[id
 
           {canManage && w.registrations.length === 0 && (
             <form action={deleteWorkshop.bind(null, w.id)}>
-              <button className="text-xs text-slate-400 hover:text-red-600">Delete this workshop</button>
+              <ConfirmButton message={`Delete the workshop "${w.title}"?`} className="text-xs text-slate-400 hover:text-red-600">Delete this workshop</ConfirmButton>
             </form>
           )}
           <p className="text-xs text-slate-400">Added on {formatDate(w.createdAt)}.</p>

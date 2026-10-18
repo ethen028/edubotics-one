@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: edubotics
-      POSTGRES_PASSWORD: edubotics
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       POSTGRES_DB: edubotics
     volumes:
       - db-data:/var/lib/postgresql/data
@@ -25,14 +25,32 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 45s
     environment:
-      DATABASE_URL: postgresql://edubotics:edubotics@db:5432/edubotics
+      DATABASE_URL: postgresql://edubotics:${DB_PASSWORD:?Set DB_PASSWORD in .env}@db:5432/edubotics
+      # Set explicitly in production so encrypted settings survive host/volume replacement.
+      # Office installs may leave it blank; docker/start.sh then creates a persistent value in app-data.
+      SESSION_SECRET: ${SESSION_SECRET:-}
       # The office network uses plain http, so the login cookie can't require https.
-      COOKIE_SECURE: "false"
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      APP_URL: ${APP_URL:-}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-}
+      PUBLIC_CAREERS_HOST: ${PUBLIC_CAREERS_HOST:-}
+      FORCE_HTTPS: ${FORCE_HTTPS:-false}
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
+      REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-false}
+      REQUIRE_CAPTCHA: ${REQUIRE_CAPTCHA:-false}
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
       # First admin login, created on first start only. Change the password after signing in.
-      SEED_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@edubotics.local}
-      SEED_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-edubotics2026}
+      SEED_ADMIN_EMAIL: ${ADMIN_EMAIL:?Set ADMIN_EMAIL in .env}
+      SEED_ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
       SEED_ADMIN_NAME: ${ADMIN_NAME:-Admin}
       # Daily backups (Admin → Backups, docs/backups.md). The folders are set in .env; see .env.example.
       BACKUP_DIR: /backups
@@ -58,12 +76,31 @@ services:
     environment:
       PGHOST: db
       PGUSER: edubotics
-      PGPASSWORD: edubotics
+      PGPASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       PGDATABASE: edubotics
     volumes:
       - ${BACKUP_FOLDER:-./backups}:/backups
       - ${BACKUP_COPY_FOLDER:-./backups}:/backup-copy
 
+  gateway:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
 volumes:
+  caddy-data:
+  caddy-config:
   db-data:
   app-data:

@@ -5,9 +5,12 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { isHrOrAdmin } from "@/lib/permissions";
 import { hashPassword, isAdmin, requireUser } from "@/lib/auth";
 import { passwordProblem } from "@/lib/passwords";
-import { countLeaveDays, parseDateOnly } from "@/lib/leave";
+import { countLeaveDays, leaveDaysInYear, parseDateOnly } from "@/lib/leave";
+import { todayIST } from "@/lib/time";
+import { dateOnlyInput, optionalDateOnlyInput } from "@/lib/date-input";
 import { getLeaveBalances } from "@/lib/leave-balance";
 import { getSettings } from "@/lib/settings";
 import { checklistRows } from "@/lib/hr-constants";
@@ -19,12 +22,16 @@ const optional = z
   .transform((v) => (v === "" ? null : v))
   .nullable()
   .optional();
-const optionalDate = z
-  .string()
-  .trim()
-  .transform((v) => (v === "" ? null : parseDateOnly(v)))
-  .nullable()
-  .optional();
+const optionalDate = optionalDateOnlyInput;
+
+/** An optional ID such as PAN or IFSC: spaces dropped, capitals, and checked against its shape. */
+const idField = (shape: RegExp, message: string) =>
+  z
+    .string()
+    .optional()
+    .transform((v) => (v ?? "").replace(/\s+/g, "").toUpperCase())
+    .refine((v) => v === "" || shape.test(v), message)
+    .transform((v) => (v === "" ? null : v));
 
 function firstError(error: z.ZodError) {
   const issue = error.issues[0];
@@ -53,7 +60,7 @@ const employeeSchema = z.object({
   managerId: optional,
   employmentType: z.enum(["FULL_TIME", "PART_TIME", "CONTRACT", "INTERN"]),
   status: z.enum(["ONBOARDING", "ACTIVE", "ON_NOTICE", "EXITED"]),
-  dateOfJoining: z.string().trim().min(1, "required").transform(parseDateOnly),
+  dateOfJoining: dateOnlyInput,
   dateOfExit: optionalDate,
   dateOfBirth: optionalDate,
   gender: optional,
@@ -63,16 +70,26 @@ const employeeSchema = z.object({
   state: optional,
   emergencyName: optional,
   emergencyPhone: optional,
-});
+  bankAccountName: optional,
+  bankAccountNo: idField(/^\d{9,18}$/, "Bank account number: 9 to 18 digits"),
+  bankIfsc: idField(/^[A-Z]{4}0[A-Z0-9]{6}$/, "IFSC: 11 characters, like SBIN0070123"),
+  bankName: optional,
+  pan: idField(/^[A-Z]{5}\d{4}[A-Z]$/, "PAN: 10 characters, like ABCDE1234F"),
+  uan: idField(/^\d{12}$/, "UAN: 12 digits"),
+  esiNumber: idField(/^\d{10}$/, "ESI number: 10 digits"),
+}).refine(employee => !employee.dateOfExit || employee.dateOfExit >= employee.dateOfJoining, "Exit date cannot be before the joining date.")
+  .refine(employee => !employee.dateOfBirth || employee.dateOfBirth < employee.dateOfJoining, "Date of birth must be before the joining date.");
 
 export async function createEmployee(_: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  const user = await requireUser(["ADMIN", "HR"]);
   const parsed = employeeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!isAdmin(user) && parsed.data.status === "EXITED") return { error: "Only Admin can create an exited employee record." };
 
   const createLogin = formData.get("createLogin") === "on";
+  if (!isAdmin(user) && (createLogin || formData.has("role") || formData.has("password") || formData.has("userId"))) return { error: "Only Admin can manage login accounts." };
   const password = String(formData.get("password") ?? "");
-  const role = z.enum(["ADMIN", "MANAGER", "EMPLOYEE"]).catch("EMPLOYEE").parse(formData.get("role"));
+  const role = z.enum(["ADMIN", "HR", "MANAGER", "EMPLOYEE"]).catch("EMPLOYEE").parse(formData.get("role"));
   const weak = createLogin ? passwordProblem(password, { email: parsed.data.workEmail, name: `${parsed.data.firstName} ${parsed.data.lastName}` }) : null;
   if (weak) return { error: `Temporary password: ${weak}` };
 
@@ -83,7 +100,7 @@ export async function createEmployee(_: FormState, formData: FormData): Promise<
     const employee = await db.$transaction(async (tx) => {
       const user = passwordHash
         ? await tx.user.create({
-            data: { email: data.workEmail, name: `${data.firstName} ${data.lastName}`, passwordHash, role, mustChangePassword: true },
+            data: { email: data.workEmail, name: `${data.firstName} ${data.lastName}`, passwordHash, role, active: data.status !== "EXITED", mustChangePassword: true },
           })
         : null;
       const created = await tx.employee.create({ data: { ...data, userId: user?.id } });
@@ -102,14 +119,17 @@ export async function createEmployee(_: FormState, formData: FormData): Promise<
 }
 
 export async function updateEmployee(id: string, _: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  const user = await requireUser(["ADMIN", "HR"]);
   const parsed = employeeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
   if (parsed.data.managerId === id) return { error: "An employee cannot be their own manager." };
   try {
-    const employee = await db.employee.update({ where: { id }, data: parsed.data });
-    if (employee.userId) {
-      await db.user.update({
+    await db.$transaction(async tx => {
+    const current = await tx.employee.findUniqueOrThrow({ where: { id }, include: { user: { select: { role: true } } } });
+    if (!isAdmin(user) && (current.user?.role === "ADMIN" || current.status === "EXITED" || parsed.data.status === "EXITED")) throw new Error("Admin must manage privileged and exit records");
+    const employee = await tx.employee.update({ where: { id }, data: parsed.data });
+    if (employee.userId && isAdmin(user)) {
+      await tx.user.update({
         where: { id: employee.userId },
         data: {
           name: `${employee.firstName} ${employee.lastName}`,
@@ -118,6 +138,7 @@ export async function updateEmployee(id: string, _: FormState, formData: FormDat
         },
       });
     }
+    });
   } catch (e) {
     return { error: uniqueError(e) ?? "Could not save the employee." };
   }
@@ -129,7 +150,7 @@ export async function updateEmployee(id: string, _: FormState, formData: FormDat
 // ─── Departments ───────────────────────────────────────────────────────────
 
 export async function createDepartment(_: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Enter a department name." };
   try {
@@ -142,7 +163,7 @@ export async function createDepartment(_: FormState, formData: FormData): Promis
 }
 
 export async function deleteDepartment(id: string) {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   await db.employee.updateMany({ where: { departmentId: id }, data: { departmentId: null } });
   await db.department.delete({ where: { id } });
   revalidatePath("/hr/departments");
@@ -158,7 +179,7 @@ const leaveTypeSchema = z.object({
 });
 
 export async function createLeaveType(_: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   const parsed = leaveTypeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
   try {
@@ -171,7 +192,7 @@ export async function createLeaveType(_: FormState, formData: FormData): Promise
 }
 
 export async function updateLeaveType(id: string, formData: FormData) {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   const annualQuota = z.coerce.number().min(0).max(365).parse(formData.get("annualQuota"));
   await db.leaveType.update({
     where: { id },
@@ -183,7 +204,7 @@ export async function updateLeaveType(id: string, formData: FormData) {
 // ─── Holidays ──────────────────────────────────────────────────────────────
 
 export async function createHoliday(_: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   const name = String(formData.get("name") ?? "").trim();
   const date = String(formData.get("date") ?? "");
   if (!name || !date) return { error: "Enter a date and a name." };
@@ -197,13 +218,13 @@ export async function createHoliday(_: FormState, formData: FormData): Promise<F
 }
 
 export async function confirmHoliday(id: string) {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   await db.holiday.update({ where: { id }, data: { tentative: false } });
   revalidatePath("/hr/holidays");
 }
 
 export async function deleteHoliday(id: string) {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   await db.holiday.delete({ where: { id } });
   revalidatePath("/hr/holidays");
 }
@@ -212,8 +233,8 @@ export async function deleteHoliday(id: string) {
 
 const leaveSchema = z.object({
   leaveTypeId: z.string().min(1, "required"),
-  startDate: z.string().min(1, "required").transform(parseDateOnly),
-  endDate: z.string().min(1, "required").transform(parseDateOnly),
+  startDate: dateOnlyInput,
+  endDate: dateOnlyInput,
   halfDay: z.literal("on").optional(),
   reason: z.string().trim().min(3, "please add a short reason"),
 });
@@ -229,6 +250,7 @@ export async function applyLeave(_: FormState, formData: FormData): Promise<Form
   const halfDay = parsed.data.halfDay === "on";
 
   if (endDate < startDate) return { error: "End date is before start date." };
+  if (endDate.getTime() - startDate.getTime() > 366 * 86400000) return { error: "Use a date range up to one year. Submit longer leave in separate requests." };
   if (halfDay && endDate.getTime() !== startDate.getTime()) return { error: "Half day is only for single-day leave." };
 
   const holidays = await db.holiday.findMany({
@@ -239,7 +261,9 @@ export async function applyLeave(_: FormState, formData: FormData): Promise<Form
   const days = countLeaveDays(startDate, endDate, holidays.map((h) => h.date), halfDay, weeklyOffDays);
   if (days === 0) return { error: "Those dates are all weekly offs or holidays, so no leave is needed." };
 
-  const overlap = await db.leaveRequest.findFirst({
+  const result = await db.$transaction(async tx => {
+  await tx.$queryRaw`SELECT "id" FROM "Employee" WHERE "id" = ${employee.id} FOR UPDATE`;
+  const overlap = await tx.leaveRequest.findFirst({
     where: {
       employeeId: employee.id,
       status: { in: ["PENDING", "APPROVED"] },
@@ -249,15 +273,14 @@ export async function applyLeave(_: FormState, formData: FormData): Promise<Form
   });
   if (overlap) return { error: "You already have leave booked that overlaps these dates." };
 
-  const balance = (await getLeaveBalances(employee.id, startDate.getUTCFullYear())).find(
-    (b) => b.leaveTypeId === leaveTypeId,
-  );
-  if (!balance) return { error: "Choose a valid leave type." };
-  if (balance.remaining !== null && days > balance.remaining) {
-    return { error: `Not enough ${balance.name} left: ${balance.remaining} day(s) available, ${days} requested.` };
+  for (let year = startDate.getUTCFullYear(); year <= endDate.getUTCFullYear(); year++) {
+    const balance = (await getLeaveBalances(employee.id, year, tx)).find(b => b.leaveTypeId === leaveTypeId);
+    if (!balance) return { error: "Choose a valid leave type." };
+    const allocated = leaveDaysInYear({ startDate, endDate, days, halfDay }, year, holidays.map(holiday => holiday.date), weeklyOffDays);
+    if (balance.remaining !== null && allocated > balance.remaining) return { error: `Not enough ${balance.name} in ${year}: ${balance.remaining} day(s) available, ${allocated} requested.` };
   }
 
-  await db.leaveRequest.create({
+  await tx.leaveRequest.create({
     data: {
       employeeId: employee.id,
       leaveTypeId,
@@ -269,38 +292,45 @@ export async function applyLeave(_: FormState, formData: FormData): Promise<Form
       approverId: employee.managerId,
     },
   });
+  return { ok: `Leave request sent for ${days} day(s).` };
+  });
+  revalidatePath("/hr");
   revalidatePath("/hr/leave");
   revalidatePath("/hr/approvals");
-  return { ok: `Leave request sent for ${days} day(s).` };
+  revalidatePath("/approvals");
+  return result;
 }
 
 export async function cancelLeave(id: string) {
   const user = await requireUser();
   const req = await db.leaveRequest.findUnique({ where: { id } });
   if (!req || req.employeeId !== user.employee?.id) throw new Error("Not found");
-  if (req.status !== "PENDING" && !(req.status === "APPROVED" && req.startDate > new Date())) {
+  if (req.status !== "PENDING" && !(req.status === "APPROVED" && req.startDate > todayIST())) {
     throw new Error("Only pending or future leave can be cancelled");
   }
-  await db.leaveRequest.update({ where: { id }, data: { status: "CANCELLED" } });
+  const changed = await db.leaveRequest.updateMany({ where: { id, employeeId: user.employee.id, OR: [{ status: "PENDING" }, { status: "APPROVED", startDate: { gt: todayIST() } }] }, data: { status: "CANCELLED" } });
+  if (!changed.count) throw new Error("Leave changed. Reload before cancelling.");
+  revalidatePath("/hr");
   revalidatePath("/hr/leave");
   revalidatePath("/hr/approvals");
 }
 
 export async function decideLeave(id: string, formData: FormData) {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   const decision = z.enum(["APPROVED", "REJECTED"]).parse(formData.get("decision"));
   const note = String(formData.get("note") ?? "").trim() || null;
 
   const req = await db.leaveRequest.findUnique({ where: { id }, include: { employee: true } });
   if (!req || req.status !== "PENDING") throw new Error("Request is no longer pending");
   const isTheirManager = user.employee && req.employee.managerId === user.employee.id;
-  if (!isAdmin(user) && !isTheirManager) throw new Error("Not allowed");
+  if (!isHrOrAdmin(user) && !isTheirManager) throw new Error("Not allowed");
   if (req.employeeId === user.employee?.id) throw new Error("You can't approve your own leave");
 
-  await db.leaveRequest.update({
-    where: { id },
+  await db.leaveRequest.updateMany({
+    where: { id, status: "PENDING" },
     data: { status: decision, decisionNote: note, decidedAt: new Date(), approverId: user.employee?.id ?? req.approverId },
   });
+  revalidatePath("/hr");
   revalidatePath("/hr/approvals");
   revalidatePath("/hr/leave");
   revalidatePath("/approvals");

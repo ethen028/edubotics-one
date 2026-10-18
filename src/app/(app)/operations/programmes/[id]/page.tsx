@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Empty, PageHeader } from "@/components/ui";
 import { formatDate, humanize } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -142,7 +142,7 @@ export default async function ProgrammePage({ params, searchParams }: PageProps<
             )}
             {isAdmin(user) && (
               <form action={deleteProgramme.bind(null, id)}>
-                <button className="btn-danger">Delete</button>
+                <ConfirmButton message={`Delete the programme ${programme.name} and its sessions for good?`} className="btn-danger">Delete</ConfirmButton>
               </form>
             )}
           </>
@@ -259,7 +259,7 @@ export default async function ProgrammePage({ params, searchParams }: PageProps<
                     </span>
                     {canManage && (
                       <form action={removeTrainer.bind(null, t.id)}>
-                        <button className="text-xs text-slate-400 hover:text-red-600">Remove</button>
+                        <ConfirmButton message={`Take ${t.user.name} off this programme?`} className="text-xs text-slate-400 hover:text-red-600">Remove</ConfirmButton>
                       </form>
                     )}
                   </li>

@@ -8,8 +8,17 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci_test
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U ci -d ci_test" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_test
       SESSION_SECRET: ci-only-secret-not-used-for-anything-real
     steps:
       - uses: actions/checkout@v4
@@ -17,8 +26,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - run: npm rebuild @prisma/engines esbuild
+      - run: npx prisma generate
+      - run: npm run security:secrets
+      - run: npm run security:dependencies
       - run: npx prisma validate
+      - run: npm run db:deploy
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm test
+      - run: npm run test:security
       - run: npm run build

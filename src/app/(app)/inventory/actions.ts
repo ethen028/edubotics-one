@@ -6,7 +6,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
-import { parseDateOnly } from "@/lib/leave";
+import { optionalDateOnlyInput } from "@/lib/date-input";
 import { projectScope } from "@/lib/projects";
 import { INVENTORY_CATEGORIES, STOCK_UNITS, canApproveRequest, outstanding, requestNo } from "@/lib/inventory";
 import type { FormState } from "@/components/action-form";
@@ -17,13 +17,8 @@ const optional = z
   .transform((v) => (v === "" ? null : v))
   .nullable()
   .optional();
-const optionalDate = z
-  .string()
-  .trim()
-  .transform((v) => (v === "" ? null : parseDateOnly(v)))
-  .nullable()
-  .optional();
-const count = z.coerce.number().int("Use whole numbers").min(0, "Can't be negative");
+const optionalDate = optionalDateOnlyInput;
+const count = z.coerce.number().int("Use whole numbers").min(0, "Can't be negative").max(2147483647, "Quantity is too large");
 
 function firstError(error: z.ZodError) {
   const issue = error.issues[0];
@@ -53,7 +48,7 @@ const itemSchema = z.object({
     .string()
     .trim()
     .transform((v) => (v === "" ? null : v))
-    .refine((v) => v === null || (/^\d+(\.\d{1,2})?$/.test(v) && Number(v) >= 0), "Unit cost must be a number like 450 or 450.50"),
+    .refine((v) => v === null || (/^\d+(\.\d{1,2})?$/.test(v) && Number(v) >= 0 && Number(v) <= 99999999.99), "Unit cost must be from 0 to 99999999.99, with up to two decimal places"),
   notes: optional,
 });
 
@@ -83,7 +78,14 @@ export async function updateItem(id: string, _: FormState, formData: FormData): 
   const parsed = itemSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
   try {
-    await db.stockItem.update({ where: { id }, data: parsed.data });
+    const result = await db.$transaction(async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "StockItem" WHERE "id" = ${id} FOR UPDATE`;
+      const item = await tx.stockItem.findUniqueOrThrow({ where: { id }, include: { _count: { select: { requestLines: true, movements: true, poLines: true } } } });
+      if ((item.unit !== parsed.data.unit || item.returnable !== parsed.data.returnable) && (item._count.requestLines || item._count.movements || item._count.poLines)) return { error: "Unit and return rules cannot change after stock activity. Create a separate item instead." };
+      await tx.stockItem.update({ where: { id }, data: parsed.data });
+      return { ok: "Saved." };
+    });
+    if (result.error) return result;
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return { error: "That item code is already used." };
     throw e;
@@ -119,6 +121,7 @@ export async function recordMovement(id: string, _: FormState, formData: FormDat
     const delta = kind === "RECEIVE" ? quantity : kind === "WRITE_OFF" ? -quantity : quantity - item.onHand;
     if (delta === 0) return { ok: "The count already matches. Nothing changed." };
     if (item.onHand + delta < 0) return { error: `Only ${item.onHand} ${item.unit} in stock.` };
+    if (item.onHand + delta > 2147483647) return { error: "The resulting stock count is too large." };
     // Guard against a parallel change between the read and the write.
     const updated = await tx.stockItem.updateMany({ where: { id, onHand: item.onHand }, data: { onHand: item.onHand + delta } });
     if (updated.count === 0) return { error: "Stock changed while you were saving. Try again." };
@@ -154,8 +157,9 @@ export async function createRequest(_: FormState, formData: FormData): Promise<F
   for (let i = 0; i < itemIds.length; i++) {
     if (!itemIds[i]) continue;
     const q = Number(quantities[i]);
-    if (!Number.isInteger(q) || q < 1) return { error: "Each item needs a whole-number quantity of at least 1." };
+    if (!Number.isInteger(q) || q < 1 || q > 2147483647) return { error: "Each item needs a valid whole-number quantity of at least 1." };
     wanted.set(itemIds[i], (wanted.get(itemIds[i]) ?? 0) + q);
+    if (wanted.get(itemIds[i])! > 2147483647) return { error: "The combined item quantity is too large." };
   }
   if (wanted.size === 0) return { error: "Add at least one item." };
 
@@ -192,7 +196,8 @@ export async function cancelRequest(id: string) {
   const request = await loadRequest(id);
   if (request.requesterId !== user.id && !isAdmin(user)) throw new Error("Only the requester or an admin can cancel");
   if (request.status !== "PENDING" && request.status !== "APPROVED") throw new Error("Only requests not yet issued can be cancelled");
-  await db.stockRequest.update({ where: { id }, data: { status: "CANCELLED", closedAt: new Date() } });
+  const changed = await db.stockRequest.updateMany({ where: { id, status: { in: ["PENDING", "APPROVED"] } }, data: { status: "CANCELLED", closedAt: new Date() } });
+  if (!changed.count) throw new Error("The request changed. Reload before cancelling.");
   refresh({ requestId: id, projectId: request.projectId });
 }
 
@@ -203,8 +208,8 @@ export async function decideStockRequest(id: string, formData: FormData) {
   if (!(await canApproveRequest(user, request))) throw new Error("Not allowed");
   const decision = z.enum(["APPROVED", "REJECTED"]).parse(formData.get("decision"));
   const note = String(formData.get("note") ?? "").trim() || null;
-  await db.stockRequest.update({
-    where: { id },
+  await db.stockRequest.updateMany({
+    where: { id, status: "PENDING" },
     data: {
       status: decision,
       decisionNote: note,
@@ -233,9 +238,12 @@ export async function issueRequest(id: string, _: FormState, formData: FormData)
 
   try {
     await db.$transaction(async (tx) => {
+      // Claim the request before changing stock; concurrent issue/cancel attempts cannot win twice.
+      const claimed = await tx.stockRequest.updateMany({ where: { id, status: "APPROVED" }, data: { status: "ISSUED" } });
+      if (!claimed.count) throw new Error("Request changed. Reload before issuing it.");
       for (const p of plan) {
         if (p.qty > 0) {
-          const taken = await tx.stockItem.updateMany({ where: { id: p.itemId, onHand: { gte: p.qty } }, data: { onHand: { decrement: p.qty } } });
+          const taken = await tx.stockItem.updateMany({ where: { id: p.itemId, active: true, onHand: { gte: p.qty } }, data: { onHand: { decrement: p.qty } } });
           if (taken.count === 0) throw new Error(`Not enough ${p.name} in stock.`);
           await tx.stockMovement.create({
             data: { itemId: p.itemId, type: "ISSUE", quantity: -p.qty, requestId: id, projectId: request.projectId, byId: user.id },
@@ -250,7 +258,7 @@ export async function issueRequest(id: string, _: FormState, formData: FormData)
       });
     });
   } catch (e) {
-    if (e instanceof Error && e.message.startsWith("Not enough")) return { error: e.message };
+    if (e instanceof Error && /^(Not enough|Request changed)/.test(e.message)) return { error: e.message };
     throw e;
   }
   refresh({ requestId: id, projectId: request.projectId });
@@ -264,20 +272,28 @@ export async function returnRequest(id: string, _: FormState, formData: FormData
   const request = await loadRequest(id);
   if (request.status !== "ISSUED") return { error: "Only issued requests can be returned." };
 
-  const plan: { lineId: string; itemId: string; back: number; lost: number }[] = [];
+  const plan: { lineId: string; itemId: string; back: number; lost: number; returned: number; writtenOff: number }[] = [];
   for (const line of request.lines) {
     const left = outstanding(line);
     if (left === 0) continue;
+    if (formData.get(`expected_${line.id}`) !== `${line.issued}:${line.returned}:${line.writtenOff}`) return { error: "Return changed. Reload before recording another return." };
     const back = Number(formData.get(`return_${line.id}`) ?? 0);
     const lost = Number(formData.get(`lost_${line.id}`) ?? 0);
     if (![back, lost].every((n) => Number.isInteger(n) && n >= 0)) return { error: `${line.item.name}: use whole numbers.` };
     if (back + lost > left) return { error: `${line.item.name}: only ${left} still out.` };
-    if (back + lost > 0) plan.push({ lineId: line.id, itemId: line.itemId, back, lost });
+    if (back + lost > 0) plan.push({ lineId: line.id, itemId: line.itemId, back, lost, returned: line.returned, writtenOff: line.writtenOff });
   }
   if (plan.length === 0) return { error: "Enter what came back." };
   const note = String(formData.get("note") ?? "").trim() || null;
+  if (plan.some(line => line.lost > 0) && !note) return { error: "Add a reason for items written off while out." };
 
-  await db.$transaction(async (tx) => {
+  try { await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "StockRequest" WHERE "id" = ${id} FOR UPDATE`;
+    const current = await tx.stockRequest.findUniqueOrThrow({ where: { id }, include: { lines: true } });
+    if (current.status !== "ISSUED" || plan.some(p => {
+      const line = current.lines.find(line => line.id === p.lineId);
+      return !line || line.returned !== p.returned || line.writtenOff !== p.writtenOff || p.back + p.lost > line.issued - line.returned - line.writtenOff;
+    })) throw new Error("Return changed. Reload before recording another return.");
     for (const p of plan) {
       if (p.back > 0) {
         await tx.stockItem.update({ where: { id: p.itemId }, data: { onHand: { increment: p.back } } });
@@ -285,6 +301,7 @@ export async function returnRequest(id: string, _: FormState, formData: FormData
           data: { itemId: p.itemId, type: "RETURN", quantity: p.back, note, requestId: id, projectId: request.projectId, byId: user.id },
         });
       }
+      if (p.lost > 0) await tx.stockMovement.create({ data: { itemId: p.itemId, type: "WRITE_OFF", quantity: 0, note: `${p.lost} unit(s) written off while issued; no stock-on-hand change. ${note}`, requestId: id, projectId: request.projectId, byId: user.id } });
       await tx.stockRequestLine.update({
         where: { id: p.lineId },
         data: { returned: { increment: p.back }, writtenOff: { increment: p.lost } },
@@ -294,7 +311,10 @@ export async function returnRequest(id: string, _: FormState, formData: FormData
     if (lines.every((l) => outstanding(l) === 0)) {
       await tx.stockRequest.update({ where: { id }, data: { status: "CLOSED", closedAt: new Date() } });
     }
-  });
+  }); } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Return changed")) return { error: error.message };
+    throw error;
+  }
   refresh({ requestId: id, projectId: request.projectId });
   for (const p of plan) revalidatePath(`/inventory/${p.itemId}`);
   return { ok: "Return recorded." };

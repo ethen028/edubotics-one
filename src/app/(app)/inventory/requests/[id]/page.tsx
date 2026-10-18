@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -133,13 +133,14 @@ export default async function RequestPage({ params }: PageProps<"/inventory/requ
                   .map((l) => (
                     <div key={l.id} className="grid grid-cols-[1fr_6rem_6rem] items-center gap-2 text-sm">
                       <span>
+                        <input type="hidden" name={`expected_${l.id}`} value={`${l.issued}:${l.returned}:${l.writtenOff}`} />
                         {l.item.name} <span className="text-slate-500">({outstanding(l)})</span>
                       </span>
-                      <input name={`return_${l.id}`} type="number" min={0} max={outstanding(l)} defaultValue={outstanding(l)} className="input" />
-                      <input name={`lost_${l.id}`} type="number" min={0} max={outstanding(l)} defaultValue={0} className="input" />
+                      <input aria-label={`Returned quantity for ${l.item.name}`} name={`return_${l.id}`} type="number" min={0} max={outstanding(l)} defaultValue={outstanding(l)} className="input" />
+                      <input aria-label={`Written off quantity for ${l.item.name}`} name={`lost_${l.id}`} type="number" min={0} max={outstanding(l)} defaultValue={0} className="input" />
                     </div>
                   ))}
-                <input name="note" placeholder="Note, e.g. 2 servo motors burnt out" className="input" />
+                <input aria-label="Return note; required for written off items" name="note" placeholder="Note (required for lost or damaged items)" className="input" />
                 <SubmitButton>Record return</SubmitButton>
               </ActionForm>
             </section>
@@ -212,7 +213,7 @@ export default async function RequestPage({ params }: PageProps<"/inventory/requ
 
           {canCancel && (
             <form action={cancelRequest.bind(null, request.id)}>
-              <button className="text-sm text-slate-500 hover:text-red-600 hover:underline">Cancel this request</button>
+              <ConfirmButton message={"Cancel this stock request?"} className="text-sm text-slate-500 hover:text-red-600 hover:underline">Cancel this request</ConfirmButton>
             </form>
           )}
         </div>

@@ -11,6 +11,7 @@ import { ActivityPanel, activityInclude } from "../../activity-panel";
 import { dealStageColor } from "../../constants";
 import { quoteState, quoteStateLabel } from "@/lib/quotes";
 import { todayIST } from "@/lib/time";
+import { ConfirmButton } from "@/components/action-form";
 
 export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">) {
   const user = await requireUser();
@@ -95,7 +96,7 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
             )}
             {isAdmin(user) && (
               <form action={deleteDeal.bind(null, deal.id)}>
-                <button className="btn-danger">Delete</button>
+                <ConfirmButton message={`Delete the deal "${deal.title}" and its activity history for good?`} className="btn-danger">Delete</ConfirmButton>
               </form>
             )}
           </>

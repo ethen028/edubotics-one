@@ -5,6 +5,7 @@ import type { EmailKind } from "@prisma/client";
 import { db } from "./db";
 import type { Settings } from "./settings";
 import { unseal } from "./secret-box";
+import { reportServerError } from "./telemetry";
 
 /** NOT_SET: no mail account yet. UNTESTED: filled in but no test email has gone through. READY: emails can go out. */
 export type MailSetup = "NOT_SET" | "UNTESTED" | "READY";
@@ -57,8 +58,8 @@ function explain(e: unknown, s: Settings) {
   if (["ECONNECTION", "ETIMEDOUT", "ESOCKET", "EDNS", "ENOTFOUND", "ECONNREFUSED"].includes(err.code ?? ""))
     return `Couldn't reach the mail server ${s.smtpHost}:${s.smtpPort}. Check the server name and port, and that this computer is online.`;
   if (err.responseCode === 550 || err.responseCode === 553)
-    return `The mail server refused the address: ${err.message ?? "unknown reason"}`;
-  return err.message ?? String(e);
+    return "The mail server refused a recipient address. Check the recipient and sender settings.";
+  return "The mail server could not send this message. Ask an admin to check the mail configuration.";
 }
 
 export type Attachment = { filename: string; content: Buffer; contentType: string };
@@ -70,7 +71,7 @@ export type OutgoingEmail = {
   subject: string;
   message: string; // plain text the person typed or kept from the template
   attachments?: Attachment[];
-  links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string; certificateId?: string; exitId?: string };
+  links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string; certificateId?: string; receiptId?: string; exitId?: string };
 };
 
 /**
@@ -97,6 +98,7 @@ export async function sendEmail(email: OutgoingEmail, settings: Settings, userId
       attachments: email.attachments,
     });
   } catch (e) {
+    reportServerError(e);
     error = explain(e, settings);
   }
 
@@ -115,6 +117,7 @@ export async function sendEmail(email: OutgoingEmail, settings: Settings, userId
       interviewId: email.links?.interviewId,
       creditNoteId: email.links?.creditNoteId,
       certificateId: email.links?.certificateId,
+      receiptId: email.links?.receiptId,
       exitId: email.links?.exitId,
       invoices: email.links?.invoiceIds?.length ? { connect: email.links.invoiceIds.map((id) => ({ id })) } : undefined,
     },

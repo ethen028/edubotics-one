@@ -96,6 +96,7 @@ type LogRow = Pick<EmailLog, "id" | "kind" | "status" | "to" | "cc" | "subject" 
 };
 
 const KIND: Record<EmailLog["kind"], string> = {
+  ACCOUNT_SECURITY: "Account security",
   TEST: "Test",
   INVOICE: "Invoice",
   PAYMENT_REMINDER: "Reminder",
@@ -104,6 +105,7 @@ const KIND: Record<EmailLog["kind"], string> = {
   INTERVIEW_INVITE: "Invite",
   CREDIT_NOTE: "Credit note",
   CERTIFICATE: "Certificate",
+  RECEIPT: "Receipt",
   EXIT_LETTER: "Relieving letter",
 };
 

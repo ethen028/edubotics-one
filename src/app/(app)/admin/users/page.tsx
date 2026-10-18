@@ -30,7 +30,7 @@ export default async function UsersPage() {
     <>
       <PageHeader
         title="Users"
-        subtitle="Admins manage HR records and settings. Managers approve leave for their team. Everyone can use the CRM. A new or reset password is temporary: the person picks their own at the next sign-in."
+        subtitle="Admins manage accounts and settings. HR manages people without payroll or finance access. Managers approve leave for their team. Everyone can use the CRM. A new or reset password is temporary: the person picks their own at the next sign-in."
       />
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-3 xl:col-span-2">
@@ -53,7 +53,7 @@ export default async function UsersPage() {
                 <form action={updateUser.bind(null, u.id)} className="flex flex-wrap items-end gap-2">
                   <Field label="Role">
                     <select name="role" defaultValue={u.role} className="input w-auto">
-                      <Options values={["EMPLOYEE", "MANAGER", "ADMIN"]} labels={humanize} />
+                      <Options values={["EMPLOYEE", "MANAGER", "HR", "ADMIN"]} labels={humanize} />
                     </select>
                   </Field>
                   <Field label="Employee record">
@@ -103,7 +103,7 @@ export default async function UsersPage() {
           </Field>
           <Field label="Role" className="block">
             <select name="role" defaultValue="EMPLOYEE" className="input">
-              <Options values={["EMPLOYEE", "MANAGER", "ADMIN"]} labels={humanize} />
+              <Options values={["EMPLOYEE", "MANAGER", "HR", "ADMIN"]} labels={humanize} />
             </select>
           </Field>
           <Field label="Link to employee" className="block">

@@ -5,16 +5,17 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { canManage } from "@/lib/team";
+import { canManageHrEmployee } from "@/lib/team";
 import type { FormState } from "@/components/action-form";
 
 function refresh(employeeId?: string) {
+  revalidatePath("/hr");
   revalidatePath("/hr/training");
   if (employeeId) revalidatePath(`/hr/employees/${employeeId}`);
 }
 
 export async function createModule(_: FormState, formData: FormData): Promise<FormState> {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   const parsed = z
     .object({ title: z.string().trim().min(2, "Enter a title"), description: z.string().trim().transform((v) => v || null) })
     .safeParse(Object.fromEntries(formData));
@@ -30,7 +31,7 @@ export async function createModule(_: FormState, formData: FormData): Promise<Fo
 }
 
 export async function toggleModule(moduleId: string) {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   const m = await db.trainingModule.findUniqueOrThrow({ where: { id: moduleId } });
   await db.trainingModule.update({ where: { id: moduleId }, data: { active: !m.active } });
   refresh();
@@ -38,8 +39,8 @@ export async function toggleModule(moduleId: string) {
 
 /** Assigns one module, or every active module when moduleId is "ALL". */
 export async function assignTraining(employeeId: string, formData: FormData) {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
-  if (!(await canManage(user, employeeId))) throw new Error("Not allowed");
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
+  if (!(await canManageHrEmployee(user, employeeId))) throw new Error("Not allowed");
   const moduleId = z.string().min(1).parse(formData.get("moduleId"));
   const modules =
     moduleId === "ALL"
@@ -55,7 +56,7 @@ export async function assignTraining(employeeId: string, formData: FormData) {
 export async function setTrainingStatus(assignmentId: string, formData: FormData) {
   const user = await requireUser();
   const a = await db.trainingAssignment.findUniqueOrThrow({ where: { id: assignmentId } });
-  if (user.employee?.id !== a.employeeId && !(await canManage(user, a.employeeId))) throw new Error("Not allowed");
+  if (user.employee?.id !== a.employeeId && !(await canManageHrEmployee(user, a.employeeId))) throw new Error("Not allowed");
   const status = z.enum(["ASSIGNED", "IN_PROGRESS", "COMPLETED"]).parse(formData.get("status"));
   await db.trainingAssignment.update({
     where: { id: assignmentId },
@@ -65,9 +66,9 @@ export async function setTrainingStatus(assignmentId: string, formData: FormData
 }
 
 export async function removeTraining(assignmentId: string) {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   const a = await db.trainingAssignment.findUniqueOrThrow({ where: { id: assignmentId } });
-  if (!(await canManage(user, a.employeeId))) throw new Error("Not allowed");
+  if (!(await canManageHrEmployee(user, a.employeeId))) throw new Error("Not allowed");
   await db.trainingAssignment.delete({ where: { id: assignmentId } });
   refresh(a.employeeId);
 }

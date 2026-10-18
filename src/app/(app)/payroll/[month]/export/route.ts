@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-
-const csv = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+import { csvCell as csv } from "@/lib/csv";
 
 /** Every payslip line for the month, for the accountant or the bank transfer. */
 export async function GET(_: Request, { params }: RouteContext<"/payroll/[month]/export">) {
@@ -13,10 +12,16 @@ export async function GET(_: Request, { params }: RouteContext<"/payroll/[month]
   });
   if (!run) return new Response("Not found", { status: 404 });
   const rows = [
-    ["Code", "Name", "Paid days", "LOP days", "Basic", "HRA", "Special allowance", "Other earnings", "Gross", "LOP deduction", "PF", "ESI", "PT", "TDS", "Other deductions", "Leave encashment", "Notice pay", "Gratuity", "Notice recovery", "Recoveries on leaving", "Expense claims", "Net pay"],
+    ["Code", "Name", "Bank account", "IFSC", "Name on account", "PAN", "UAN", "ESI number", "Paid days", "LOP days", "Basic", "HRA", "Special allowance", "Other earnings", "Gross", "LOP deduction", "PF", "ESI", "PT", "TDS", "Other deductions", "Leave encashment", "Notice pay", "Gratuity", "Notice recovery", "Recoveries on leaving", "Expense claims", "Net pay"],
     ...run.payslips.map((p) => [
       p.employee.code,
       `${p.employee.firstName} ${p.employee.lastName}`.trim(),
+      p.employee.bankAccountNo ?? "",
+      p.employee.bankIfsc ?? "",
+      p.employee.bankAccountName ?? "",
+      p.employee.pan ?? "",
+      p.employee.uan ?? "",
+      p.employee.esiNumber ?? "",
       Number(p.paidDays),
       Number(p.lopDays),
       ...[p.basic, p.hra, p.specialAllowance, p.otherEarnings, p.gross, p.lopDeduction, p.pf, p.esi, p.professionalTax, p.tds, p.otherDeductions, p.leaveEncashment, p.noticePay, p.gratuity, p.noticeRecovery, p.exitRecovery, p.reimbursements, p.net].map(Number),

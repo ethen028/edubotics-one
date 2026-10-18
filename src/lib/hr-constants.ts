@@ -38,13 +38,23 @@ export const TRAINING_MODULES = [
 
 export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
 
-/** Accepted upload types, recognised by their first bytes (not the browser's claim). */
+/** Allowlisted file signatures and format envelopes; never trust browser MIME or extensions.
+ * This is format validation, not malware scanning or a full document decoder.
+ */
 export function sniffMime(bytes: Uint8Array): string | null {
   const starts = (...sig: number[]) => sig.every((b, i) => bytes[i] === b);
-  if (starts(0x25, 0x50, 0x44, 0x46)) return "application/pdf";
-  if (starts(0xff, 0xd8, 0xff)) return "image/jpeg";
-  if (starts(0x89, 0x50, 0x4e, 0x47)) return "image/png";
-  if (starts(0x52, 0x49, 0x46, 0x46) && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return "image/webp";
+  const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
+  if (/^%PDF-(1\.[0-7]|2\.0)[\r\n]/.test(ascii(0, 9)) &&
+      /%%EOF\s*$/.test(ascii(Math.max(0, bytes.length - 1024), bytes.length))) return "application/pdf";
+  if (bytes.length >= 12 && starts(0xff, 0xd8, 0xff) &&
+      bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9) return "image/jpeg";
+  if (bytes.length >= 45 && starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a) &&
+      ascii(12, 16) === "IHDR" && ascii(bytes.length - 8, bytes.length - 4) === "IEND") return "image/png";
+  if (bytes.length >= 20 && starts(0x52, 0x49, 0x46, 0x46) && ascii(8, 12) === "WEBP" &&
+      ["VP8 ", "VP8L", "VP8X"].includes(ascii(12, 16))) {
+    const declared = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(4, true);
+    if (declared + 8 === bytes.length) return "image/webp";
+  }
   return null;
 }
 

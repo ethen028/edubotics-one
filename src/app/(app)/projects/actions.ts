@@ -8,9 +8,11 @@ import { requireUser, type CurrentUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
 import { PROJECT_STAGES, canApproveProject, canEditProject, canUpdateTask, projectScope } from "@/lib/projects";
 import { readFiles } from "@/lib/project-files";
-import { nextTaskState, recordTaskUpdate } from "@/lib/task-updates";
+import { afterStatusChange, nextTaskState, recordTaskUpdate } from "@/lib/task-updates";
+import { notify } from "@/lib/notifications";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { formatDate } from "@/lib/format";
 
 const optional = z
   .string()
@@ -151,6 +153,12 @@ export async function decideProject(id: string, formData: FormData) {
       decidedAt: new Date(),
     },
   });
+  await notify([project.ownerId], user.id, {
+    kind: "project.decided",
+    title: decision === "APPROVED" ? `${project.name} was approved` : `${project.name} was sent back`,
+    body: note,
+    href: `/projects/${id}`,
+  });
   refresh(id);
 }
 
@@ -215,23 +223,75 @@ export async function deleteMilestone(id: string) {
 
 // ─── Tasks ─────────────────────────────────────────────────────────────────
 
+const optionalHours = z
+  .string()
+  .trim()
+  .transform((v) => (v === "" ? null : Number(v)))
+  .refine((v) => v === null || (Number.isFinite(v) && v > 0 && v <= 2000), "between 0.25 and 2000")
+  .nullable()
+  .optional();
+
 const taskSchema = z.object({
   title: z.string().trim().min(1, "required"),
   description: optional,
   assigneeId: optional,
   milestoneId: optional,
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
+  startDate: optionalDate,
   dueDate: optionalDate,
+  estimatedHours: optionalHours,
+  parentId: optional,
+  dependsOnId: optional,
 });
+
+type TaskInput = z.infer<typeof taskSchema>;
+
+/**
+ * Checks the links Task Flow v5 added: the milestone, parent and "waiting on" task must be in the same project, subtasks
+ * go one level deep, and a task can't end up waiting on itself through a chain.
+ */
+async function checkTaskLinks(projectId: string, data: TaskInput, taskId?: string) {
+  if (data.startDate && data.dueDate && data.dueDate < data.startDate) return "Due date is before the start date.";
+  if (data.milestoneId && !(await db.milestone.findFirst({ where: { id: data.milestoneId, projectId } })))
+    return "That milestone is on another project.";
+  if (data.parentId) {
+    if (data.parentId === taskId) return "A task can't be its own subtask.";
+    const parent = await db.projectTask.findFirst({ where: { id: data.parentId, projectId } });
+    if (!parent) return "The main task is on another project.";
+    if (parent.parentId) return "Subtasks go one level deep: pick a main task, not another subtask.";
+    if (taskId && (await db.projectTask.count({ where: { parentId: taskId } })) > 0)
+      return "This task has its own subtasks, so it can't become a subtask.";
+  }
+  if (data.dependsOnId) {
+    if (data.dependsOnId === taskId) return "A task can't wait on itself.";
+    let cursor: string | null = data.dependsOnId;
+    for (let i = 0; cursor && i < 50; i++) {
+      const t: { projectId: string; dependsOnId: string | null } | null = await db.projectTask.findUnique({
+        where: { id: cursor },
+        select: { projectId: true, dependsOnId: true },
+      });
+      if (!t || t.projectId !== projectId) return "The task it waits on is on another project.";
+      if (taskId && t.dependsOnId === taskId) return "Those two tasks would be waiting on each other.";
+      cursor = t.dependsOnId;
+    }
+  }
+  return null;
+}
+
+function taskHref(projectId: string, taskId: string) {
+  return `/projects/${projectId}/tasks/${taskId}`;
+}
 
 export async function addTask(projectId: string, _: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
-  await editableProject(user, projectId);
+  const project = await editableProject(user, projectId);
   const parsed = taskSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
   const data = parsed.data;
+  const linkError = await checkTaskLinks(projectId, data);
+  if (linkError) return { error: linkError };
   await db.$transaction(async (tx) => {
-    await tx.projectTask.create({ data: { ...data, projectId, createdById: user.id } });
+    const task = await tx.projectTask.create({ data: { ...data, projectId, createdById: user.id } });
     // Whoever gets a task is on the team.
     if (data.assigneeId) {
       await tx.projectMember.upsert({
@@ -239,10 +299,132 @@ export async function addTask(projectId: string, _: FormState, formData: FormDat
         create: { projectId, userId: data.assigneeId },
         update: {},
       });
+      await notify([data.assigneeId], user.id, {
+        kind: "task.assigned",
+        title: `New task: ${task.title}`,
+        body: `${project.name}${task.dueDate ? `, due ${formatDate(task.dueDate)}` : ""}`,
+        href: taskHref(projectId, task.id),
+      }, tx);
     }
   });
   refresh(projectId);
-  return { ok: "Task added." };
+  return { ok: data.parentId ? "Subtask added." : "Task added." };
+}
+
+/** Changes a task's details (Task Flow v5's task editor). A new assignee joins the team and gets it in their Inbox. */
+export async function updateTask(id: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const task = await db.projectTask.findUnique({ where: { id }, include: { project: true } });
+  if (!task) return { error: "Task not found." };
+  if (!canEditProject(user, task.project)) return { error: "Only the project owner or an admin can change this task." };
+  const parsed = taskSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: firstError(parsed.error) };
+  const data = parsed.data;
+  const linkError = await checkTaskLinks(task.projectId, data, id);
+  if (linkError) return { error: linkError };
+  await db.$transaction(async (tx) => {
+    await tx.projectTask.update({ where: { id }, data });
+    if (data.assigneeId && data.assigneeId !== task.assigneeId) {
+      await tx.projectMember.upsert({
+        where: { projectId_userId: { projectId: task.projectId, userId: data.assigneeId } },
+        create: { projectId: task.projectId, userId: data.assigneeId },
+        update: {},
+      });
+      await notify([data.assigneeId], user.id, {
+        kind: "task.assigned",
+        title: `New task: ${data.title}`,
+        body: task.project.name,
+        href: taskHref(task.projectId, id),
+      }, tx);
+    }
+  });
+  refresh(task.projectId);
+  revalidatePath(taskHref(task.projectId, id));
+  return { ok: "Saved." };
+}
+
+/** The assignee or the owner flags a task as stuck, with the reason; the owner hears about it. */
+export async function setBlocked(id: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const task = await db.projectTask.findUnique({ where: { id }, include: { project: true } });
+  if (!task) return { error: "Task not found." };
+  if (!canUpdateTask(user, task, task.project)) return { error: "Only the assignee or the project owner can do this." };
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!reason) return { error: "Say what it's stuck on." };
+  if (task.status === "DONE") return { error: "This task is already done." };
+  await db.$transaction(async (tx) => {
+    await tx.projectTask.update({ where: { id }, data: { blockedReason: reason.slice(0, 500), blockedAt: new Date() } });
+    await tx.projectUpdate.create({ data: { projectId: task.projectId, taskId: id, authorId: user.id, note: `Blocked: ${reason}` } });
+    await notify([task.project.ownerId, task.assigneeId], user.id, {
+      kind: "task.blocked",
+      title: `${task.title} is blocked`,
+      body: reason,
+      href: taskHref(task.projectId, id),
+    }, tx);
+  });
+  refresh(task.projectId);
+  revalidatePath(taskHref(task.projectId, id));
+  return { ok: "Marked as blocked." };
+}
+
+export async function clearBlocked(id: string) {
+  const user = await requireUser();
+  const task = await db.projectTask.findUnique({ where: { id }, include: { project: true } });
+  if (!task || !task.blockedAt) return;
+  if (!canUpdateTask(user, task, task.project)) throw new Error("Not allowed");
+  await db.$transaction([
+    db.projectTask.update({ where: { id }, data: { blockedReason: null, blockedAt: null } }),
+    db.projectUpdate.create({ data: { projectId: task.projectId, taskId: id, authorId: user.id, note: "No longer blocked." } }),
+  ]);
+  refresh(task.projectId);
+  revalidatePath(taskHref(task.projectId, id));
+}
+
+// ─── Checklist (Task Flow v5) ──────────────────────────────────────────────
+
+async function checklistTask(user: CurrentUser, taskId: string) {
+  const task = await db.projectTask.findUnique({ where: { id: taskId }, include: { project: true } });
+  if (!task) throw new Error("Task not found");
+  if (!canUpdateTask(user, task, task.project)) throw new Error("Only the assignee or the project owner can change the checklist");
+  return task;
+}
+
+export async function addChecklistItem(taskId: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const task = await checklistTask(user, taskId);
+  // One step per line, so a list can be pasted in one go.
+  const titles = String(formData.get("title") ?? "")
+    .split("\n")
+    .map((t) => t.trim().slice(0, 200))
+    .filter(Boolean);
+  if (titles.length === 0) return { error: "Write the step." };
+  if (titles.length > 30) return { error: "Add up to 30 steps at a time." };
+  const last = await db.taskChecklistItem.aggregate({ where: { taskId }, _max: { position: true } });
+  const start = (last._max.position ?? -1) + 1;
+  await db.taskChecklistItem.createMany({ data: titles.map((title, i) => ({ taskId, title, position: start + i })) });
+  revalidatePath(taskHref(task.projectId, taskId));
+  revalidatePath(`/projects/${task.projectId}`);
+  return { ok: titles.length > 1 ? `${titles.length} steps added.` : "Step added." };
+}
+
+export async function toggleChecklistItem(id: string) {
+  const user = await requireUser();
+  const item = await db.taskChecklistItem.findUnique({ where: { id } });
+  if (!item) return;
+  const task = await checklistTask(user, item.taskId);
+  await db.taskChecklistItem.update({ where: { id }, data: { doneAt: item.doneAt ? null : new Date() } });
+  revalidatePath(taskHref(task.projectId, task.id));
+  revalidatePath(`/projects/${task.projectId}`);
+}
+
+export async function deleteChecklistItem(id: string) {
+  const user = await requireUser();
+  const item = await db.taskChecklistItem.findUnique({ where: { id } });
+  if (!item) return;
+  const task = await checklistTask(user, item.taskId);
+  await db.taskChecklistItem.delete({ where: { id } });
+  revalidatePath(taskHref(task.projectId, task.id));
+  revalidatePath(`/projects/${task.projectId}`);
 }
 
 /** The assignee, the project owner or an admin can move a task along. */
@@ -252,13 +434,23 @@ export async function setTaskStatus(id: string, formData: FormData) {
   if (!task) return;
   if (task.assigneeId !== user.id && !canEditProject(user, task.project)) throw new Error("Not allowed");
   const status = z.enum(["TODO", "IN_PROGRESS", "REVIEW", "DONE"]).parse(formData.get("status"));
-  await db.projectTask.update({
-    where: { id },
-    data: {
-      status,
-      completedAt: status === "DONE" ? (task.completedAt ?? new Date()) : null,
-      ...(status === "DONE" ? { progress: 100 } : {}),
-    },
+  if (status === task.status) return;
+  await db.$transaction(async (tx) => {
+    await tx.projectTask.update({
+      where: { id },
+      data: {
+        status,
+        completedAt: status === "DONE" ? (task.completedAt ?? new Date()) : null,
+        ...(status === "DONE" ? { progress: 100, blockedReason: null, blockedAt: null } : {}),
+      },
+    });
+    if (status === "REVIEW")
+      await notify([task.project.ownerId], user.id, {
+        kind: "task.review",
+        title: `${task.title} is ready for review`,
+        href: taskHref(task.projectId, id),
+      }, tx);
+    await afterStatusChange(tx, task, status, user.id);
   });
   refresh(task.projectId);
 }
@@ -315,11 +507,18 @@ export async function postProjectUpdate(projectId: string, _: FormState, formDat
   const read = await readFiles(formData);
   if ("error" in read) return { error: read.error };
   if (!note && read.files.length === 0) return { error: "Write a note or attach a file." };
+  const team = await db.projectMember.findMany({ where: { projectId }, select: { userId: true } });
   await db.$transaction(async (tx) => {
     const update = await tx.projectUpdate.create({ data: { projectId, authorId: user.id, note } });
     for (const f of read.files) {
       await tx.projectFile.create({ data: { ...f, projectId, updateId: update.id, uploadedById: user.id } });
     }
+    await notify([project.ownerId, ...team.map((m) => m.userId)], user.id, {
+      kind: "project.post",
+      title: `${user.name} posted on ${project.name}`,
+      body: note ?? `${read.files.length} file(s) shared`,
+      href: `/projects/${projectId}`,
+    }, tx);
   });
   refresh(projectId);
   return { ok: "Posted." };
@@ -337,6 +536,12 @@ export async function requestTaskUpdate(taskId: string, formData: FormData) {
     db.projectTask.update({ where: { id: taskId }, data: { updateRequestedAt: new Date() } }),
     db.projectUpdate.create({ data: { projectId: task.projectId, taskId, authorId: user.id, note, isRequest: true } }),
   ]);
+  await notify([task.assigneeId], user.id, {
+    kind: "task.update-requested",
+    title: `${user.name} asked for an update on ${task.title}`,
+    body: note,
+    href: taskHref(task.projectId, taskId),
+  });
   refresh(task.projectId);
   revalidatePath(`/projects/${task.projectId}/tasks/${taskId}`);
 }

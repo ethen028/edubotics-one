@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { istDate } from "@/lib/attendance";
 import { RUN_COLOR, monthLabel, monthRange } from "@/lib/payroll";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize, toDateInput } from "@/lib/format";
 import { deleteRun, finalizeRun, markPaid, recalculateRun, removeSlip, reopenRun, updateSlip } from "../actions";
@@ -121,7 +121,7 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
               <button className="btn-primary">Finalize and publish payslips</button>
             </form>
             <form action={deleteRun.bind(null, run.id)}>
-              <button className="btn-danger">Delete draft</button>
+              <ConfirmButton message={"Delete this draft payroll and all its payslips? Expense claims on it go back to waiting."} className="btn-danger">Delete draft</ConfirmButton>
             </form>
           </>
         )}
@@ -267,9 +267,9 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
                   </Link>
                   {draft && (
                     <form action={removeSlip.bind(null, p.id)} className="inline">
-                      <button className="ml-3 text-xs text-slate-400 hover:text-red-600" title="Leave out of this month">
+                      <ConfirmButton message={"Leave this person out of this month's payroll? Their payslip is removed."} className="ml-3 text-xs text-slate-400 hover:text-red-600" title="Leave out of this month">
                         ✕
-                      </button>
+                      </ConfirmButton>
                     </form>
                   )}
                 </td>

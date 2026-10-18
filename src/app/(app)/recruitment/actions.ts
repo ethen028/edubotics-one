@@ -377,7 +377,7 @@ export async function hireCandidate(candidateId: string, _: FormState, formData:
   if (!parsed.success) return { error: firstError(parsed.error) };
   const withLogin = formData.get("withLogin") === "on";
   const password = String(formData.get("password") ?? "");
-  const role = z.enum(["ADMIN", "MANAGER", "EMPLOYEE"]).catch("EMPLOYEE").parse(formData.get("role"));
+  const role = z.enum(["ADMIN", "HR", "MANAGER", "EMPLOYEE"]).catch("EMPLOYEE").parse(formData.get("role"));
   const weak = withLogin ? passwordProblem(password, { email: parsed.data.workEmail, name: `${parsed.data.firstName} ${parsed.data.lastName}` }) : null;
   if (weak) return { error: `Temporary password: ${weak}` };
 

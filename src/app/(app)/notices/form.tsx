@@ -53,7 +53,7 @@ export function NoticeForm({
             .
           </p>
         )}
-        <input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="text-sm" />
+        <input name="file" type="file" aria-label="Attach a file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="w-full max-w-full text-sm" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

@@ -25,7 +25,7 @@ export function FileLink({ file }: { file: { id: string; fileName: string; mimeT
       href={`/api/helpdesk/files/${file.id}`}
       target="_blank"
       rel="noopener"
-      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs hover:border-brand-400"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-surface px-2.5 py-1 text-xs hover:border-brand-400"
     >
       <span className="font-semibold text-brand-700">{file.mimeType === "application/pdf" ? "PDF" : "IMG"}</span>
       <span className="max-w-48 truncate">{file.fileName}</span>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getAttendance, summarize } from "@/lib/attendance-data";
-import { managedEmployees } from "@/lib/team";
+import { peopleEmployees } from "@/lib/team";
 import { STATUS_COLOR, STATUS_LABEL, dateKey, formatMinutes, formatTime, istDate } from "@/lib/attendance";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
@@ -15,7 +15,7 @@ export const metadata = { title: "Attendance register" };
 const MARKS = ["PRESENT", "INCOMPLETE", "OVERTIME", "ABSENT", "LEAVE", "MISPUNCH", "HOLIDAY", "WEEKLY_OFF"] as const;
 
 export default async function RegisterPage({ searchParams }: PageProps<"/hr/attendance/register">) {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   const sp = (await searchParams) as Record<string, string | undefined>;
   const now = new Date();
   const today = istDate(now);
@@ -25,7 +25,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/hr/atte
   } catch {}
   const shift = (n: number) => toDateInput(new Date(date.getTime() + n * 86400000));
 
-  const employees = await managedEmployees(user);
+  const employees = await peopleEmployees(user);
   const ids = employees.map((e) => e.id);
   const [{ days, settings }, corrections] = await Promise.all([
     getAttendance(ids, date, date, now),
@@ -47,7 +47,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/hr/atte
     <>
       <PageHeader
         title="Attendance register"
-        subtitle={user.role === "ADMIN" ? "All active employees" : "Your direct reports"}
+        subtitle={user.role === "ADMIN" || user.role === "HR" ? "All active employees" : "Your direct reports"}
         actions={
           <a href={`/hr/attendance/export?month=${month}`} className="btn-secondary">
             Download {month} (CSV)
@@ -94,7 +94,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/hr/atte
           ← Previous day
         </Link>
         <form className="flex items-center gap-2">
-          <input type="date" name="date" defaultValue={key} className="input w-auto py-1" />
+          <input type="date" name="date" aria-label="Date" defaultValue={key} className="input w-auto py-1" />
           <button className="btn-secondary btn-sm">Go</button>
         </form>
         <Link href={`?date=${shift(1)}`} className="btn-secondary btn-sm">
@@ -146,10 +146,10 @@ export default async function RegisterPage({ searchParams }: PageProps<"/hr/atte
                       {r.marked && <span className="ml-1 text-xs text-slate-400">set by HR</span>}
                     </td>
                     <td>
-                      <form action={markDay} className="flex items-center gap-1">
+                      {user.role === "HR" && e.id === user.employee?.id ? <span className="text-xs text-slate-500">Ask another approver</span> : <form action={markDay} className="flex items-center gap-1">
                         <input type="hidden" name="employeeId" value={e.id} />
                         <input type="hidden" name="date" value={key} />
-                        <select name="status" defaultValue={r.marked ? r.status : "AUTO"} className="input w-auto py-1 text-xs">
+                        <select name="status" aria-label={`Attendance for ${e.firstName} ${e.lastName}`} defaultValue={r.marked ? r.status : "AUTO"} className="input w-auto py-1 text-xs">
                           <option value="AUTO">Automatic</option>
                           {MARKS.map((m) => (
                             <option key={m} value={m}>
@@ -158,7 +158,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/hr/atte
                           ))}
                         </select>
                         <button className="btn-secondary btn-sm">Save</button>
-                      </form>
+                      </form>}
                     </td>
                   </tr>
                 );
@@ -174,7 +174,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/hr/atte
           <ActionForm action={addSession} className="grid gap-3 sm:grid-cols-5 sm:items-end">
             <Field label="Employee" className="sm:col-span-2">
               <select name="employeeId" required className="input">
-                {employees.map((e) => (
+                {employees.filter(e => user.role !== "HR" || e.id !== user.employee?.id).map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.firstName} {e.lastName}
                   </option>

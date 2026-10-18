@@ -1,12 +1,18 @@
 /**
- * Starter data: departments, leave types, fixed-date national holidays, training modules and the first admin login.
+ * Starter data: departments, leave types, fixed-date national holidays, training modules, the June 2026 – May 2027
+ * operating calendar and the first admin login.
  * Safe to run more than once. Run with `npm run db:seed`.
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { existsSync } from "node:fs";
+import { loadEnvFile } from "node:process";
 import { TRAINING_MODULES } from "../src/lib/hr-constants";
 import { KERALA_HOLIDAYS } from "./kerala-holidays";
+import { loadOperatingCalendar } from "../src/lib/plan-load";
 
+// tsx does not load .env the way Next.js and the Prisma CLI do.
+if (existsSync(".env")) loadEnvFile(".env");
 const db = new PrismaClient();
 
 const departments = ["Management", "Training & Delivery", "Sales & Partnerships", "Operations", "R&D / Technical"];
@@ -51,6 +57,9 @@ async function main() {
     await db.trainingModule.upsert({ where: { title: m.title }, update: {}, create: m });
   }
 
+  // Only on a database with no plan yet, so months someone removed on purpose don't come back on the next restart.
+  if ((await db.planMonth.count()) === 0) console.log(`Loaded ${await loadOperatingCalendar(db)} months of the operating calendar.`);
+
   const email = (process.env.SEED_ADMIN_EMAIL ?? "").trim().toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD ?? "";
   if (!email || password.length < 8) {
@@ -63,7 +72,7 @@ async function main() {
         email,
         name: process.env.SEED_ADMIN_NAME ?? "Admin",
         role: "ADMIN",
-        passwordHash: await bcrypt.hash(password, 10),
+        passwordHash: await bcrypt.hash(password, 12),
         mustChangePassword: true, // the starting password is in docker-compose.yml for anyone to read
       },
     });

@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
-import { Badge, Empty, Field, PageHeader } from "@/components/ui";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
+import { Badge, Empty, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
 import { payableOf } from "@/lib/expenses";
 import { todayIST } from "@/lib/time";
@@ -35,6 +35,8 @@ import {
 import { outstanding, requestNo } from "@/lib/inventory";
 import { RequestBadge } from "../../inventory/ui";
 import { ProjectForm } from "../forms";
+import { TaskForm } from "../task-form";
+import { Timeline, toneOf } from "../timeline";
 import { projectFormOptions } from "../data";
 import {
   FileList,
@@ -46,6 +48,9 @@ import {
   UpdateFeed,
   UpdateRequestedBadge,
   WORK_STATUSES,
+  BlockedBadge,
+  ChecklistCount,
+  WaitingBadge,
   updateInclude,
 } from "../ui";
 import { ProgrammeBadge } from "../../operations/ui";
@@ -68,6 +73,8 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
         include: {
           assignee: { select: { id: true, name: true } },
           milestone: { select: { title: true } },
+          dependsOn: { select: { title: true, status: true } },
+          checklist: { select: { doneAt: true } },
           _count: { select: { files: true } },
         },
         orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
@@ -103,6 +110,10 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
   const info = stageInfo[project.stage];
   const openTasks = project.tasks.filter((t) => t.status !== "DONE").length;
   const sentBack = project.stage === "REVIEW" && project.decidedAt && project.approvalNote;
+  // Main tasks in date order, each followed by its subtasks (Task Flow v5).
+  const ordered = project.tasks
+    .filter((t) => !t.parentId || !project.tasks.some((p) => p.id === t.parentId))
+    .flatMap((t) => [t, ...project.tasks.filter((st) => st.parentId === t.id)]);
 
   return (
     <>
@@ -148,7 +159,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             )}
             {isAdmin(user) && (
               <form action={deleteProject.bind(null, project.id)}>
-                <button className="btn-danger">Delete</button>
+                <ConfirmButton message={`Delete the project "${project.name}" for good? Its tasks, milestones, updates, files and team list are deleted with it and can't be brought back.`} typeToConfirm={project.name} className="btn-danger">Delete</ConfirmButton>
               </form>
             )}
           </>
@@ -261,24 +272,28 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             <Empty>No tasks yet.</Empty>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {project.tasks.map((t) => {
+              {ordered.map((t) => {
                 const late = t.status !== "DONE" && t.dueDate && t.dueDate < today;
                 const canMove = canEdit || t.assignee?.id === user.id;
                 const tPct = t.status === "DONE" ? 100 : t.progress;
                 return (
-                  <li key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm">
+                  <li key={t.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm ${t.parentId ? "pl-5" : ""}`}>
                     <div className="min-w-0 flex-1 basis-full sm:basis-0">
+                      {t.parentId && <span className="text-slate-400">↳ </span>}
                       <Link
                         href={`/projects/${project.id}/tasks/${t.id}`}
                         className={t.status === "DONE" ? "text-slate-400 line-through hover:underline" : "font-medium hover:underline"}
                       >
                         {t.title}
                       </Link>{" "}
-                      {t.updateRequestedAt && <UpdateRequestedBadge />}
+                      {t.updateRequestedAt && <UpdateRequestedBadge />}{" "}
+                      {t.blockedAt && t.status !== "DONE" && <BlockedBadge reason={t.blockedReason} />}{" "}
+                      {t.dependsOn && t.dependsOn.status !== "DONE" && t.status !== "DONE" && <WaitingBadge on={t.dependsOn.title} />}{" "}
+                      <ChecklistCount done={t.checklist.filter((c) => c.doneAt).length} total={t.checklist.length} />
                       <div className="text-xs text-slate-500">
                         {t.assignee?.name ?? "Unassigned"}
                         {t.milestone && ` · ${t.milestone.title}`}
-                        {t._count.files > 0 && ` · 📎 ${t._count.files}`}
+                        {t._count.files > 0 && ` · ${t._count.files} file${t._count.files === 1 ? "" : "s"}`}
                         {t.description && ` · ${t.description}`}
                       </div>
                     </div>
@@ -306,9 +321,9 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                     )}
                     {canEdit && (
                       <form action={deleteTask.bind(null, t.id)}>
-                        <button className="text-xs text-slate-400 hover:text-red-600" title="Delete task">
+                        <ConfirmButton message={`Delete the task "${t.title}" and its subtasks, checklist and files?`} className="text-xs text-slate-400 hover:text-red-600" title="Delete task">
                           ✕
-                        </button>
+                        </ConfirmButton>
                       </form>
                     )}
                   </li>
@@ -317,51 +332,39 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
             </ul>
           )}
           {canEdit && (
-            <ActionForm action={addTask.bind(null, project.id)} className="mt-4 border-t border-slate-100 pt-4">
-              <div className="grid gap-3 sm:grid-cols-6">
-                <Field label="New task *" className="sm:col-span-3">
-                  <input name="title" required className="input" />
-                </Field>
-                <Field label="Assign to" className="sm:col-span-3">
-                  <select name="assigneeId" className="input" defaultValue="">
-                    <option value="">—</option>
-                    {options!.users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Priority" className="sm:col-span-2">
-                  <select name="priority" defaultValue="MEDIUM" className="input">
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
-                  </select>
-                </Field>
-                <Field label="Due" className="sm:col-span-2">
-                  <input type="date" name="dueDate" className="input" />
-                </Field>
-                <Field label="Milestone" className="sm:col-span-2">
-                  <select name="milestoneId" className="input" defaultValue="">
-                    <option value="">—</option>
-                    {project.milestones.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.title}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Notes" className="sm:col-span-6">
-                  <input name="description" className="input" />
-                </Field>
-              </div>
-              <div className="mt-3">
-                <SubmitButton>Add task</SubmitButton>
-              </div>
-            </ActionForm>
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <TaskForm
+                action={addTask.bind(null, project.id)}
+                users={options!.users}
+                milestones={project.milestones}
+                tasks={project.tasks}
+              />
+            </div>
           )}
         </section>
+
+        {project.tasks.length > 0 && (
+          <section className="card">
+            <h2 className="mb-3 font-semibold">Timeline</h2>
+            <Timeline
+              today={today}
+              rows={ordered.map((t) => ({
+                id: t.id,
+                label: t.title,
+                sublabel: t.assignee?.name,
+                href: `/projects/${project.id}/tasks/${t.id}`,
+                start: t.startDate,
+                end: t.dueDate,
+                tone: toneOf(t.status, t.dueDate, today, !!t.blockedAt),
+                indent: !!t.parentId,
+                progress: t.status === "DONE" ? 100 : t.progress,
+              }))}
+              markers={project.milestones
+                .filter((m) => m.dueDate)
+                .map((m) => ({ id: m.id, label: m.title, date: m.dueDate!, done: !!m.doneAt }))}
+            />
+          </section>
+        )}
 
         <section className="card">
           <h2 className="mb-3 font-semibold">Updates</h2>
@@ -388,7 +391,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                   </span>
                   {canEdit && m.user.id !== project.owner.id && (
                     <form action={removeMember.bind(null, m.id)}>
-                      <button className="text-xs text-slate-400 hover:text-red-600">Remove</button>
+                      <ConfirmButton message={"Remove this person from the project team?"} className="text-xs text-slate-400 hover:text-red-600">Remove</ConfirmButton>
                     </form>
                   )}
                 </li>
@@ -492,7 +495,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
                           <button className="link text-xs">{m.doneAt ? "Reopen" : "Done"}</button>
                         </form>
                         <form action={deleteMilestone.bind(null, m.id)}>
-                          <button className="text-xs text-slate-400 hover:text-red-600">✕</button>
+                          <ConfirmButton message={`Delete the milestone "${m.title}"?`} className="text-xs text-slate-400 hover:text-red-600">✕</ConfirmButton>
                         </form>
                       </span>
                     ) : (

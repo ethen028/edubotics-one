@@ -1,13 +1,13 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { PageHeader } from "@/components/ui";
 import { createDepartment, deleteDepartment } from "../actions";
 
 export const metadata = { title: "Departments" };
 
 export default async function DepartmentsPage() {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   const departments = await db.department.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { employees: true } } },
@@ -32,7 +32,7 @@ export default async function DepartmentsPage() {
                   <td>{d._count.employees}</td>
                   <td className="text-right">
                     <form action={deleteDepartment.bind(null, d.id)}>
-                      <button className="btn-danger btn-sm">Delete</button>
+                      <ConfirmButton message={`Delete the ${d.name} department?`} className="btn-danger btn-sm">Delete</ConfirmButton>
                     </form>
                   </td>
                 </tr>

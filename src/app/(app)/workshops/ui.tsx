@@ -11,6 +11,8 @@ import {
   WORKSHOP_FEE_TYPES,
   WORKSHOP_MODES,
   audienceLabel,
+  kindLabel,
+  WORKSHOP_KINDS,
   feeTypeLabel,
   modeLabel,
   statusLabel,
@@ -53,6 +55,15 @@ export function WorkshopForm({
         </Field>
         <Field label="What it covers" className="sm:col-span-2">
           <textarea name="description" rows={2} defaultValue={workshop?.description ?? ""} className="input" placeholder="Topics, kits used, what participants build" />
+        </Field>
+        <Field label="Kind">
+          <select name="kind" defaultValue={workshop?.kind ?? "WORKSHOP"} className="input">
+            {WORKSHOP_KINDS.map((k) => (
+              <option key={k} value={k}>
+                {kindLabel[k]}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Who it's for">
           <select name="audience" defaultValue={workshop?.audience ?? "COLLEGE"} className="input">

@@ -116,6 +116,34 @@ export function EmployeeForm({ action, employee: e, departments, managers, withL
         </div>
       </section>
 
+      <section className="card">
+        <h2 className="font-semibold">Bank and statutory IDs</h2>
+        <p className="mt-1 mb-4 text-sm text-slate-500">For paying salary and filing PF, ESI and TDS. Only this person and admins see them.</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="Name on the bank account">
+            <input name="bankAccountName" defaultValue={e?.bankAccountName ?? ""} className="input" autoComplete="off" />
+          </Field>
+          <Field label="Bank account number">
+            <input name="bankAccountNo" inputMode="numeric" defaultValue={e?.bankAccountNo ?? ""} className="input" autoComplete="off" />
+          </Field>
+          <Field label="IFSC">
+            <input name="bankIfsc" defaultValue={e?.bankIfsc ?? ""} maxLength={11} className="input uppercase" placeholder="SBIN0070123" autoComplete="off" />
+          </Field>
+          <Field label="Bank and branch">
+            <input name="bankName" defaultValue={e?.bankName ?? ""} className="input" placeholder="SBI, Edappally" />
+          </Field>
+          <Field label="PAN">
+            <input name="pan" defaultValue={e?.pan ?? ""} maxLength={10} className="input uppercase" placeholder="ABCDE1234F" autoComplete="off" />
+          </Field>
+          <Field label="UAN (PF)">
+            <input name="uan" inputMode="numeric" defaultValue={e?.uan ?? ""} maxLength={12} className="input" autoComplete="off" />
+          </Field>
+          <Field label="ESI number">
+            <input name="esiNumber" inputMode="numeric" defaultValue={e?.esiNumber ?? ""} maxLength={10} className="input" autoComplete="off" />
+          </Field>
+        </div>
+      </section>
+
       {withLogin && (
         <section className="card">
           <label className="flex items-center gap-2 font-semibold">
@@ -125,7 +153,7 @@ export function EmployeeForm({ action, employee: e, departments, managers, withL
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Role">
               <select name="role" defaultValue="EMPLOYEE" className="input">
-                <Options values={["EMPLOYEE", "MANAGER", "ADMIN"]} labels={humanize} />
+                <Options values={["EMPLOYEE", "MANAGER", "HR", "ADMIN"]} labels={humanize} />
               </select>
             </Field>
             <Field label="Temporary password (8+ characters)">

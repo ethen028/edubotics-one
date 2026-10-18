@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { mailSetup, MAIL_NOT_READY, parseAddresses, sendEmail, type Attachment } from "@/lib/mail";
-import { certificatePdf, creditNotePdf, exitLetterPdf, invoicePdf, payslipPdf, quotePdf } from "@/lib/pdf";
+import { certificatePdf, creditNotePdf, exitLetterPdf, invoicePdf, payslipPdf, quotePdf, receiptPdf } from "@/lib/pdf";
 import { markQuoteSent } from "@/lib/quote-send";
 import { calendarInvite } from "@/lib/ics";
 import { canRecruit } from "@/lib/recruitment";
@@ -274,6 +274,22 @@ export async function emailCertificate(id: string, _: FormState, formData: FormD
   const result = await sendEmail({ kind: "CERTIFICATE", ...form, attachments: [pdf], links: { certificateId: id } }, ready.settings, user.id);
   revalidatePath(`/workshops/registrations/${cert.registrationId}`);
   revalidatePath(`/workshops/${cert.registration.workshopId}`, "layout");
+  return "error" in result ? { error: result.error } : { ok: sentTo(form.to) };
+}
+
+/** Email a participant the receipt for one fee payment, from their registration page. */
+export async function emailReceipt(id: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const p = await db.workshopPayment.findUnique({ where: { id }, include: { registration: { include: { workshop: true } } } });
+  if (!p || !canManageWorkshop(user, p.registration.workshop)) return { error: "Only admins and managers can send fee receipts." };
+  if (p.cancelledAt) return { error: "This receipt was cancelled." };
+  const ready = await readySettings();
+  if ("error" in ready) return { error: ready.error };
+  const form = readComposer(formData);
+  if ("error" in form) return { error: form.error };
+  const pdf = (await receiptPdf(id))!;
+  const result = await sendEmail({ kind: "RECEIPT", ...form, attachments: [pdf], links: { receiptId: id } }, ready.settings, user.id);
+  revalidatePath(`/workshops/registrations/${p.registrationId}`);
   return "error" in result ? { error: result.error } : { ok: sentTo(form.to) };
 }
 

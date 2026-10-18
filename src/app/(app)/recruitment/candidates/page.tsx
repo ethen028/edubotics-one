@@ -59,7 +59,7 @@ export default async function CandidatesPage({ searchParams }: PageProps<"/recru
       />
       <form className="mb-4 flex flex-wrap gap-2">
         <input name="q" defaultValue={q} placeholder="Search name, phone, email" className="input max-w-xs" />
-        <select name="job" defaultValue={job} className="input w-auto">
+        <select name="job" aria-label="Job" defaultValue={job} className="input w-auto">
           <option value="">All jobs</option>
           {jobs.map((j) => (
             <option key={j.id} value={j.id}>
@@ -68,7 +68,7 @@ export default async function CandidatesPage({ searchParams }: PageProps<"/recru
             </option>
           ))}
         </select>
-        <select name="stage" defaultValue={stage} className="input w-auto">
+        <select name="stage" aria-label="Stage" defaultValue={stage} className="input w-auto">
           <option value="ACTIVE">In the running</option>
           {STAGES.map((s) => (
             <option key={s} value={s}>

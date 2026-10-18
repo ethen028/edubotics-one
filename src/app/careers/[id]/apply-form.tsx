@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Captcha } from "@/components/captcha";
 
 /**
  * Posts to /careers/[id]/apply. With scripts on it stays on the page and keeps what was typed when
  * something needs fixing; with scripts off the browser posts the form and gets redirected.
  */
-export function ApplyForm({ jobId, initialError, companyName }: { jobId: string; initialError?: string; companyName: string }) {
+export function ApplyForm({ jobId, initialError, companyName, siteKey, nonce }: { jobId: string; initialError?: string; companyName: string; siteKey: string | null; nonce?: string }) {
   const router = useRouter();
   const [error, setError] = useState(initialError);
   const [sending, setSending] = useState(false);
@@ -38,6 +39,7 @@ export function ApplyForm({ jobId, initialError, companyName }: { jobId: string;
   return (
     <form action={action} method="post" encType="multipart/form-data" onSubmit={submit} className="card space-y-4">
       {error && <div ref={errorBox} role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      <Captcha key={error} siteKey={siteKey} action="application" nonce={nonce} />
       <div className="grid gap-4 sm:grid-cols-2">
         <label>
           <span className="label">Full name *</span>
@@ -89,7 +91,12 @@ export function ApplyForm({ jobId, initialError, companyName }: { jobId: string;
       </div>
       <label className="flex items-start gap-2 text-sm text-slate-600">
         <input name="consent" type="checkbox" required className="mt-1" />
-        <span>I agree that {companyName} may keep my details and resume to consider me for this and future jobs.</span>
+        <span>I agree that {companyName} may keep my details and resume to consider me for this and future jobs, as set out in{" "}
+          <a href="/careers/privacy" target="_blank" className="link">
+            how we use your application
+          </a>
+          .
+        </span>
       </label>
       <button type="submit" disabled={sending} className="btn-primary w-full sm:w-auto">
         {sending ? "Sending…" : "Send application"}

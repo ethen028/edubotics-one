@@ -1,6 +1,7 @@
+import { HR_DOCUMENT_TYPES } from "@/lib/permissions";
 import Link from "next/link";
 import type { Asset, EmployeeDocument, OnboardingTask, PerformanceReview, ReviewCycle, SalaryStructure, TrainingAssignment, TrainingModule } from "@prisma/client";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
 import { DOCUMENT_TYPES, TASK_CATEGORIES } from "@/lib/hr-constants";
@@ -83,9 +84,9 @@ export function OnboardingSection({
               )}
               {canEdit && (
                 <form action={deleteTask.bind(null, t.id)}>
-                  <button className="text-xs text-slate-400 hover:text-red-600" title="Remove task">
+                  <ConfirmButton message={`Remove the onboarding task "${t.title}"?`} className="text-xs text-slate-400 hover:text-red-600" title="Remove task">
                     ✕
-                  </button>
+                  </ConfirmButton>
                 </form>
               )}
             </li>
@@ -115,16 +116,18 @@ export function DocumentsSection({
   documents,
   isSelf,
   admin,
+  hrOnly = false,
 }: {
   employeeId: string;
   documents: Doc[];
   isSelf: boolean;
   admin: boolean;
+  hrOnly?: boolean;
 }) {
   return (
     <section className="card text-sm">
       <h2 className="mb-1 font-semibold">Documents</h2>
-      <p className="mb-3 text-xs text-slate-500">Only you and admins can open these.</p>
+      <p className="mb-3 text-xs text-slate-500">Private to you and Admin. HR can also manage ID, PAN, education and resume documents.</p>
       {documents.length === 0 ? (
         <p className="text-slate-500">No documents yet.</p>
       ) : (
@@ -143,9 +146,9 @@ export function DocumentsSection({
                 <Badge color={DOC_COLOR[d.status]}>{humanize(d.status)}</Badge>
                 {(admin || (isSelf && d.status !== "VERIFIED")) && (
                   <form action={deleteDocument.bind(null, d.id)}>
-                    <button className="text-xs text-slate-400 hover:text-red-600" title="Delete">
+                    <ConfirmButton message={`Delete the document "${d.fileName}" for good?`} className="text-xs text-slate-400 hover:text-red-600" title="Delete">
                       ✕
-                    </button>
+                    </ConfirmButton>
                   </form>
                 )}
               </div>
@@ -168,7 +171,7 @@ export function DocumentsSection({
       {(isSelf || admin) && (
         <ActionForm action={uploadDocument.bind(null, employeeId)} className="mt-3 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
           <select name="type" className="input w-auto py-1">
-            {DOCUMENT_TYPES.map((t) => (
+            {(hrOnly ? HR_DOCUMENT_TYPES : DOCUMENT_TYPES).map((t) => (
               <option key={t}>{t}</option>
             ))}
           </select>
@@ -230,9 +233,9 @@ export function TrainingSection({
               )}
               {canEdit && (
                 <form action={removeTraining.bind(null, a.id)}>
-                  <button className="text-xs text-slate-400 hover:text-red-600" title="Unassign">
+                  <ConfirmButton message={`Take "${a.module.title}" off this person's training?`} className="text-xs text-slate-400 hover:text-red-600" title="Unassign">
                     ✕
-                  </button>
+                  </ConfirmButton>
                 </form>
               )}
             </li>
@@ -338,9 +341,9 @@ export function SalarySection({
                 {admin && (
                   <td>
                     <form action={deleteSalary.bind(null, s.id)}>
-                      <button className="text-xs text-slate-400 hover:text-red-600" title="Delete">
+                      <ConfirmButton message={"Delete this salary entry? Payslips already made keep their amounts."} className="text-xs text-slate-400 hover:text-red-600" title="Delete">
                         ✕
-                      </button>
+                      </ConfirmButton>
                     </form>
                   </td>
                 )}
