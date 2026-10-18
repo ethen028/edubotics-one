@@ -79,7 +79,7 @@ h2 {
     @apply btn bg-brand-700 text-white hover:bg-brand-800;
   }
   .btn-secondary {
-    @apply btn border border-slate-300 bg-surface text-slate-700 hover:border-slate-400 hover:bg-slate-50;
+    @apply btn border border-transparent bg-slate-100 text-slate-800 hover:bg-slate-200;
   }
   .btn-danger {
     @apply btn border border-red-200 bg-surface text-red-700 hover:bg-red-50;
@@ -100,26 +100,23 @@ h2 {
     @apply font-medium text-brand-700 hover:underline;
   }
 
-  /* Number cards: a short cobalt bar on top, and each card in a row takes the next soft fill. */
+  /* Number cards: flat white with a short violet bar; the first card of a row is the accent tile, filled violet. */
   .stat {
     @apply relative flex flex-col justify-between pt-8 transition-colors duration-150;
-    background: var(--tint-1);
   }
   .stat::before {
     content: "";
     @apply absolute top-4 left-5 h-1 w-6 rounded-full bg-brand-700;
   }
-  .grid > .stat:nth-child(4n + 2) {
-    background: var(--tint-2);
-    border-color: var(--tint-line-2);
+  .grid > .stat:first-child {
+    @apply border-transparent bg-brand-700;
+    background-image: linear-gradient(135deg, #6a5cf5, #4a3be0);
   }
-  .grid > .stat:nth-child(4n + 3) {
-    background: var(--tint-3);
-    border-color: var(--tint-line-3);
+  .grid > .stat:first-child::before {
+    @apply bg-white/70;
   }
-  .grid > .stat:nth-child(4n + 4) {
-    background: var(--tint-4);
-    border-color: var(--tint-line-4);
+  .grid > .stat:first-child .stat-arrow {
+    @apply border-white/40 text-white;
   }
   a.stat:hover {
     @apply border-brand-300;
@@ -1113,4 +1110,12 @@ main .grid > * {
   .nav-flyout-card {
     background: var(--color-brand-800);
   }
+}
+
+/* Accent tile text: unlayered so it beats the text-slate utilities on the label and value. */
+.grid > .stat:first-child .stat-value {
+  color: #fff;
+}
+.grid > .stat:first-child .stat-label {
+  color: rgb(255 255 255 / 0.8);
 }
