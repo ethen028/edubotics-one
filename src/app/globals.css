@@ -1112,6 +1112,81 @@ main .grid > * {
   }
 }
 
+/* Staff messages: list on the left, chat on the right; one at a time on a phone. */
+@layer components {
+  .chat-shell {
+    @apply flex flex-col overflow-hidden md:grid md:h-[calc(100dvh-13rem)] md:min-h-[28rem] md:grid-cols-[19rem_1fr];
+  }
+  .chat-list {
+    @apply min-h-0 flex-col border-[var(--line)] md:border-r;
+  }
+  .chat-pane {
+    @apply min-h-0 min-w-0 flex-col;
+  }
+  .chat-avatar {
+    @apply inline-flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700;
+  }
+  .chat-row {
+    @apply flex items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-slate-50;
+  }
+  .chat-row-active {
+    @apply bg-brand-50 hover:bg-brand-50;
+  }
+  .chat-scroll {
+    @apply flex min-h-[50vh] flex-1 flex-col overflow-y-auto px-3 py-3 md:min-h-0 md:px-5;
+  }
+  .chat-day {
+    @apply my-3 text-center text-[11px] font-medium text-slate-400;
+  }
+  .chat-new {
+    @apply my-2 flex items-center gap-2 text-[11px] font-semibold text-brand-700 before:h-px before:flex-1 before:bg-brand-200 after:h-px after:flex-1 after:bg-brand-200;
+  }
+  .chat-event {
+    @apply my-2 text-center text-xs text-slate-400;
+  }
+  .chat-msg {
+    @apply flex max-w-[85%] flex-col items-start md:max-w-[70%];
+  }
+  .chat-mine {
+    @apply ml-auto items-end;
+  }
+  .chat-bubble {
+    @apply rounded-2xl rounded-tl-md bg-slate-100 px-3 py-2 text-sm break-words whitespace-pre-wrap text-slate-900;
+  }
+  .chat-mine .chat-bubble {
+    @apply rounded-tl-2xl rounded-tr-md bg-brand-600 text-white;
+  }
+  .chat-bubble.chat-removed {
+    @apply bg-transparent text-slate-400 italic ring-1 ring-slate-200;
+  }
+  .chat-time {
+    @apply ml-2 align-bottom text-[10px] whitespace-nowrap opacity-60;
+  }
+  .chat-remove {
+    @apply hidden;
+  }
+  .chat-msg:hover .chat-remove,
+  .chat-msg:focus-within .chat-remove {
+    @apply block;
+  }
+  .chat-msg:target .chat-bubble {
+    @apply ring-2 ring-amber-400;
+  }
+  .chat-composer {
+    @apply sticky bottom-0 border-t border-[var(--line)] bg-surface p-3;
+  }
+  .chat-people {
+    @apply relative;
+  }
+  .chat-people-panel {
+    @apply absolute right-0 z-20 mt-2 w-72 max-w-[calc(100vw-2rem)];
+  }
+}
+@media (pointer: coarse) {
+  .chat-remove {
+    display: block;
+  }
+}
 /* Accent tile text: unlayered so it beats the text-slate utilities on the label and value. */
 .grid > .stat:first-child .stat-value {
   color: #fff;

@@ -117,6 +117,9 @@ model User {
   commissionLines       CommissionLine[]
   commissionsPrepared   CommissionStatement[]  @relation("CommissionPreparer")
   commissionsApproved   CommissionStatement[]  @relation("CommissionApprover")
+  conversationsStarted  Conversation[]         @relation("ConversationCreator")
+  conversations         ConversationMember[]
+  chatMessages          ChatMessage[]
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -933,6 +936,56 @@ model Notification {
   createdAt DateTime  @default(now())
 
   @@index([userId, readAt, createdAt])
+}
+
+// ─── Staff messages ────────────────────────────────────────────────────────
+// Private conversations between staff: one-to-one or a small named group. Only the people in a conversation can
+// read it; there is no admin or manager view.
+
+model Conversation {
+  id            String               @id @default(cuid())
+  /// Set for groups; a one-to-one chat is named after the other person.
+  title         String?
+  isGroup       Boolean              @default(false)
+  /// "userA:userB" (ids sorted) for one-to-one chats, so the same two people always share one conversation.
+  directKey     String?              @unique
+  createdById   String?
+  createdBy     User?                @relation("ConversationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lastMessageAt DateTime             @default(now())
+  createdAt     DateTime             @default(now())
+  members       ConversationMember[]
+  messages      ChatMessage[]
+}
+
+model ConversationMember {
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Messages after this are unread for this person.
+  lastReadAt     DateTime     @default(now())
+  joinedAt       DateTime     @default(now())
+  /// Set when someone leaves a group: they stop seeing it and getting its messages.
+  leftAt         DateTime?
+
+  @@id([conversationId, userId])
+  @@index([userId, leftAt])
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  /// Empty once the sender removes it ("Message removed" is shown instead).
+  body           String
+  /// A line like "Anu added Rahul" rather than something a person wrote.
+  event          Boolean      @default(false)
+  removedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 /// A progress report on a project or one of its tasks: a note, a progress change and/or files (from Task Flow).
