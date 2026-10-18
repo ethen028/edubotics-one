@@ -154,7 +154,7 @@
   }
 
   /* Panels that stay violet in both looks keep the light-look colours inside them. */
-  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .brand-mark, .avatar, .nav-badge, .sidebar-collapse, .theme-pill, .section-tab[data-active], .sidebar .nav-link[data-active], .sidebar .nav-group[data-here]) {
+  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .brand-mark, .avatar, .recognition-spotlight-avatar, .nav-badge, .sidebar-collapse, .theme-pill, .section-tab[data-active], .sidebar .nav-link[data-active], .sidebar .nav-group[data-here]) {
     --color-brand-50: #f3f2ff;
     --color-brand-100: #e8e6ff;
     --color-brand-300: #b5acfc;

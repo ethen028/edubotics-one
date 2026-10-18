@@ -16,6 +16,8 @@ export const NOTIFICATION_KINDS = {
   "plan.assigned": "Work plan",
   "plan.review": "Weekly review",
   "commission.ready": "Commission",
+  "recognition.received": "Recognition",
+  "recognition.featured": "Spotlight",
 } as const;
 
 export type NotificationKind = keyof typeof NOTIFICATION_KINDS;

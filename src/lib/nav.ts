@@ -52,7 +52,7 @@ export function buildNav(user: NavUser, c: NavCounts): NavGroupData[] {
     {
       title: "Overview",
       icon: "grid",
-      paths: ["/", "/inbox", "/messages", "/calendar", "/dashboard", "/notices", "/guide"],
+      paths: ["/", "/inbox", "/messages", "/calendar", "/dashboard", "/notices", "/recognition", "/guide"],
       items: [
         { href: "/", label: "Home" },
         // Each role's dashboards: its own first (owner, admin, HR or "My dashboard"), then the others its job needs.
@@ -61,6 +61,7 @@ export function buildNav(user: NavUser, c: NavCounts): NavGroupData[] {
         { href: "/inbox", label: "Inbox", badge: c.inbox, tone: "brand", title: "Unread notifications" },
         { href: "/messages", label: "Messages", badge: c.messages, tone: "brand", title: "Unread messages from colleagues" },
         { href: "/notices", label: "Notice board", badge: c.toAcknowledge, tone: "amber" as const },
+        { href: "/recognition", label: "Recognition" },
         { href: "/guide", label: "Getting started" },
       ],
     },

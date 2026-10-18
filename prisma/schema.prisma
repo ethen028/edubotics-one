@@ -121,6 +121,9 @@ model User {
   conversationsStarted  Conversation[]         @relation("ConversationCreator")
   conversations         ConversationMember[]
   chatMessages          ChatMessage[]
+  recognitionsGiven     Recognition[]          @relation("RecognitionGiver")
+  recognitionsReceived  Recognition[]          @relation("RecognitionReceiver")
+  recognitionsFeatured  Recognition[]          @relation("RecognitionFeaturer")
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -623,33 +626,33 @@ enum OrgType {
 }
 
 model Organization {
-  id            String         @id @default(cuid())
-  name          String
-  type          OrgType        @default(SCHOOL)
-  board         String? // CBSE, ICSE, State, IB… for schools
-  phone         String?
-  email         String?
-  website       String?
-  address       String?
-  city          String?
-  district      String?
-  state         String?        @default("Kerala")
-  notes         String?
-  ownerId       String?
-  owner         User?          @relation("OrgOwner", fields: [ownerId], references: [id])
-  contacts      Contact[]
-  deals         Deal[]
-  activities    Activity[]
-  projects      Project[]
-  programmes    Programme[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  expenseClaims ExpenseClaim[]
-  gstin         String? // printed on invoices; schools usually have none
-  invoices      Invoice[]
+  id                    String         @id @default(cuid())
+  name                  String
+  type                  OrgType        @default(SCHOOL)
+  board                 String? // CBSE, ICSE, State, IB… for schools
+  phone                 String?
+  email                 String?
+  website               String?
+  address               String?
+  city                  String?
+  district              String?
+  state                 String?        @default("Kerala")
+  notes                 String?
+  ownerId               String?
+  owner                 User?          @relation("OrgOwner", fields: [ownerId], references: [id])
+  contacts              Contact[]
+  deals                 Deal[]
+  activities            Activity[]
+  projects              Project[]
+  programmes            Programme[]
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  expenseClaims         ExpenseClaim[]
+  gstin                 String? // printed on invoices; schools usually have none
+  invoices              Invoice[]
   autoRemindersPausedAt DateTime? // set when someone stops automatic payment reminders to this school
-  quotes        Quote[]
-  workshops     Workshop[]
+  quotes                Quote[]
+  workshops             Workshop[]
 
   @@index([name])
 }
@@ -1991,6 +1994,28 @@ model NoticeAck {
   ackedAt  DateTime @default(now())
 
   @@unique([noticeId, userId])
+}
+
+// ─── Recognition ───────────────────────────────────────────────────────────
+
+/// A thank-you from one colleague to another, for everyone to see. No points or money attached.
+model Recognition {
+  id           String    @id @default(cuid())
+  fromId       String
+  from         User      @relation("RecognitionGiver", fields: [fromId], references: [id])
+  toId         String
+  to           User      @relation("RecognitionReceiver", fields: [toId], references: [id])
+  value        String // see RECOGNITION_VALUES
+  message      String
+  /// Highlighted by a manager or admin: shown in the spotlight on everyone's Home.
+  featuredAt   DateTime?
+  featuredById String?
+  featuredBy   User?     @relation("RecognitionFeaturer", fields: [featuredById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+
+  @@index([toId, createdAt])
+  @@index([createdAt])
+  @@index([featuredAt])
 }
 
 // ─── Helpdesk ──────────────────────────────────────────────────────────────
