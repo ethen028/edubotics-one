@@ -114,7 +114,6 @@ export async function recalculateRun(runId: string) {
       {
         manual: old && {
           otherEarnings: Number(old.otherEarnings),
-          professionalTax: Number(old.professionalTax),
           tds: Number(old.tds),
           otherDeductions: Number(old.otherDeductions),
         },
@@ -136,7 +135,6 @@ export async function updateSlip(slipId: string, _: FormState, formData: FormDat
     .object({
       lopDays: z.coerce.number().min(0).max(31).multipleOf(0.5, "LOP days go in half days"),
       otherEarnings: money,
-      professionalTax: money.optional(),
       tds: money.optional(),
       otherDeductions: money,
       note: z.string().trim().transform((v) => v || null),
@@ -146,7 +144,7 @@ export async function updateSlip(slipId: string, _: FormState, formData: FormDat
   const { lopDays, note, ...manual } = parsed.data;
   const next = await draftSlip(slip.employee, run.month, {
     lopDays,
-    manual: { ...manual, professionalTax: manual.professionalTax ?? 0, tds: manual.tds ?? 0 },
+    manual: { ...manual, tds: manual.tds ?? 0 },
     reimbursements: slip.expenseClaims.reduce((s, c) => s + payableOf(c), 0),
   });
   if (!next) return { error: "This person has no salary for the month." };

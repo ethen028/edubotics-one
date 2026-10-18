@@ -24,7 +24,7 @@ export default async function PayslipPage({ params }: PageProps<"/payroll/paysli
   const own = p && user.employee?.id === p.employeeId && p.run.status !== "DRAFT";
   if (!p || (!isAdmin(user) && !own)) notFound();
 
-  const { earnings, deductions } = payslipParts(p);
+  const { earnings, deductions, companyPays } = payslipParts(p);
   const settings = await getSettings();
 
   return (
@@ -151,6 +151,17 @@ export default async function PayslipPage({ params }: PageProps<"/payroll/paysli
           <span className="text-2xl font-semibold">{formatINR(p.net)}</span>
         </div>
         {p.note && <p className="mt-3 text-sm text-slate-600">Note: {p.note}</p>}
+        {companyPays.length > 0 && (
+          <div className="mt-4 text-sm text-slate-600">
+            <div className="font-medium">Paid by the company on top of your salary (not taken from your pay)</div>
+            {companyPays.map(([k, v]) => (
+              <div key={k} className="flex justify-between">
+                <span>{k}</span>
+                <span>{formatINR(v)}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <p className="mt-6 text-xs text-slate-400">This is a computer-generated payslip and needs no signature.</p>
       </article>
     </>
