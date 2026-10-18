@@ -1197,3 +1197,10 @@ main .grid > * {
     translate: 0 0;
   }
 }
+.grid > .stat:first-child :is(.dash-change, .dash-change span) {
+  color: rgb(255 255 255 / 0.85);
+}
+.grid > .stat:first-child .dash-now {
+  background: rgb(255 255 255 / 0.2);
+  color: #fff;
+}
