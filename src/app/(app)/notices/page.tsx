@@ -10,7 +10,7 @@ export const metadata = { title: "Notice board" };
 
 export default async function NoticesPage({ searchParams }: PageProps<"/notices">) {
   const user = await requireUser();
-  const manager = isManagerOrAdmin(user);
+  const manager = isManagerOrAdmin(user) || user.role === "HR"; // HR posts policies and announcements too
   const { tab, archived } = (await searchParams) as Record<string, string | undefined>;
   const kind = tab === "policies" ? "POLICY" : "ANNOUNCEMENT";
   const showArchived = manager && archived === "1";

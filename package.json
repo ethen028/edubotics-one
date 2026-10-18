@@ -13,6 +13,7 @@
     "test:smoke": "node --env-file=.env --import tsx scripts/smoke-test.ts",
     "test:workflows": "node --env-file=.env --import tsx scripts/hr-inventory-smoke.ts",
     "test:acceptance": "node --env-file=.env --import tsx scripts/acceptance-test.ts",
+    "test:roles": "node --env-file=.env --import tsx scripts/role-access-test.ts",
     "test:security": "node --conditions=react-server --env-file-if-exists=.env --import tsx scripts/security-integration.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "prisma migrate dev",

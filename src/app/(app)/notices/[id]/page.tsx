@@ -23,7 +23,7 @@ export default async function NoticePage({ params }: PageProps<"/notices/[id]">)
     },
   });
   if (!notice) notFound();
-  const manager = isManagerOrAdmin(user);
+  const manager = isManagerOrAdmin(user) || user.role === "HR"; // HR posts policies and announcements too
   const editable = canEditNotice(user, notice);
   const mine = notice.acks[0];
   const acked = isAcked(notice, mine);

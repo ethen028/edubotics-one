@@ -13,6 +13,13 @@ import type { FormState } from "@/components/action-form";
 
 const roleSchema = z.enum(["ADMIN", "HR", "MANAGER", "EMPLOYEE"]);
 
+/** The owner's own login (role, switch-off, password) can only be changed by the owner, so no other admin can take it over. */
+async function guardOwner(me: { id: string; isOwner: boolean }, id: string) {
+  const target = await db.user.findUniqueOrThrow({ where: { id } });
+  if (target.isOwner && !me.isOwner) throw new Error("Only the company owner can change the owner's login");
+  return target;
+}
+
 export async function createUser(_: FormState, formData: FormData): Promise<FormState> {
   const me = await requireUser(["ADMIN"]);
   const parsed = z
@@ -53,7 +60,8 @@ export async function updateUser(id: string, formData: FormData) {
   const employeeId = String(formData.get("employeeId") ?? "");
   if (id === me.id && (role !== "ADMIN" || !active)) throw new Error("You can't remove your own admin access");
 
-  const before = await db.user.findUniqueOrThrow({ where: { id } });
+  const before = await guardOwner(me, id);
+  if (before.isOwner && (role !== "ADMIN" || !active)) throw new Error("Hand ownership to another admin before changing the owner's role");
   await db.$transaction([
     db.employee.updateMany({ where: { userId: id }, data: { userId: null } }),
     ...(employeeId ? [db.employee.update({ where: { id: employeeId }, data: { userId: id } })] : []),
@@ -72,6 +80,7 @@ export async function updateUser(id: string, formData: FormData) {
 export async function resetPassword(id: string, _: FormState, formData: FormData): Promise<FormState> {
   const me = await requireUser(["ADMIN"]);
   const password = String(formData.get("password") ?? "");
+  if (id !== me.id && (await db.user.findUniqueOrThrow({ where: { id } })).isOwner && !me.isOwner) return { error: "Only the company owner can reset the owner's password." };
   const user = await db.user.findUniqueOrThrow({ where: { id } });
   const weak = passwordProblem(password, user);
   if (weak) return { error: weak };
@@ -101,8 +110,24 @@ export async function unlockUser(id: string) {
 /** Signs a person out on every device, e.g. after a lost phone. */
 export async function signOutEverywhere(id: string) {
   const me = await requireUser(["ADMIN"]);
-  const user = await db.user.findUniqueOrThrow({ where: { id } });
+  const user = await guardOwner(me, id);
   const ended = await endSessions(id);
   await logActivity(me, "SIGN_IN", "sign-out.admin", `Signed ${user.name} out on ${ended} ${ended === 1 ? "device" : "devices"}`);
   revalidatePath("/admin/users");
+}
+
+/** The owner hands the company over to another active admin: the owner mark moves, both stay admins. */
+export async function makeOwner(id: string) {
+  const me = await requireUser(["ADMIN"]);
+  if (!me.isOwner) throw new Error("Only the company owner can hand over ownership");
+  if (id === me.id) return;
+  const target = await db.user.findUniqueOrThrow({ where: { id } });
+  if (target.role !== "ADMIN" || !target.active || target.closedAt) throw new Error("Make them an active admin first");
+  await db.$transaction([
+    db.user.updateMany({ where: { isOwner: true }, data: { isOwner: false } }),
+    db.user.update({ where: { id }, data: { isOwner: true } }),
+  ]);
+  await logActivity(me, "LOGINS", "login.owner", `Handed company ownership to ${target.name}`);
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/roles");
 }

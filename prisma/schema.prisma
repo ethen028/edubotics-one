@@ -28,6 +28,7 @@ model User {
   name         String
   passwordHash String
   role         Role      @default(EMPLOYEE)
+  isOwner      Boolean   @default(false) // the company owner: an admin who also sees the owner dashboard; only one, handed over in Users
   active       Boolean   @default(true)
   employee     Employee?
 

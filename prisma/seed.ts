@@ -72,6 +72,7 @@ async function main() {
         email,
         name: process.env.SEED_ADMIN_NAME ?? "Admin",
         role: "ADMIN",
+        isOwner: (await db.user.count({ where: { isOwner: true } })) === 0, // the first admin is the company owner
         passwordHash: await bcrypt.hash(password, 12),
         mustChangePassword: true, // the starting password is in docker-compose.yml for anyone to read
       },
