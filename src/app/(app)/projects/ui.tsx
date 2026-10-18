@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Priority, ProjectStage, WorkStatus } from "@prisma/client";
 import { Badge } from "@/components/ui";
+import { Icon } from "@/components/icons";
 import { formatDate, formatDateTime, humanize } from "@/lib/format";
 import { taskHealth, type TaskHealth } from "@/lib/projects";
 import { formatSize } from "@/lib/project-files";
@@ -216,8 +217,9 @@ export function FileList({ files, canDelete }: { files: FileRow[]; canDelete?: (
         return (
           <li key={f.id} className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <a href={`/api/project-files/${f.id}`} target="_blank" rel="noreferrer" className="link block truncate">
-                📎 {f.fileName}
+              <a href={`/api/project-files/${f.id}`} target="_blank" rel="noreferrer" className="link flex items-center gap-1.5 truncate">
+                <Icon name="paperclip" className="h-3.5 w-3.5 shrink-0" />
+                {f.fileName}
               </a>
               <div className="text-xs text-slate-500">
                 {formatSize(f.size)}
@@ -284,8 +286,9 @@ export function UpdateFeed({ updates, projectId, showTask = false }: { updates: 
           {u.files.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
               {u.files.map((f) => (
-                <a key={f.id} href={`/api/project-files/${f.id}`} target="_blank" rel="noreferrer" className="link text-xs">
-                  📎 {f.fileName}
+                <a key={f.id} href={`/api/project-files/${f.id}`} target="_blank" rel="noreferrer" className="link inline-flex items-center gap-1 text-xs">
+                  <Icon name="paperclip" className="h-3 w-3" />
+                  {f.fileName}
                 </a>
               ))}
             </div>

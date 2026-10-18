@@ -459,7 +459,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 {notices.map((n) => (
                   <li key={n.id}>
                     <Link href={`/notices/${n.id}`} className="font-medium hover:underline">
-                      {n.pinned && "📌 "}
+                      {n.pinned && <span className="mr-1.5 text-xs font-semibold text-brand-700">Pinned</span>}
                       {n.title}
                     </Link>
                     <p className="line-clamp-2 text-slate-600">{n.body}</p>

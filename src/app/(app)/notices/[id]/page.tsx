@@ -6,6 +6,7 @@ import { ackRoster, canEditNotice, isAcked } from "@/lib/notices";
 import { formatDate, formatDateTime, humanize } from "@/lib/format";
 import { todayIST } from "@/lib/time";
 import { Badge, PageHeader } from "@/components/ui";
+import { Icon } from "@/components/icons";
 import { acknowledgeNotice, toggleArchived, togglePinned } from "../actions";
 
 export const metadata = { title: "Notice" };
@@ -80,7 +81,8 @@ export default async function NoticePage({ params }: PageProps<"/notices/[id]">)
                   <img src={fileUrl} alt={notice.attachment.fileName} className="max-h-[32rem] rounded-lg border border-slate-200" />
                 ) : null}
                 <a href={fileUrl} target="_blank" rel="noopener" className="btn-secondary mt-3">
-                  📎 Open {notice.attachment.fileName} ({Math.ceil(notice.attachment.size / 1024)} KB)
+                  <Icon name="paperclip" className="h-4 w-4" />
+                  Open {notice.attachment.fileName} ({Math.ceil(notice.attachment.size / 1024)} KB)
                 </a>
               </div>
             )}
