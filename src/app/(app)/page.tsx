@@ -26,6 +26,8 @@ import { myReviewTodos } from "@/lib/reviews";
 import { openExitOf } from "@/lib/exits";
 import { ChecklistsHomeCard } from "./checklists/home-card";
 import { CalendarCard, InboxCard, PlanCard } from "./home-widgets";
+import { RecognitionHomeCard, SpotlightCard } from "./recognition/ui";
+import { spotlightSince } from "@/lib/recognition-rules";
 
 export const metadata = { title: "Home" };
 
@@ -69,6 +71,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     toAcknowledge,
     notices,
     reviewTodos,
+    spotlight,
+    recentThanks,
+    thanksThisMonth,
   ] = await Promise.all([
       db.projectTask.findMany({
         where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" }, onHold: false } },
@@ -134,6 +139,17 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         take: 3,
       }),
       myReviewTodos(user),
+      db.recognition.findFirst({
+        where: { featuredAt: { gte: spotlightSince(now) } },
+        include: { from: { select: { name: true } }, to: { select: { name: true } } },
+        orderBy: { featuredAt: "desc" },
+      }),
+      db.recognition.findMany({
+        include: { from: { select: { name: true } }, to: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+      }),
+      db.recognition.count({ where: { toId: user.id, createdAt: { gte: monthStart } } }),
     ]);
   const myExit = user.employee ? await openExitOf(user.employee.id) : null;
   const [onOrder, billSettled] = await Promise.all([
@@ -224,6 +240,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </Link>
         </div>
       )}
+
+      {spotlight && <SpotlightCard r={spotlight} />}
 
       {focus && (
         <section className="hero-card mb-6 p-5 text-white">
@@ -475,6 +493,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </ul>
             )}
           </section>
+          <RecognitionHomeCard recent={recentThanks} receivedThisMonth={thanksThisMonth} />
           <HelpdeskHomeCard user={user} />
           {manager ? (
             <section className="card">

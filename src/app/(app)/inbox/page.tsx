@@ -17,6 +17,8 @@ const kindColor: Partial<Record<NotificationKind, "gray" | "blue" | "green" | "a
   "task.unblocked": "green",
   "project.decided": "green",
   "timesheet.decided": "green",
+  "recognition.received": "purple",
+  "recognition.featured": "purple",
 };
 
 /** Task Flow v5's Inbox: tasks given to you, updates asked for, posts on your projects and decisions on your requests. */

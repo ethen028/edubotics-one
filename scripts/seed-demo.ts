@@ -631,6 +631,27 @@ async function main(db: Prisma.TransactionClient) {
     await db.stockItem.create({ data: { sku, name, category, unit, onHand, reorderLevel, unitCost, returnable: category !== "Consumable", location: "Edappally store", movements: { create: { type: "RECEIVE", quantity: onHand, note: "Opening stock", byId: U("manager.demo") } } } });
   }
 
+  // A few thank-yous on the recognition wall; Arjun put Vishnu's in the spotlight.
+  const thanks = [
+    ["manager.demo", "trainer.demo", "Above and beyond", "Stayed back to fix six robot kits so the Maple Leaf class could run on time.", -1, true],
+    ["trainer2.demo", "engineer.demo", "Problem solver", "Found why the ultrasonic sensors kept failing and wrote a one-page fix for the trainers.", -2, false],
+    ["employee.demo", "sales.demo", "Team player", "Covered my school visit at short notice and still closed the follow-up.", -3, false],
+    ["hr.demo", "trainer2.demo", "Great with students", "The parents' feedback from the weekend workshop was all about you.", -5, false],
+    ["admin.demo", "manager.demo", "Happy schools", "Two schools renewed this week after your review meetings.", -8, false],
+  ] as const;
+  for (const [from, to, value, message, ago, featured] of thanks) {
+    await db.recognition.create({
+      data: {
+        fromId: U(from),
+        toId: U(to),
+        value,
+        message,
+        createdAt: at(day(ago), "16:30"),
+        ...(featured && { featuredAt: at(day(ago), "17:00"), featuredById: U("manager.demo") }),
+      },
+    });
+  }
+
   await db.notification.createMany({
     data: [
       { userId: U("admin.demo"), kind: "project.post", title: "Arjun posted an update on Maple Leaf robotics lab 2026-27", href: "/projects" },

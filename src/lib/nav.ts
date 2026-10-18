@@ -51,13 +51,14 @@ export function buildNav(user: NavUser, c: NavCounts): NavGroupData[] {
     {
       title: "Overview",
       icon: "grid",
-      paths: ["/", "/inbox", "/calendar", "/dashboard", "/notices", "/guide"],
+      paths: ["/", "/inbox", "/calendar", "/dashboard", "/notices", "/recognition", "/guide"],
       items: [
         { href: "/", label: "Home" },
         { href: "/calendar", label: "Calendar" },
         { href: "/inbox", label: "Inbox", badge: c.inbox, tone: "brand", title: "Unread messages" },
         ...(admin ? [{ href: "/dashboard", label: "Owner dashboard" }] : []),
         { href: "/notices", label: "Notice board", badge: c.toAcknowledge, tone: "amber" as const },
+        { href: "/recognition", label: "Recognition" },
         { href: "/guide", label: "Getting started" },
       ],
     },
