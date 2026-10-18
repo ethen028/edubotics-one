@@ -75,7 +75,7 @@ export async function invoicesWithBalance(where: Prisma.InvoiceWhereInput = {}) 
       payments: { select: { amount: true, tds: true, receivedOn: true } },
       creditNotes: { select: { status: true, total: true, refundAmount: true } },
       // The last payment reminder that went out, for the Payments due page.
-      emails: { where: { status: "SENT", kind: "PAYMENT_REMINDER" }, select: { createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
+      emails: { where: { status: "SENT", kind: "PAYMENT_REMINDER" }, select: { createdAt: true, automatic: true }, orderBy: { createdAt: "desc" }, take: 1 },
     },
     orderBy: [{ issueDate: "desc" }, { seq: "desc" }, { createdAt: "desc" }],
   });

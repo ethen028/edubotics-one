@@ -18,6 +18,7 @@ Configure values in Vercel's environment settings, separately for Preview and Pr
 - `COOKIE_SECURE=true`, `TRUST_PROXY_HEADERS=true`, `FORCE_HTTPS=true`.
 - Configure SMTP in the application and send a real test message before enabling `REQUIRE_VERIFIED_EMAIL`.
 - Keep public careers disabled until its separate host and CAPTCHA are configured.
+- `CRON_SECRET`: a long random value (at least 16 characters). Vercel sends it with the daily cron in `vercel.json` (04:30 UTC, 10 AM India time) that sends automatic payment reminders when an admin has switched them on. Without it the cron is refused and no automatic reminders go out from Vercel.
 
 Vercel's managed HTTPS ingress must be the only public route to the app. Sign in with `vercel login`, link to the intended team, and create a Preview deployment before promoting production. Keep Deployment Protection enabled for Preview.
 

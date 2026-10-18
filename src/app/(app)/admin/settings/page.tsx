@@ -8,6 +8,7 @@ import {
   updateCertificateSettings,
   updateGoogleSettings,
   updateMailSettings,
+  updateReminderSettings,
   updateSafetySettings,
   updateSettings,
 } from "./actions";
@@ -16,7 +17,7 @@ import { certificateSignature } from "@/lib/settings";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
 import { db } from "@/lib/db";
 import { mailSetup } from "@/lib/mail";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui";
 import { EmailHistory, emailLogSelect } from "@/components/email";
 
@@ -28,7 +29,10 @@ export default async function SettingsPage() {
   const setup = mailSetup(s);
   const signature = await certificateSignature();
   const googleOn = !!googleSetup(s);
-  const recent = await db.emailLog.findMany({ select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 15 });
+  const [recent, automatic] = await Promise.all([
+    db.emailLog.findMany({ select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 15 }),
+    db.emailLog.findMany({ where: { automatic: true }, select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 10 }),
+  ]);
   return (
     <>
       <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email, certificates, the careers page and sign-in." />
@@ -205,8 +209,8 @@ export default async function SettingsPage() {
             )}
           </div>
           <p className="text-sm text-slate-600">
-            Invoices, quotes, payslips, interview invites and payment reminders are sent from the company&apos;s own mail account, only when
-            someone presses Send.
+            Invoices, quotes, payslips, interview invites and payment reminders are sent from the company&apos;s own mail account when
+            someone presses Send. Payment reminders can also go out on their own, if switched on below.
           </p>
           <div className="rounded-lg bg-brand-50 p-3 text-xs text-slate-700">
             <strong>Gmail or Google Workspace:</strong> server <code>smtp.gmail.com</code>, port 587, username is the full email address,
@@ -281,6 +285,58 @@ export default async function SettingsPage() {
             <EmailHistory emails={recent} title="Recently sent" showKind />
           ) : (
             <p className="text-sm text-slate-500">Emails sent from the app will be listed here.</p>
+          )}
+        </div>
+      </section>
+
+      <section id="reminders" className="mt-8 grid scroll-mt-6 gap-6 xl:grid-cols-[36rem_1fr]">
+        <div className="card space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">Automatic payment reminders</h2>
+            {!s.autoRemindersEnabled ? (
+              <Badge>Off</Badge>
+            ) : setup === "READY" ? (
+              <Badge color="green">On</Badge>
+            ) : (
+              <Badge color="amber">On, but waiting for a test email</Badge>
+            )}
+          </div>
+          <p className="text-sm text-slate-600">
+            Emails schools the same reminder as the <strong>Send reminder</strong> button on Billing → Payments due, with the overdue
+            invoices attached, to the invoice contact (else the school&apos;s email). They go out on working days from 10 AM, never on
+            weekly offs or holidays. A school gets at most one email per round, so days when this computer was off never add up to a pile
+            of reminders.
+          </p>
+          <ActionForm action={updateReminderSettings} className="space-y-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" name="autoRemindersEnabled" defaultChecked={s.autoRemindersEnabled} />
+              Send payment reminders automatically
+            </label>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="First reminder (days late)">
+                <input name="autoReminderAfterDays" type="number" min={1} max={90} defaultValue={s.autoReminderAfterDays} className="input" />
+              </Field>
+              <Field label="Then every (days)">
+                <input name="autoReminderEveryDays" type="number" min={3} max={60} defaultValue={s.autoReminderEveryDays} className="input" />
+              </Field>
+              <Field label="Most per invoice">
+                <input name="autoReminderMaxPerInvoice" type="number" min={1} max={10} defaultValue={s.autoReminderMaxPerInvoice} className="input" />
+              </Field>
+            </div>
+            <p className="text-xs text-slate-500">
+              Reminders sent by hand count towards the gap. After the last automatic reminder an invoice is left for a phone call, and
+              Payments due marks it. To stop one school being chased, use <strong>Stop automatic reminders</strong> next to it on Payments
+              due.
+            </p>
+            {s.autoReminderLastRunOn && <p className="text-xs text-slate-500">Last round: {formatDate(s.autoReminderLastRunOn)}.</p>}
+            <SubmitButton>Save reminder settings</SubmitButton>
+          </ActionForm>
+        </div>
+        <div className="min-w-0">
+          {automatic.length > 0 ? (
+            <EmailHistory emails={automatic} title="Automatic reminders sent" />
+          ) : (
+            <p className="text-sm text-slate-500">Reminders sent automatically will be listed here.</p>
           )}
         </div>
       </section>
