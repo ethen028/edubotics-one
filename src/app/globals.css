@@ -1186,6 +1186,7 @@ main .grid > * {
   .chat-remove {
     display: block;
   }
+}
 /* Accent tile text: unlayered so it beats the text-slate utilities on the label and value. */
 .grid > .stat:first-child .stat-value {
   color: #fff;
