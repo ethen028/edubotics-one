@@ -123,5 +123,12 @@ export async function requireUser(roles?: Role[]): Promise<CurrentUser> {
   return user;
 }
 
+/** The owner dashboard and its records: the company owner (an admin with the owner mark) only. */
+export async function requireOwner(): Promise<CurrentUser> {
+  const user = await requireUser(["ADMIN"]);
+  if (!user.isOwner) redirect("/?denied=1");
+  return user;
+}
+
 export const isAdmin = (u: { role: Role }) => u.role === "ADMIN";
 export const isManagerOrAdmin = (u: { role: Role }) => u.role === "ADMIN" || u.role === "MANAGER";

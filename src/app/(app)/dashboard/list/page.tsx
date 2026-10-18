@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { Empty, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -62,7 +62,7 @@ function Section({ title, lines, money = true }: { title: string; lines: Line[];
 
 /** The records behind one dashboard figure or bar, for the same dates, so the total matches what was clicked. */
 export default async function DashboardListPage({ searchParams }: PageProps<"/dashboard/list">) {
-  await requireUser(["ADMIN"]);
+  await requireOwner();
   const sp = (await searchParams) as Record<string, string | undefined>;
   const today = todayIST();
   const range = readRange({ range: "custom", from: sp.from, to: sp.to }, today);

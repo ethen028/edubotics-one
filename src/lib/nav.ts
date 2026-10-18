@@ -1,6 +1,6 @@
 import type { Role } from "@prisma/client";
 import type { IconName } from "@/components/icons";
-import { canManagePeople, isHrOrAdmin } from "@/lib/permissions";
+import { canManagePeople, dashboardsFor, isHrOrAdmin } from "@/lib/permissions";
 
 /** One page in the menu. `badge` is a count of things waiting there; `tone` picks its colour. */
 export type NavItem = {
@@ -37,7 +37,7 @@ export type NavCounts = {
   planToUpdate: number;
 };
 
-type NavUser = { role: Role; employee: { id: string } | null };
+type NavUser = { role: Role; isOwner?: boolean; employee: { id: string } | null };
 
 /**
  * The whole menu for one person, as plain data. The side menu, the tabs along the top of each page and the
@@ -55,10 +55,11 @@ export function buildNav(user: NavUser, c: NavCounts): NavGroupData[] {
       paths: ["/", "/inbox", "/messages", "/calendar", "/dashboard", "/notices", "/recognition", "/guide"],
       items: [
         { href: "/", label: "Home" },
+        // Each role's dashboards: its own first (owner, admin, HR or "My dashboard"), then the others its job needs.
+        ...dashboardsFor(user).map((d) => ({ href: d.href, label: d.label, exact: true })),
         { href: "/calendar", label: "Calendar" },
         { href: "/inbox", label: "Inbox", badge: c.inbox, tone: "brand", title: "Unread notifications" },
         { href: "/messages", label: "Messages", badge: c.messages, tone: "brand", title: "Unread messages from colleagues" },
-        ...(admin ? [{ href: "/dashboard", label: "Owner dashboard" }] : []),
         { href: "/notices", label: "Notice board", badge: c.toAcknowledge, tone: "amber" as const },
         { href: "/recognition", label: "Recognition" },
         { href: "/guide", label: "Getting started" },

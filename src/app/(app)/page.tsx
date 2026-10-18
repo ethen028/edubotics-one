@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { backupProblem } from "@/lib/backups";
 import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
+import { homeDashboard, isOwner } from "@/lib/permissions";
 import { pendingApprovals } from "@/lib/approvals";
 import { myPendingAcks } from "@/lib/notices";
 import { daysFromNow, todayIST } from "@/lib/time";
@@ -177,9 +178,14 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const weekHours = myWeek?.entries.reduce((s, e) => s + Number(e.hours), 0) ?? 0;
   const lateProjects = projects.filter((p) => p.dueDate && p.dueDate < today).length;
 
-  const roleNote = admin
+  const mine = homeDashboard(user);
+  const roleNote = isOwner(user)
     ? "Company performance and decisions in one place."
-    : manager
+    : admin
+      ? "Running the company: approvals, billing, delivery and setup."
+      : user.role === "HR"
+        ? "People, attendance, leave and hiring at a glance."
+        : manager
       ? "Team delivery, approvals and project health."
       : "Focus on what needs your attention today.";
 
@@ -212,11 +218,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <p className="mt-3 text-sm text-slate-500">{roleNote}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {admin && (
-            <Link href="/dashboard" className="btn-secondary">
-              Owner dashboard
-            </Link>
-          )}
+          <Link href={mine.href} className="btn-secondary">
+            {mine.label}
+          </Link>
           <Link href="/timesheets" className="btn-secondary">
             Log time
           </Link>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { requireUser } from "@/lib/auth";
+import { requireOwner } from "@/lib/auth";
 import { Badge, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
 import { AGE_BUCKETS } from "@/lib/purchase-math";
@@ -81,9 +81,9 @@ function Ageing({ values, href }: { values: number[]; href: string }) {
   );
 }
 
-/** One page for the owner: how the company is doing today, read from every module. Admins only. */
+/** One page for the owner: how the company is doing today, read from every module. The company owner only. */
 export default async function OwnerDashboardPage({ searchParams }: PageProps<"/dashboard">) {
-  const user = await requireUser(["ADMIN"]);
+  const user = await requireOwner();
   const today = todayIST();
   const range = readRange(await searchParams, today);
   const d = await ownerDashboard(user, range);
@@ -115,6 +115,7 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps<"/d
   return (
     <>
       <PageHeader title="Owner dashboard" subtitle="Sales, money, schools, projects and people in one place. Pick the dates, then open any figure or bar to see the records behind it." />
+
 
       <RangePicker range={range} today={today} />
 

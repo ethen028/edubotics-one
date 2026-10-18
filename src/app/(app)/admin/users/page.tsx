@@ -1,12 +1,12 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, ConfirmButton, SubmitButton } from "@/components/action-form";
 import { Badge, Field, Options, PageHeader } from "@/components/ui";
 import { formatDateTime, humanize } from "@/lib/format";
 import { PASSWORD_RULES } from "@/lib/passwords";
 import { lockedEmails, minutesUntil } from "@/lib/sign-in";
 import { getSettings } from "@/lib/settings";
-import { createUser, resetPassword, signOutEverywhere, unlockUser, updateUser } from "../actions";
+import { createUser, makeOwner, resetPassword, signOutEverywhere, unlockUser, updateUser } from "../actions";
 
 export const metadata = { title: "Users" };
 
@@ -30,7 +30,7 @@ export default async function UsersPage() {
     <>
       <PageHeader
         title="Users"
-        subtitle="Admins manage accounts and settings. HR manages people without payroll or finance access. Managers approve leave for their team. Everyone can use the CRM. A new or reset password is temporary: the person picks their own at the next sign-in."
+        subtitle="The owner is the admin who also sees the owner dashboard; only the owner can change their own login or hand ownership over. Admins manage accounts and settings. HR manages people without payroll or finance access. Managers approve leave for their team. Everyone can use the CRM. A new or reset password is temporary: the person picks their own at the next sign-in."
       />
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-3 xl:col-span-2">
@@ -39,6 +39,7 @@ export default async function UsersPage() {
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className="font-medium">{u.name}</span>
                 <span className="text-sm text-slate-500">{u.email}</span>
+                {u.isOwner && <Badge color="purple">Owner</Badge>}
                 {!u.active && <Badge color="red">Disabled</Badge>}
                 {u.id === me.id && <Badge color="blue">You</Badge>}
                 {locked.has(u.email) && <Badge color="red">Locked for {minutesUntil(locked.get(u.email)!)} min</Badge>}
@@ -49,6 +50,9 @@ export default async function UsersPage() {
                 {u.lastLoginAt ? `Last signed in ${formatDateTime(u.lastLoginAt)}` : "Never signed in"}
                 {u._count.sessions > 0 && ` · signed in on ${u._count.sessions} ${u._count.sessions === 1 ? "device" : "devices"}`}
               </div>
+              {u.isOwner && !me.isOwner ? (
+                <p className="text-sm text-slate-500">Only the owner can change this login.</p>
+              ) : (
               <div className="flex flex-wrap items-end gap-4">
                 <form action={updateUser.bind(null, u.id)} className="flex flex-wrap items-end gap-2">
                   <Field label="Role">
@@ -89,7 +93,18 @@ export default async function UsersPage() {
                     <button className="btn-secondary">Sign out everywhere</button>
                   </form>
                 )}
+                {me.isOwner && !u.isOwner && u.role === "ADMIN" && u.active && (
+                  <form action={makeOwner.bind(null, u.id)}>
+                    <ConfirmButton
+                      className="btn-secondary"
+                      message={`Hand company ownership to ${u.name}? They will see the owner dashboard and you will stay an admin without it.`}
+                    >
+                      Make owner
+                    </ConfirmButton>
+                  </form>
+                )}
               </div>
+              )}
             </div>
           ))}
         </div>
