@@ -83,7 +83,9 @@ export async function proxy(request: NextRequest) {
     response = new NextResponse("Cross-origin request rejected", { status: 403 });
   } else {
     try {
-      const limited = path.startsWith("/api/") || !["GET", "HEAD", "OPTIONS"].includes(request.method);
+      // The Messages check-in has its own per-person limit (api/messages/poll): an office behind one public
+      // address would otherwise use up this shared one just by having chats open.
+      const limited = (path.startsWith("/api/") && path !== "/api/messages/poll") || !["GET", "HEAD", "OPTIONS"].includes(request.method);
       if (limited && !(await allowRequest("http", trustedClientAddress(request.headers), 120, 60000))) {
         response = new NextResponse("Too many requests", { status: 429, headers: { "Retry-After": "60" } });
       } else response = publicBoundary(request, requestHeaders);
