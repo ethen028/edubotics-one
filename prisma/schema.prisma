@@ -303,6 +303,14 @@ model CompanySettings {
   mailBccSelf     Boolean   @default(true) // a copy of every email to the from address, for the sent record
   mailVerifiedAt  DateTime? // cleared whenever the account details change
 
+  // Automatic payment reminders to schools (src/lib/payment-reminders.ts): off until an admin turns
+  // them on, and never sent while the mail account above hasn't passed a test.
+  autoRemindersEnabled      Boolean   @default(false)
+  autoReminderAfterDays     Int       @default(7) // first reminder once an invoice is this many days past its due date
+  autoReminderEveryDays     Int       @default(7) // then no school hears from us more often than this (reminders sent by hand count)
+  autoReminderMaxPerInvoice Int       @default(3) // after this many automatic reminders an invoice is left for a phone call
+  autoReminderLastRunOn     DateTime? @db.Date // the India-time day the last round went out, so a day is never sent twice
+
   // Workshop certificates: who signs them. The signature image is printed above the name, so
   // emailed certificates arrive signed; without one there is a line to sign by hand.
   certSignatoryName  String?
@@ -618,6 +626,7 @@ model Organization {
   expenseClaims ExpenseClaim[]
   gstin         String? // printed on invoices; schools usually have none
   invoices      Invoice[]
+  autoRemindersPausedAt DateTime? // set when someone stops automatic payment reminders to this school
   quotes        Quote[]
   workshops     Workshop[]
 
@@ -2065,8 +2074,9 @@ model EmailLog {
   receipt       WorkshopPayment?     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   exitId        String?
   exit          EmployeeExit?        @relation(fields: [exitId], references: [id], onDelete: Cascade)
-  sentById      String
-  sentBy        User                 @relation(fields: [sentById], references: [id])
+  sentById      String? // empty for an automatic payment reminder
+  sentBy        User?                @relation(fields: [sentById], references: [id], onDelete: Restrict)
+  automatic     Boolean              @default(false) // sent by the daily automatic reminder round, not by a person
   createdAt     DateTime             @default(now())
 
   @@index([kind, createdAt])

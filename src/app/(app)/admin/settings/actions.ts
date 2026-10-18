@@ -186,6 +186,33 @@ export async function sendTestEmail(_: FormState, formData: FormData): Promise<F
   return { ok: `Test email sent to ${to.list.join(", ")}. Check that it arrived (and isn't in spam). Sending is now switched on.` };
 }
 
+const reminderSchema = z.object({
+  autoReminderAfterDays: z.coerce.number().int("Enter whole days.").min(1, "Wait at least 1 day after the due date.").max(90, "Keep the first reminder within 90 days."),
+  autoReminderEveryDays: z.coerce.number().int("Enter whole days.").min(3, "Leave at least 3 days between reminders.").max(60, "Keep it to 60 days or less."),
+  autoReminderMaxPerInvoice: z.coerce.number().int("Enter a whole number.").min(1, "Send at least 1 reminder.").max(10, "Keep it to 10 reminders or fewer."),
+});
+
+/** Automatic payment reminders: on or off, and how soon and how often schools hear from us. */
+export async function updateReminderSettings(_: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireUser(["ADMIN"]);
+  const parsed = reminderSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const autoRemindersEnabled = formData.get("autoRemindersEnabled") === "on";
+  const before = await getSettings();
+  await db.companySettings.update({ where: { id: 1 }, data: { ...parsed.data, autoRemindersEnabled } });
+  const d = parsed.data;
+  if (before.autoRemindersEnabled !== autoRemindersEnabled) {
+    await logActivity(admin, "SETTINGS", "settings.auto-reminders", `Switched automatic payment reminders ${autoRemindersEnabled ? "on" : "off"}`);
+  }
+  const changed = changedSettings(before, d);
+  if (changed) await logActivity(admin, "SETTINGS", "settings.auto-reminders", `Changed automatic payment reminders: first after ${d.autoReminderAfterDays} days late, then every ${d.autoReminderEveryDays} days, at most ${d.autoReminderMaxPerInvoice} per invoice`);
+  revalidatePath("/admin/settings");
+  revalidatePath("/invoices", "layout");
+  if (!autoRemindersEnabled) return { ok: "Saved. Automatic reminders are off; reminders go out only when someone presses Send." };
+  if (mailSetup(before) !== "READY") return { ok: "Saved. Nothing will go out until the mail account above passes a test email." };
+  return { ok: "Saved. Reminders go out on working days from 10 AM. Billing → Payments due shows when each school is next reminded." };
+}
+
 /** The public careers page: on or off, the welcome text and an email for candidates' questions. */
 export async function updateCareersSettings(_: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireUser(["ADMIN"]);
