@@ -1119,3 +1119,81 @@ main .grid > * {
 .grid > .stat:first-child .stat-label {
   color: rgb(255 255 255 / 0.8);
 }
+
+/* Owner dashboard: date chips, hover figures on cards and chart bars. */
+.dash-range-chips {
+  @apply -mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-1;
+}
+.dash-chip {
+  @apply shrink-0 rounded-full bg-surface px-3 py-1.5 text-sm whitespace-nowrap text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50;
+}
+.dash-chip[aria-current="true"] {
+  @apply bg-brand-600 text-white ring-brand-600 hover:bg-brand-700;
+}
+.dash-heading {
+  @apply mb-2 text-xs font-semibold tracking-wider text-slate-500 uppercase;
+}
+.dash-now {
+  @apply ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-slate-600 uppercase;
+}
+.dash-change {
+  @apply font-medium text-slate-600;
+}
+.dash-change.is-up {
+  @apply text-emerald-700;
+}
+.dash-change.is-down {
+  @apply text-red-600;
+}
+.dash-row:hover,
+.dash-row:focus-visible {
+  @apply bg-slate-50;
+}
+.dash-bar:hover .bar-track,
+.dash-bar:focus-visible .bar-track {
+  @apply opacity-80;
+}
+.dash-seg:hover {
+  filter: brightness(0.9);
+}
+.dash-tile {
+  @apply block transition-shadow hover:ring-2 hover:ring-brand-300;
+}
+[data-tip] {
+  position: relative;
+}
+@media (hover: hover) {
+  [data-tip]:hover::after,
+  [data-tip]:focus-visible::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    translate: -50% 0;
+    z-index: 40;
+    width: max-content;
+    max-width: 18rem;
+    white-space: pre-line;
+    pointer-events: none;
+    border-radius: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.35;
+    text-align: left;
+    background: var(--color-slate-900);
+    color: var(--color-surface);
+    box-shadow: 0 6px 20px -8px rgb(0 0 0 / 0.35);
+  }
+  [data-tip-align="start"]:hover::after,
+  [data-tip-align="start"]:focus-visible::after {
+    left: 0;
+    translate: 0 0;
+  }
+  [data-tip-align="end"]:hover::after,
+  [data-tip-align="end"]:focus-visible::after {
+    left: auto;
+    right: 0;
+    translate: 0 0;
+  }
+}

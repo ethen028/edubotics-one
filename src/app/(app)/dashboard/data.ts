@@ -10,22 +10,12 @@ import { OPEN_STAGES as OPEN_CANDIDATE_STAGES } from "@/lib/recruitment";
 import { OPEN_TICKET_STATUSES } from "@/lib/helpdesk";
 import { pendingApprovals } from "@/lib/approvals";
 import type { CurrentUser } from "@/lib/auth";
+import { bucketIndex, type DashboardRange } from "@/lib/dashboard-range";
 import { OPEN_STAGES } from "../crm/constants";
 import { invoicesWithBalance } from "../invoices/data";
+import { cashIn, cashOut, invoicedLessCredit, moneyRecords, total, type Dated } from "./records";
 
 const DAY = 86_400_000;
-const MONTHS_SHOWN = 6;
-
-/** "2026-10" for a UTC-midnight date. */
-const monthKey = (d: Date) => d.toISOString().slice(0, 7);
-
-/** The last six months, oldest first, ending with the current one. */
-function recentMonths(today: Date) {
-  return Array.from({ length: MONTHS_SHOWN }, (_, i) => {
-    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - (MONTHS_SHOWN - 1 - i), 1));
-    return { key: monthKey(d), label: d.toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" }) };
-  });
-}
 
 function sumBy<T>(rows: T[], key: (r: T) => string, value: (r: T) => number) {
   const out = new Map<string, number>();
@@ -33,31 +23,30 @@ function sumBy<T>(rows: T[], key: (r: T) => string, value: (r: T) => number) {
   return out;
 }
 
+const within = (from: Date, to: Date) => (r: Dated) => r.on >= from && r.on <= to;
+
+/** One figure for the chosen range and the same figure for the period before, to compare. */
+function compare(rows: Dated[], range: DashboardRange) {
+  return { now: total(rows.filter(within(range.from, range.to))), before: total(rows.filter(within(range.prevFrom, range.prevTo))) };
+}
+
 /** Everything the owner dashboard shows, read across every module in one go. */
-export async function ownerDashboard(user: CurrentUser) {
+export async function ownerDashboard(user: CurrentUser, range: DashboardRange) {
   const today = todayIST();
-  const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-  const months = recentMonths(today);
-  const firstMonth = new Date(`${months[0].key}-01T00:00:00Z`);
   const weekAhead = new Date(today.getTime() + 7 * DAY);
   const monthAhead = new Date(today.getTime() + 30 * DAY);
 
   const [
     pipelineByStage,
-    wonDeals,
+    money,
     closingSoon,
     receivables,
-    invoicedThisMonth,
-    creditedThisMonth,
-    received,
-    refunds,
-    vendorPaid,
-    payrollRuns,
-    claimsPaidByHand,
+    latestRun,
     openBills,
     claimsWaiting,
     claimsToPay,
-    sessionsThisMonth,
+    sessionsInRange,
+    sessionsBefore,
     sessionsToday,
     logsDue,
     projects,
@@ -75,7 +64,7 @@ export async function ownerDashboard(user: CurrentUser) {
     approvals,
   ] = await Promise.all([
     db.deal.groupBy({ by: ["stage"], where: { stage: { in: [...OPEN_STAGES] } }, _sum: { value: true }, _count: true }),
-    db.deal.findMany({ where: { stage: "WON", closedAt: { gte: firstMonth } }, select: { value: true, closedAt: true } }),
+    moneyRecords(range.prevFrom, range.to, today),
     db.deal.findMany({
       where: { stage: { in: [...OPEN_STAGES] }, expectedClose: { lte: monthAhead } },
       include: { organization: { select: { name: true } } },
@@ -83,33 +72,12 @@ export async function ownerDashboard(user: CurrentUser) {
       take: 5,
     }),
     invoicesWithBalance({ status: "ISSUED" }),
-    db.invoice.aggregate({ where: { status: "ISSUED", issueDate: { gte: monthStart } }, _sum: { total: true }, _count: true }),
-    db.creditNote.aggregate({ where: { status: "ISSUED", issueDate: { gte: monthStart } }, _sum: { total: true } }),
-    db.invoicePayment.findMany({
-      where: { receivedOn: { gte: firstMonth }, invoice: { status: { not: "CANCELLED" } } },
-      select: { amount: true, receivedOn: true },
-    }),
-    db.creditNote.findMany({
-      where: { status: "ISSUED", refundedOn: { gte: firstMonth } },
-      select: { refundAmount: true, refundedOn: true },
-    }),
-    db.vendorPayment.findMany({
-      where: { paidOn: { gte: firstMonth }, bill: { status: "OPEN" } },
-      select: { amount: true, paidOn: true },
-    }),
-    db.payrollRun.findMany({
-      where: { month: { in: months.map((m) => m.key) } },
-      include: { payslips: { select: { net: true } } },
-      orderBy: { month: "desc" },
-    }),
-    db.expenseClaim.findMany({
-      where: { status: "PAID", payslipId: null, paidOn: { gte: firstMonth } },
-      select: { amount: true, approvedAmount: true, paidOn: true },
-    }),
+    db.payrollRun.findFirst({ orderBy: { month: "desc" }, include: { payslips: { select: { net: true } } } }),
     db.vendorBill.findMany({ where: { status: "OPEN" }, select: { id: true, total: true, dueDate: true } }),
     db.expenseClaim.aggregate({ where: { status: "SUBMITTED" }, _sum: { amount: true }, _count: true }),
     db.expenseClaim.findMany({ where: { status: "APPROVED" }, select: { amount: true, approvedAmount: true } }),
-    db.programmeSession.groupBy({ by: ["status"], where: { date: { gte: monthStart, lte: today } }, _count: true }),
+    db.programmeSession.groupBy({ by: ["status"], where: { date: { gte: range.from, lte: range.to } }, _count: true }),
+    db.programmeSession.groupBy({ by: ["status"], where: { date: { gte: range.prevFrom, lte: range.prevTo } }, _count: true }),
     db.programmeSession.count({ where: { date: today, status: { not: "CANCELLED" } } }),
     db.programmeSession.count({ where: needsLogWhere(today) }),
     db.project.findMany({
@@ -142,8 +110,8 @@ export async function ownerDashboard(user: CurrentUser) {
     const row = pipelineByStage.find((r) => r.stage === stage);
     return { stage, count: row?._count ?? 0, value: Number(row?._sum.value ?? 0) };
   });
-  const wonByMonth = sumBy(wonDeals, (d) => monthKey(d.closedAt!), (d) => Number(d.value));
-  const wonCountThisMonth = wonDeals.filter((d) => d.closedAt! >= monthStart).length;
+  const inRange = within(range.from, range.to);
+  const won = compare(money.won, range);
 
   // Money in
   const owed = receivables.filter((i) => i.balance > 0);
@@ -163,32 +131,31 @@ export async function ownerDashboard(user: CurrentUser) {
     if (b.dueDate >= today && b.dueDate <= weekAhead) dueThisWeek += balance;
   }
   const claimAmount = (c: { amount: unknown; approvedAmount: unknown }) => Number(c.approvedAmount ?? c.amount);
-  // Salaries count once a run is finalised; drafts can still change.
-  const salaryByMonth = new Map(
-    payrollRuns.filter((r) => r.status !== "DRAFT").map((r) => [r.month, r.payslips.reduce((s, p) => s + Number(p.net), 0)]),
-  );
-  const latestRun = payrollRuns[0];
 
-  // Money paid back to schools on credit notes comes off what came in that month, as in the accounts summary.
-  const cashIn = sumBy(
-    [
-      ...received.map((p) => ({ on: p.receivedOn, amount: Number(p.amount) })),
-      ...refunds.map((c) => ({ on: c.refundedOn!, amount: -Number(c.refundAmount) })),
-    ],
-    (r) => monthKey(r.on),
-    (r) => r.amount,
-  );
-  const vendorOut = sumBy(vendorPaid, (p) => monthKey(p.paidOn), (p) => Number(p.amount));
-  const claimsOut = sumBy(claimsPaidByHand, (c) => monthKey(c.paidOn!), claimAmount);
-  const cashFlow = months.map((m) => {
-    const vendors = vendorOut.get(m.key) ?? 0;
-    const salaries = salaryByMonth.get(m.key) ?? 0;
-    const claims = claimsOut.get(m.key) ?? 0;
-    return { ...m, in: cashIn.get(m.key) ?? 0, out: vendors + salaries + claims, vendors, salaries, claims, won: wonByMonth.get(m.key) ?? 0 };
-  });
+  // Money in and out over the range, split into the chart's days, weeks or months.
+  const ins = cashIn(money);
+  const outs = cashOut(money);
+  const inBucket = <T extends Dated>(rows: T[]) => {
+    const sums = range.buckets.map(() => 0);
+    for (const r of rows) {
+      const i = bucketIndex(range.buckets, r.on);
+      if (i >= 0) sums[i] += r.amount;
+    }
+    return sums;
+  };
+  const [bIn, bVendors, bSalaries, bClaims, bWon] = [ins, money.vendorPayments, money.salaries, money.claims, money.won].map(inBucket);
+  const cashFlow = range.buckets.map((b, i) => ({
+    ...b,
+    in: bIn[i],
+    out: bVendors[i] + bSalaries[i] + bClaims[i],
+    vendors: bVendors[i],
+    salaries: bSalaries[i],
+    claims: bClaims[i],
+    won: bWon[i],
+  }));
 
   // Sessions
-  const sessionCount = (s: string) => sessionsThisMonth.find((r) => r.status === s)?._count ?? 0;
+  const sessionCount = (s: string, rows = sessionsInRange) => rows.find((r) => r.status === s)?._count ?? 0;
 
   // Projects
   const late = projects.filter((p) => !p.onHold && p.dueDate && p.dueDate < today);
@@ -200,12 +167,13 @@ export async function ownerDashboard(user: CurrentUser) {
 
   return {
     today,
+    range,
     sales: {
       pipeline,
       openValue: pipeline.reduce((s, p) => s + p.value, 0),
       openCount: pipeline.reduce((s, p) => s + p.count, 0),
-      wonThisMonth: wonByMonth.get(monthKey(today)) ?? 0,
-      wonCountThisMonth,
+      won,
+      wonCount: money.won.filter(inRange).length,
       closingSoon,
     },
     moneyIn: {
@@ -213,16 +181,17 @@ export async function ownerDashboard(user: CurrentUser) {
       overdue: receivableAgeing.slice(1).reduce((s, v) => s + v, 0),
       ageing: receivableAgeing,
       topOwing,
-      // Credit notes raised this month come off, whichever month their invoice was from.
-      invoicedThisMonth: round2(Number(invoicedThisMonth._sum.total ?? 0) - Number(creditedThisMonth._sum.total ?? 0)),
-      invoicesThisMonth: invoicedThisMonth._count,
-      receivedThisMonth: cashIn.get(monthKey(today)) ?? 0,
+      // Credit notes raised in the range come off, whichever month their invoice was from.
+      invoiced: compare(invoicedLessCredit(money), range),
+      invoiceCount: money.invoices.filter(inRange).length,
+      received: compare(ins, range),
     },
     moneyOut: {
       owed: payableAgeing.reduce((s, v) => s + v, 0),
       overdue: payableAgeing.slice(1).reduce((s, v) => s + v, 0),
       dueThisWeek,
       ageing: payableAgeing,
+      paid: compare(outs, range),
       claimsWaiting: { count: claimsWaiting._count, amount: Number(claimsWaiting._sum.amount ?? 0) },
       claimsToPay: { count: claimsToPay.length, amount: claimsToPay.reduce((s, c) => s + claimAmount(c), 0) },
       latestRun: latestRun && {
@@ -235,6 +204,7 @@ export async function ownerDashboard(user: CurrentUser) {
     cashFlow,
     sessions: {
       held: sessionCount("COMPLETED"),
+      heldBefore: sessionCount("COMPLETED", sessionsBefore),
       missed: sessionCount("MISSED"),
       cancelled: sessionCount("CANCELLED"),
       today: sessionsToday,
