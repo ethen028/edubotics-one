@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+import { parseSlabs } from "@/lib/payroll";
 import { requireUser } from "@/lib/auth";
 import { WEEKDAYS, getSettings } from "@/lib/settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -21,6 +23,8 @@ import { Badge } from "@/components/ui";
 import { EmailHistory, emailLogSelect } from "@/components/email";
 
 export const metadata = { title: "Settings" };
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default async function SettingsPage() {
   const user = await requireUser(["ADMIN"]);
@@ -70,9 +74,10 @@ export default async function SettingsPage() {
               {(
                 [
                   ["pfEnabled", "Provident fund (PF): 12% of basic, on basic up to ₹15,000", s.pfEnabled],
-                  ["esiEnabled", "ESI: 0.75% of gross, for gross up to ₹21,000", s.esiEnabled],
-                  ["ptEnabled", "Professional tax: entered per payslip", s.ptEnabled],
+                  ["esiEnabled", "ESI: employee and company shares of wages earned, for people within the wage limit (rates below)", s.esiEnabled],
+                  ["ptEnabled", "Kerala professional tax: worked out from the half-year slabs below, taken once each half-year", s.ptEnabled],
                   ["tdsEnabled", "Income tax (TDS): entered per payslip", s.tdsEnabled],
+                  ["gratuityEnabled", "Gratuity: show the amount the company sets aside each month (never taken from pay)", s.gratuityEnabled],
                 ] as const
               ).map(([name, label, checked]) => (
                 <label key={name} className="flex items-center gap-2">
@@ -81,6 +86,78 @@ export default async function SettingsPage() {
                 </label>
               ))}
             </div>
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              The ESI, professional tax and gratuity figures below are a best reading of the rules. Check them with your accountant before switching any of these on.
+            </p>
+            <details className="text-sm" open>
+              <summary className="cursor-pointer font-medium">ESI rates</summary>
+              <div className="mt-2 flex flex-wrap gap-4">
+                <Field label="Employee share, % of wages">
+                  <input name="esiEmployeeRate" type="number" min={0} max={10} step="0.01" defaultValue={Number(s.esiEmployeeRate)} className="input w-24" />
+                </Field>
+                <Field label="Company share, %">
+                  <input name="esiEmployerRate" type="number" min={0} max={10} step="0.01" defaultValue={Number(s.esiEmployerRate)} className="input w-24" />
+                </Field>
+                <Field label="Covered up to gross of ₹ a month">
+                  <input name="esiWageLimit" type="number" min={0} max={1000000} defaultValue={s.esiWageLimit} className="input w-28" />
+                </Field>
+              </div>
+            </details>
+            <details className="text-sm" open>
+              <summary className="cursor-pointer font-medium">Kerala professional tax slabs (per half-year)</summary>
+              <p className="mt-1 text-xs text-slate-500">
+                Half-years run April–September and October–March. Each line: half-year salary from ₹… pays ₹…. Below the first line, nothing. Clear both boxes to remove a line.
+              </p>
+              <div className="mt-2 grid max-w-xs grid-cols-2 gap-2">
+                <div className="label">Half-year salary from ₹</div>
+                <div className="label">Tax ₹</div>
+                {[...parseSlabs(s.ptSlabs), { from: "", tax: "" }, { from: "", tax: "" }].map((slab, i) => (
+                  <Fragment key={i}>
+                    <input name="ptSlabFrom" type="number" min={0} defaultValue={slab.from} className="input py-1" aria-label={`Slab ${i + 1} from`} />
+                    <input name="ptSlabTax" type="number" min={0} defaultValue={slab.tax} className="input py-1" aria-label={`Slab ${i + 1} tax`} />
+                  </Fragment>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-4">
+                <Field label="April–September: take it in">
+                  <select name="ptFirstHalfMonth" defaultValue={s.ptFirstHalfMonth} className="input">
+                    {[4, 5, 6, 7, 8, 9].map((m) => (
+                      <option key={m} value={m}>{MONTHS[m - 1]}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="October–March: take it in">
+                  <select name="ptSecondHalfMonth" defaultValue={s.ptSecondHalfMonth} className="input">
+                    {[10, 11, 12, 1, 2, 3].map((m) => (
+                      <option key={m} value={m}>{MONTHS[m - 1]}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Not charged under this many days employed in the half-year">
+                  <input name="ptMinDays" type="number" min={0} max={183} defaultValue={s.ptMinDays} className="input w-24" />
+                </Field>
+              </div>
+            </details>
+            <details className="text-sm" open>
+              <summary className="cursor-pointer font-medium">Gratuity</summary>
+              <p className="mt-1 text-xs text-slate-500">
+                Gratuity is paid on leaving, not taken from pay: monthly basic × days ÷ working days × years of service. The exit page suggests it once the minimum years are served.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-4">
+                <Field label="Days' basic per year">
+                  <input name="gratuityDays" type="number" min={1} max={60} defaultValue={s.gratuityDays} className="input w-24" />
+                </Field>
+                <Field label="Working days in a month">
+                  <input name="gratuityDivisor" type="number" min={1} max={31} defaultValue={s.gratuityDivisor} className="input w-24" />
+                </Field>
+                <Field label="Payable after years">
+                  <input name="gratuityMinYears" type="number" min={0} max={10} defaultValue={s.gratuityMinYears} className="input w-24" />
+                </Field>
+                <Field label="Most payable, ₹">
+                  <input name="gratuityCap" type="number" min={0} max={100000000} defaultValue={s.gratuityCap} className="input w-32" />
+                </Field>
+              </div>
+            </details>
           </fieldset>
           <fieldset className="space-y-3 border-t border-slate-100 pt-4">
             <legend className="pt-4 font-semibold">Expense claims</legend>

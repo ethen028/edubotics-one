@@ -53,7 +53,7 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
   const sum = (k: "gross" | "totalDeductions" | "reimbursements" | "net") => run.payslips.reduce((s, p) => s + Number(p[k]), 0);
   const setup = mailSetup(settings);
   const notEmailed = run.payslips.filter((p) => p.emails[0]?.status !== "SENT").length;
-  const deductionsOn = [settings.pfEnabled && "PF", settings.esiEnabled && "ESI", settings.ptEnabled && "PT", settings.tdsEnabled && "TDS"].filter(Boolean);
+  const deductionsOn = [settings.pfEnabled && "PF", settings.esiEnabled && "ESI", settings.ptEnabled && "PT", settings.tdsEnabled && "TDS", settings.gratuityEnabled && "gratuity set aside"].filter(Boolean);
 
   return (
     <>
@@ -196,12 +196,6 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
                           Other earnings (₹)
                           <input name="otherEarnings" type="number" min="0" defaultValue={Number(p.otherEarnings)} className="input py-1" />
                         </label>
-                        {settings.ptEnabled && (
-                          <label className="text-xs">
-                            Professional tax (₹)
-                            <input name="professionalTax" type="number" min="0" defaultValue={Number(p.professionalTax)} className="input py-1" />
-                          </label>
-                        )}
                         {settings.tdsEnabled && (
                           <label className="text-xs">
                             TDS (₹)

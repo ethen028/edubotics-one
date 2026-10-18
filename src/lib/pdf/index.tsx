@@ -109,7 +109,7 @@ export async function payslipPdf(id: string): Promise<Attachment | null> {
     getSettings(),
   ]);
   if (!p) return null;
-  const { earnings, deductions } = payslipParts(p);
+  const { earnings, deductions, companyPays } = payslipParts(p);
   const month = monthLabel(p.run.month);
   const name = `${p.employee.firstName} ${p.employee.lastName}`.trim();
   const content = await renderToBuffer(
@@ -127,6 +127,7 @@ export async function payslipPdf(id: string): Promise<Attachment | null> {
         paidOn: p.run.paidOn,
         earnings,
         deductions,
+        companyPays,
         gross: p.gross,
         totalDeductions: p.totalDeductions,
         claims: p.expenseClaims.map((c) => [`${formatDate(c.date)} · ${CATEGORY_LABEL[c.category]} · ${c.description}`, payableOf(c)]),

@@ -32,7 +32,7 @@ test("full loss of pay does not swallow approved reimbursements", () => {
   const slip = calculateSlip({
     structure: { basic: 15000, hra: 6000, specialAllowance: 9000 },
     daysInMonth: 30, employedDays: 30, lopDays: 99,
-    manual: { otherEarnings: 0, professionalTax: 0, tds: 0, otherDeductions: 0 },
+    manual: { otherEarnings: 0, tds: 0, otherDeductions: 0 },
     rules: { lopDivisor: 30, pfEnabled: false, esiEnabled: false, ptEnabled: false, tdsEnabled: false },
     reimbursements: 845.5,
   });
