@@ -55,7 +55,7 @@ export function TickForm({
               accept="image/jpeg,image/png,image/webp"
               capture="environment"
               required={needsPhoto && !hasPhoto}
-              className="text-sm"
+              className="block w-full max-w-full text-sm"
             />
           </label>
           <textarea name="note" rows={2} maxLength={1000} placeholder="Note (optional)" className="input" />

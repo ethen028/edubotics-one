@@ -61,7 +61,7 @@ export function Stat({ label, value, href }: { label: string; value: ReactNode; 
   const inner = (
     <>
       <div className={`stat-label text-xs font-medium text-slate-500 ${href ? "pr-8" : ""}`}>{label}</div>
-      <div className="stat-value mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</div>
+      <div className="stat-value mt-3 text-xl font-bold tracking-tight text-slate-900 [overflow-wrap:anywhere] sm:text-3xl">{value}</div>
       {href && (
         <span className="stat-arrow">
           <Icon name="arrowUpRight" className="h-3.5 w-3.5" />

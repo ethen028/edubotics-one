@@ -615,7 +615,7 @@ async function main(db: Prisma.TransactionClient) {
       weekday: 5,
       dueTime: "17:00",
       audience: "EVERYONE",
-      startsOn: day(-14),
+      startsOn: day(-1), // from this week on, so the demo doesn't open with a wall of missed Fridays
       createdById: U("manager.demo"),
       items: { create: [{ label: "Updated every plan task I own", position: 0 }] },
     },

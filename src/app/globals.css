@@ -440,7 +440,7 @@ h2 {
     @apply flex w-full max-w-md items-center gap-2 rounded-xl border border-slate-200 bg-[var(--page-bg)] px-3 py-2 text-sm text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900;
   }
   .find-button > span {
-    @apply hidden truncate sm:inline;
+    @apply min-w-0 truncate;
   }
   .find-kbd {
     @apply hidden rounded-md border border-slate-200 bg-surface px-1.5 py-0.5 font-sans text-[11px] text-slate-500 sm:inline;
@@ -925,5 +925,16 @@ h2 {
   }
   .permissions-matrix tbody th {
     min-width: 210px;
+  }
+}
+
+/* Phones: a grid column may shrink below its content, and a table wider than the screen scrolls inside its own box. */
+main .grid > * {
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  main section:has(> .table),
+  main .card:has(> .table) {
+    overflow-x: auto;
   }
 }

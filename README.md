@@ -69,7 +69,7 @@ SEED_ADMIN_EMAIL=you@eduboticsglobal.com SEED_ADMIN_PASSWORD='choose-a-password'
 npm run dev                     # http://localhost:3000
 ```
 
-The seed adds departments, leave types (15 casual and 3 sick days a year, plus unpaid LOP), the fixed-date national holidays and four training modules. Working hours (default 9 h, OD after 30 extra minutes) and weekly offs (default Saturday and Sunday) are under **Admin → Settings**. It also adds the Kerala general holiday list for 2026 and 2027 (Onam, Vishu, Eid, Deepavali and the rest); moon-dependent and not-yet-notified dates are marked tentative. Confirm or correct them, and add later years, under **HR → Holidays**, and adjust quotas under **Admin → Leave types**.
+The seed adds departments, leave types (15 casual and 3 sick days a year, plus unpaid LOP), the fixed-date national holidays and four training modules. Working hours (default 9 h, OD after 30 extra minutes) and weekly offs (default Saturday and Sunday; set Sunday only if Saturdays are working days, as the operating calendar's Saturday reviews assume) are under **Admin → Settings**. On an empty plan it also loads the June 2026 – May 2027 operating calendar into **Plan → Annual plan** (see [docs/operating-plan.md](docs/operating-plan.md)). It also adds the Kerala general holiday list for 2026 and 2027 (Onam, Vishu, Eid, Deepavali and the rest); moon-dependent and not-yet-notified dates are marked tentative. Confirm or correct them, and add later years, under **HR → Holidays**, and adjust quotas under **Admin → Leave types**.
 
 ## Deploy
 
@@ -84,7 +84,7 @@ For the supported Docker release process, readiness probe, first-hour checks and
 
 ## Local presentation data
 
-Run `npm run demo:seed` against the local `_test` database to add labelled profiles and representative records across HR, CRM, projects, inventory, operations, accounts, purchasing, recruitment, notices, helpdesk and workshops. The command refuses non-local and non-test databases, resets the four demo profiles to one newly generated temporary password, and prints that password once. Open **Admin → Launch readiness** to review all eight production workstreams.
+To try the app with made-up data, point `DATABASE_URL` at a separate, empty database whose name contains `demo` or `test` (for example `edubotics_demo`), run `npm run db:seed` and then `npm run db:seed-demo`. It adds eight made-up staff with logins for every role (admin, HR, manager, trainers, sales and an engineer, all `*.demo@example.com`) and a few weeks of schools, deals, invoices, workshops, internships, school sessions and a work plan around today, and prints the shared password once. It refuses any other database name (unless `DEMO_SEED_ALLOW=yes`) and any database that already holds people, schools, leads, invoices, projects or workshops, so it can't touch the office data. Running it again only resets the demo passwords.
 
 ## Scripts
 
@@ -96,5 +96,5 @@ Run `npm run demo:seed` against the local `_test` database to add labelled profi
 | `npm run db:migrate` | Create a migration after editing `prisma/schema.prisma` |
 | `npm run db:deploy` | Apply migrations in production |
 | `npm run db:seed` | Starter data and first admin |
-| `npm run demo:seed` | Guarded local demo profiles and module data |
+| `npm run db:seed-demo` | Made-up demo staff and data, on a separate demo database only |
 | `npm run test:acceptance` | Four role profiles, permissions and disposable payroll lifecycle |
