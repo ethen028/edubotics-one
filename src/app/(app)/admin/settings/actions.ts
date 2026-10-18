@@ -64,6 +64,16 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
       noticePeriodDays: z.coerce.number().int().min(0).max(180),
       twoWheelerRatePerKm: z.coerce.number().min(0).max(100),
       carRatePerKm: z.coerce.number().min(0).max(100),
+      esiEmployeeRate: z.coerce.number().min(0).max(10),
+      esiEmployerRate: z.coerce.number().min(0).max(10),
+      esiWageLimit: z.coerce.number().int().min(0).max(1000000),
+      ptFirstHalfMonth: z.coerce.number().int().min(4).max(9),
+      ptSecondHalfMonth: z.coerce.number().int().refine((m) => [10, 11, 12, 1, 2, 3].includes(m)),
+      ptMinDays: z.coerce.number().int().min(0).max(183),
+      gratuityDays: z.coerce.number().int().min(1).max(60),
+      gratuityDivisor: z.coerce.number().int().min(1).max(31),
+      gratuityMinYears: z.coerce.number().int().min(0).max(10),
+      gratuityCap: z.coerce.number().int().min(0).max(100000000),
     })
     .safeParse({
       hours: formData.get("hours"),
@@ -74,9 +84,28 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
       noticePeriodDays: formData.get("noticePeriodDays") ?? 30,
       twoWheelerRatePerKm: formData.get("twoWheelerRatePerKm") || 0,
       carRatePerKm: formData.get("carRatePerKm") || 0,
+      esiEmployeeRate: formData.get("esiEmployeeRate") ?? 0.75,
+      esiEmployerRate: formData.get("esiEmployerRate") ?? 3.25,
+      esiWageLimit: formData.get("esiWageLimit") ?? 21000,
+      ptFirstHalfMonth: formData.get("ptFirstHalfMonth") ?? 8,
+      ptSecondHalfMonth: formData.get("ptSecondHalfMonth") ?? 2,
+      ptMinDays: formData.get("ptMinDays") ?? 60,
+      gratuityDays: formData.get("gratuityDays") ?? 15,
+      gratuityDivisor: formData.get("gratuityDivisor") ?? 26,
+      gratuityMinYears: formData.get("gratuityMinYears") ?? 5,
+      gratuityCap: formData.get("gratuityCap") ?? 2000000,
     });
-  if (!parsed.success) return { error: "Check the hours, overtime minutes, weekly offs, LOP divisor, notice period and per-km rates." };
-  const { hours, minutes, overtimeAfterMins, weeklyOffDays, lopDivisor, noticePeriodDays, twoWheelerRatePerKm, carRatePerKm } = parsed.data;
+  if (!parsed.success) return { error: "Check the hours, overtime minutes, weekly offs, LOP divisor, notice period, per-km rates, ESI rates and gratuity figures." };
+  const { hours, minutes, overtimeAfterMins, weeklyOffDays, lopDivisor, noticePeriodDays, twoWheelerRatePerKm, carRatePerKm, ...statutory } = parsed.data;
+  const froms = formData.getAll("ptSlabFrom").map(String);
+  const taxes = formData.getAll("ptSlabTax").map(String);
+  const ptSlabs = froms
+    .map((f, i) => ({ from: f.trim(), tax: (taxes[i] ?? "").trim() }))
+    .filter((x) => x.from !== "" || x.tax !== "")
+    .map((x) => ({ from: Number(x.from), tax: Number(x.tax) }));
+  if (ptSlabs.some((x) => !Number.isFinite(x.from) || !Number.isFinite(x.tax) || x.from < 0 || x.tax < 0))
+    return { error: "Each professional tax line needs a half-year salary and a tax, both 0 or more." };
+  ptSlabs.sort((a, b) => a.from - b.from);
   const on = (k: string) => formData.get(k) === "on";
   const invoicing = invoiceSettings.safeParse(Object.fromEntries(formData));
   if (!invoicing.success) return { error: invoicing.error.issues[0].message };
@@ -90,6 +119,9 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
     esiEnabled: on("esiEnabled"),
     ptEnabled: on("ptEnabled"),
     tdsEnabled: on("tdsEnabled"),
+    gratuityEnabled: on("gratuityEnabled"),
+    ...statutory,
+    ptSlabs,
     twoWheelerRatePerKm,
     carRatePerKm,
     ...invoicing.data,
@@ -184,6 +216,33 @@ export async function sendTestEmail(_: FormState, formData: FormData): Promise<F
   await db.companySettings.update({ where: { id: 1 }, data: { mailVerifiedAt: new Date() } });
   revalidatePath("/", "layout");
   return { ok: `Test email sent to ${to.list.join(", ")}. Check that it arrived (and isn't in spam). Sending is now switched on.` };
+}
+
+const reminderSchema = z.object({
+  autoReminderAfterDays: z.coerce.number().int("Enter whole days.").min(1, "Wait at least 1 day after the due date.").max(90, "Keep the first reminder within 90 days."),
+  autoReminderEveryDays: z.coerce.number().int("Enter whole days.").min(3, "Leave at least 3 days between reminders.").max(60, "Keep it to 60 days or less."),
+  autoReminderMaxPerInvoice: z.coerce.number().int("Enter a whole number.").min(1, "Send at least 1 reminder.").max(10, "Keep it to 10 reminders or fewer."),
+});
+
+/** Automatic payment reminders: on or off, and how soon and how often schools hear from us. */
+export async function updateReminderSettings(_: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireUser(["ADMIN"]);
+  const parsed = reminderSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const autoRemindersEnabled = formData.get("autoRemindersEnabled") === "on";
+  const before = await getSettings();
+  await db.companySettings.update({ where: { id: 1 }, data: { ...parsed.data, autoRemindersEnabled } });
+  const d = parsed.data;
+  if (before.autoRemindersEnabled !== autoRemindersEnabled) {
+    await logActivity(admin, "SETTINGS", "settings.auto-reminders", `Switched automatic payment reminders ${autoRemindersEnabled ? "on" : "off"}`);
+  }
+  const changed = changedSettings(before, d);
+  if (changed) await logActivity(admin, "SETTINGS", "settings.auto-reminders", `Changed automatic payment reminders: first after ${d.autoReminderAfterDays} days late, then every ${d.autoReminderEveryDays} days, at most ${d.autoReminderMaxPerInvoice} per invoice`);
+  revalidatePath("/admin/settings");
+  revalidatePath("/invoices", "layout");
+  if (!autoRemindersEnabled) return { ok: "Saved. Automatic reminders are off; reminders go out only when someone presses Send." };
+  if (mailSetup(before) !== "READY") return { ok: "Saved. Nothing will go out until the mail account above passes a test email." };
+  return { ok: "Saved. Reminders go out on working days from 10 AM. Billing → Payments due shows when each school is next reminded." };
 }
 
 /** The public careers page: on or off, the welcome text and an email for candidates' questions. */

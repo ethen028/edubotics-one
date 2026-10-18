@@ -24,6 +24,7 @@ export type NavGroupData = {
 
 export type NavCounts = {
   inbox: number;
+  messages: number;
   toAcknowledge: number;
   checklists: number;
   overdueChecklists: boolean;
@@ -51,11 +52,12 @@ export function buildNav(user: NavUser, c: NavCounts): NavGroupData[] {
     {
       title: "Overview",
       icon: "grid",
-      paths: ["/", "/inbox", "/calendar", "/dashboard", "/notices", "/recognition", "/guide"],
+      paths: ["/", "/inbox", "/messages", "/calendar", "/dashboard", "/notices", "/recognition", "/guide"],
       items: [
         { href: "/", label: "Home" },
         { href: "/calendar", label: "Calendar" },
-        { href: "/inbox", label: "Inbox", badge: c.inbox, tone: "brand", title: "Unread messages" },
+        { href: "/inbox", label: "Inbox", badge: c.inbox, tone: "brand", title: "Unread notifications" },
+        { href: "/messages", label: "Messages", badge: c.messages, tone: "brand", title: "Unread messages from colleagues" },
         ...(admin ? [{ href: "/dashboard", label: "Owner dashboard" }] : []),
         { href: "/notices", label: "Notice board", badge: c.toAcknowledge, tone: "amber" as const },
         { href: "/recognition", label: "Recognition" },

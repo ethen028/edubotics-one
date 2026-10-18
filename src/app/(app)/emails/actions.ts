@@ -5,20 +5,19 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { mailSetup, MAIL_NOT_READY, parseAddresses, sendEmail, type Attachment } from "@/lib/mail";
+import { mailSetup, MAIL_NOT_READY, parseAddresses, sendEmail } from "@/lib/mail";
+import { sendSchoolReminder } from "@/lib/payment-reminders";
+import { logActivity } from "@/lib/activity";
 import { certificatePdf, creditNotePdf, exitLetterPdf, invoicePdf, payslipPdf, quotePdf, receiptPdf } from "@/lib/pdf";
 import { markQuoteSent } from "@/lib/quote-send";
 import { calendarInvite } from "@/lib/ics";
 import { canRecruit } from "@/lib/recruitment";
-import { settledAmount } from "@/lib/invoices";
-import { invoiceMoney } from "@/lib/credit-notes";
 import { monthLabel } from "@/lib/payroll";
-import { todayIST } from "@/lib/time";
-import { certificateEmail, payslipEmail, reminderEmail } from "@/lib/email-templates";
+import { certificateEmail, payslipEmail } from "@/lib/email-templates";
 import { canManageWorkshop, dateSpan } from "@/lib/workshops";
 import type { FormState } from "@/components/action-form";
 
-// Every email here goes out because someone pressed Send. Each one is recorded in the email history.
+// Every email here goes out because someone pressed Send (the automatic reminder round is in src/lib/payment-reminders.ts). Each one is recorded in the email history.
 
 const composer = z.object({
   subject: z.string().trim().min(1, "Enter a subject.").max(200),
@@ -71,32 +70,22 @@ export async function remindSchool(organizationId: string): Promise<FormState> {
   const user = await requireUser(["ADMIN", "MANAGER"]);
   const ready = await readySettings();
   if ("error" in ready) return { error: ready.error };
-  const today = todayIST();
-  const [org, invoices] = await Promise.all([
-    db.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { email: true } }),
-    db.invoice.findMany({
-      where: { organizationId, status: "ISSUED", dueDate: { lt: today } },
-      include: { payments: true, creditNotes: true, contact: { select: { name: true, email: true } } },
-      orderBy: { dueDate: "asc" },
-    }),
-  ]);
-  const overdue = invoices
-    .map((i) => ({ ...i, number: i.number!, balance: invoiceMoney(i.total, settledAmount(i.payments), i.creditNotes).balance }))
-    .filter((i) => i.balance > 0)
-    .map((i) => ({ ...i, daysLate: Math.round((today.getTime() - i.dueDate.getTime()) / 86400000) }));
-  if (overdue.length === 0) return { error: "Nothing from this school is overdue now." };
-  const contact = overdue.find((i) => i.contact?.email)?.contact ?? null;
-  const to = contact?.email ?? org.email;
-  if (!to) return { error: "There's no email address for this school or its invoice contact. Add one in CRM first." };
-  const draft = reminderEmail(overdue, contact?.name ?? null, user.name, ready.settings);
-  const attachments = (await Promise.all(overdue.map((i) => invoicePdf(i.id)))).filter((a): a is Attachment => !!a);
-  const result = await sendEmail(
-    { kind: "PAYMENT_REMINDER", to: [to], ...draft, attachments, links: { invoiceIds: overdue.map((i) => i.id) } },
-    ready.settings,
-    user.id,
-  );
+  const result = await sendSchoolReminder(organizationId, ready.settings, { userId: user.id, name: user.name });
   revalidatePath("/invoices", "layout");
-  return "error" in result ? { error: result.error } : { ok: `Reminder sent to ${to}.` };
+  return result;
+}
+
+/** Stop, or start again, automatic payment reminders to one school. Reminders by hand still work. */
+export async function setSchoolAutoReminders(organizationId: string, paused: boolean): Promise<FormState> {
+  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const org = await db.organization.update({
+    where: { id: organizationId },
+    data: { autoRemindersPausedAt: paused ? new Date() : null },
+    select: { name: true },
+  });
+  await logActivity(user, "MONEY", "reminders.school", `${paused ? "Stopped" : "Restarted"} automatic payment reminders to ${org.name}`);
+  revalidatePath("/invoices", "layout");
+  return { ok: paused ? `${org.name} won't get automatic reminders.` : `Automatic reminders to ${org.name} are back on.` };
 }
 
 // ─── Credit notes ──────────────────────────────────────────────────────────

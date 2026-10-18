@@ -69,6 +69,9 @@ const PATHS = {
   plus: "M12 5v14 M5 12h14",
   arrowRight: "M5 12h14 M12 5l7 7-7 7",
   paperclip: "M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48",
+  chat: "M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z",
+  send: "M22 2 11 13 M22 2l-7 20-4-9-9-4z",
+  arrowLeft: "M19 12H5 M12 19l-7-7 7-7",
 } as const;
 
 export type IconName = keyof typeof PATHS;
@@ -94,6 +97,7 @@ export function Icon({ name, className = "h-4 w-4" }: { name: IconName; classNam
 export const NAV_ICONS: Record<string, IconName> = {
   "/": "home",
   "/inbox": "inbox",
+  "/messages": "chat",
   "/dashboard": "chart",
   "/notices": "megaphone",
   "/work": "check",

@@ -17,6 +17,7 @@ export type PayslipPdfData = {
   paidOn: Date | null;
   earnings: [string, Money][];
   deductions: [string, Money][];
+  companyPays: [string, Money][];
   gross: Money;
   totalDeductions: Money;
   claims: [string, Money][];
@@ -99,6 +100,11 @@ export function PayslipPdf({ p, settings }: { p: PayslipPdfData; settings: Setti
           <Text style={[s.bold, { fontSize: 16 }]}>{formatINR(p.net)}</Text>
         </View>
         {p.note && <Text style={[s.muted, { marginTop: 8 }]}>Note: {p.note}</Text>}
+        {p.companyPays.length > 0 && (
+          <View style={{ marginTop: 14 }}>
+            <Table head="Paid by the company on top of salary (not taken from pay)" rows={p.companyPays} />
+          </View>
+        )}
         <PageNumbers note="This is a computer-generated payslip and needs no signature." />
       </Page>
     </Document>

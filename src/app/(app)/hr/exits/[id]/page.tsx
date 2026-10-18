@@ -1,3 +1,4 @@
+import { gratuityRules } from "@/lib/payroll";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -94,7 +95,7 @@ export default async function ExitPage({ params }: PageProps<"/hr/exits/[id]">) 
   const service = serviceYears(e.dateOfJoining, lastDay);
   const rate = structure ? dayRate(structure, settings.lopDivisor) : 0;
   const amounts = settlementAmounts(exit, rate);
-  const gratuityHint = structure ? suggestedGratuity(structure.basic, e.dateOfJoining, lastDay) : 0;
+  const gratuityHint = structure ? suggestedGratuity(structure.basic, e.dateOfJoining, lastDay, gratuityRules(settings)) : 0;
   const settlementTouched = exit.settlementAgreedAt || [exit.encashDays, exit.noticePayDays, exit.recoveryDays, exit.gratuity, exit.recoveries].some((v) => Number(v) > 0);
   const tasksDone = exit.tasks.filter((t) => t.doneAt).length;
   const toHandOver = handover.filter((h) => h.count > 0);

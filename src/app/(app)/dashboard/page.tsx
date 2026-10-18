@@ -1,10 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { requireUser } from "@/lib/auth";
-import { Badge, PageHeader, Stat } from "@/components/ui";
+import { Badge, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
 import { AGE_BUCKETS } from "@/lib/purchase-math";
+import { todayIST } from "@/lib/time";
+import { readRange, rangeText } from "@/lib/dashboard-range";
 import { ownerDashboard } from "./data";
+import { Bars, CashFlowChart, Change, Metric, RangePicker, listHref } from "./ui";
 
 export const metadata = { title: "Owner dashboard" };
 
@@ -12,13 +15,6 @@ export const metadata = { title: "Owner dashboard" };
 const AGE_COLORS = ["bg-brand-200", "bg-amber-300", "bg-amber-500", "bg-orange-600", "bg-red-700"];
 
 const plural = (n: number, word: string) => (n === 1 ? word : `${word}s`);
-
-/** Rupees in lakhs for chart labels: ₹1.2L, ₹45k. */
-function short(n: number) {
-  if (n >= 100_000) return `₹${(n / 100_000).toFixed(n >= 1_000_000 ? 0 : 1)}L`;
-  if (n >= 1000) return `₹${Math.round(n / 1000)}k`;
-  return `₹${Math.round(n)}`;
-}
 
 function Card({ title, href, link = "Open", children, className = "" }: { title: string; href: string; link?: string; children: ReactNode; className?: string }) {
   return (
@@ -56,10 +52,17 @@ function Ageing({ values, href }: { values: number[]; href: string }) {
   if (total === 0) return <p className="text-sm text-slate-500">Nothing outstanding.</p>;
   return (
     <>
-      <div className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-slate-100">
+      <div className="flex h-3 gap-0.5 rounded-full bg-slate-100">
         {values.map((v, i) =>
           v > 0 ? (
-            <div key={i} className={AGE_COLORS[i]} style={{ width: `${(v / total) * 100}%` }} title={`${AGE_BUCKETS[i]}: ${formatINR(v)}`} />
+            <Link
+              key={i}
+              href={href}
+              className={`dash-seg first:rounded-l-full last:rounded-r-full ${AGE_COLORS[i]}`}
+              style={{ width: `${(v / total) * 100}%` }}
+              data-tip={`${AGE_BUCKETS[i]}: ${formatINR(v)} (${Math.round((v / total) * 100)}%)`}
+              aria-label={`${AGE_BUCKETS[i]}: ${formatINR(v)}`}
+            />
           ) : null,
         )}
       </div>
@@ -78,39 +81,16 @@ function Ageing({ values, href }: { values: number[]; href: string }) {
   );
 }
 
-/** Horizontal bars for a few labelled counts or amounts. */
-function Bars({ rows }: { rows: { label: string; value: number; display: string; href?: string }[] }) {
-  const max = Math.max(1, ...rows.map((r) => r.value));
-  return (
-    <ul className="space-y-2 text-sm">
-      {rows.map((r) => (
-        <li key={r.label}>
-          <div className="flex justify-between gap-2">
-            {r.href ? (
-              <Link href={r.href} className="text-slate-600 hover:underline">
-                {r.label}
-              </Link>
-            ) : (
-              <span className="text-slate-600">{r.label}</span>
-            )}
-            <span className="tabular-nums text-slate-900">{r.display}</span>
-          </div>
-          <div className="mt-1 h-2 rounded-full bg-slate-100">
-            <div className="h-2 rounded-full bg-brand-500" style={{ width: `${(r.value / max) * 100}%` }} />
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /** One page for the owner: how the company is doing today, read from every module. Admins only. */
-export default async function OwnerDashboardPage() {
+export default async function OwnerDashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const user = await requireUser(["ADMIN"]);
-  const d = await ownerDashboard(user);
+  const today = todayIST();
+  const range = readRange(await searchParams, today);
+  const d = await ownerDashboard(user, range);
   const { sales, moneyIn, moneyOut, cashFlow, sessions, projects, people, hiring, stock, helpdesk } = d;
-  const flowMax = Math.max(1, ...cashFlow.flatMap((m) => [m.in, m.out]));
-  const thisMonth = cashFlow[cashFlow.length - 1];
+  const period = rangeText(range.from, range.to);
+  const before = rangeText(range.prevFrom, range.prevTo);
+  const tipVs = (now: number, prev: number) => `${period}: ${formatINR(now)}\n${before}: ${formatINR(prev)}`;
 
   const alerts = [
     d.approvals > 0 && { text: `${d.approvals} waiting for approval`, href: "/approvals" },
@@ -121,11 +101,22 @@ export default async function OwnerDashboardPage() {
     helpdesk.unassigned > 0 && { text: `${helpdesk.unassigned} helpdesk ${plural(helpdesk.unassigned, "request")} unassigned`, href: "/helpdesk" },
   ].filter((a): a is { text: string; href: string } => !!a);
 
+  const sessionTile = (status: string, label: string, count: number, tone: string) => (
+    <Link
+      href={listHref("sessions", range, { status })}
+      className={`dash-tile rounded-xl p-3 ${tone}`}
+      data-tip={`${count} ${plural(count, "session")} ${label.toLowerCase()}, ${period}`}
+    >
+      <div className="text-2xl font-semibold">{count}</div>
+      <div className="text-xs text-slate-600">{label}</div>
+    </Link>
+  );
+
   return (
     <>
-      <PageHeader title="Owner dashboard"
-        subtitle="Sales, money, schools, projects and people in one place. Open a metric to explore its records."
-        actions={<span className="workspace-date-chip">{d.today.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</span>} />
+      <PageHeader title="Owner dashboard" subtitle="Sales, money, schools, projects and people in one place. Pick the dates, then open any figure or bar to see the records behind it." />
+
+      <RangePicker range={range} today={today} />
 
       {alerts.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
@@ -141,53 +132,85 @@ export default async function OwnerDashboardPage() {
         </div>
       )}
 
-      <div className="executive-stats mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6">
-        <Stat label={`Open pipeline · ${sales.openCount} deals`} value={formatINR(sales.openValue)} href="/crm/deals" />
-        <Stat label={`Won this month · ${sales.wonCountThisMonth}`} value={formatINR(sales.wonThisMonth)} href="/crm/deals" />
-        <Stat label="Received this month" value={formatINR(moneyIn.receivedThisMonth)} href="/invoices" />
-        <Stat label="Schools still owe" value={formatINR(moneyIn.toCollect)} href="/invoices/dues" />
-        <Stat label="We owe vendors" value={formatINR(moneyOut.owed)} href="/purchases/payables" />
-        <Stat label="Staff in today" value={`${people.inToday} / ${people.staff}`} href="/hr/attendance/register" />
+      <h2 className="dash-heading">{range.label === period ? period : `${range.label} · ${period}`}</h2>
+      <div className="executive-stats mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric
+          label={`Deals won · ${sales.wonCount}`}
+          value={formatINR(sales.won.now)}
+          href={listHref("won", range)}
+          tip={tipVs(sales.won.now, sales.won.before)}
+          foot={<Change now={sales.won.now} before={sales.won.before} />}
+        />
+        <Metric
+          label={`Invoiced, less credit notes · ${moneyIn.invoiceCount}`}
+          value={formatINR(moneyIn.invoiced.now)}
+          href={listHref("invoiced", range)}
+          tip={tipVs(moneyIn.invoiced.now, moneyIn.invoiced.before)}
+          foot={<Change now={moneyIn.invoiced.now} before={moneyIn.invoiced.before} />}
+        />
+        <Metric
+          label="Received from schools"
+          value={formatINR(moneyIn.received.now)}
+          href={listHref("received", range)}
+          tip={`${tipVs(moneyIn.received.now, moneyIn.received.before)}\nLess refunds; TDS not included`}
+          foot={<Change now={moneyIn.received.now} before={moneyIn.received.before} />}
+        />
+        <Metric
+          label="Paid out"
+          value={formatINR(moneyOut.paid.now)}
+          href={listHref("paid", range)}
+          tip={`${tipVs(moneyOut.paid.now, moneyOut.paid.before)}\nVendors, salaries and expense claims`}
+          foot={<Change now={moneyOut.paid.now} before={moneyOut.paid.before} rising="neutral" />}
+        />
+      </div>
+
+      <h2 className="dash-heading">Now</h2>
+      <div className="executive-stats mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric
+          now
+          label={`Open pipeline · ${sales.openCount} deals`}
+          value={formatINR(sales.openValue)}
+          href="/crm/deals"
+          tip={sales.pipeline.map((p) => `${humanize(p.stage)}: ${p.count} · ${formatINR(p.value)}`).join("\n")}
+        />
+        <Metric
+          now
+          label="Schools still owe"
+          value={formatINR(moneyIn.toCollect)}
+          href="/invoices/dues"
+          tip={`Overdue ${formatINR(moneyIn.overdue)}\nNot yet due ${formatINR(moneyIn.toCollect - moneyIn.overdue)}`}
+        />
+        <Metric
+          now
+          label="We owe vendors"
+          value={formatINR(moneyOut.owed)}
+          href="/purchases/payables"
+          tip={`Overdue ${formatINR(moneyOut.overdue)}\nDue in the next 7 days ${formatINR(moneyOut.dueThisWeek)}`}
+        />
+        <Metric
+          now
+          label="Staff in today"
+          value={`${people.inToday} / ${people.staff}`}
+          href="/hr/attendance/register"
+          tip={`Checked in ${people.inToday}\nOn leave ${people.onLeave.length}\nNot in yet ${Math.max(0, people.staff - people.inToday - people.onLeave.length)}`}
+        />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card title="Money in and out, last 6 months" href="/invoices" link="Invoices" className="lg:col-span-2">
-          <div className="mb-3 flex gap-4 text-xs text-slate-600">
+        <Card title="Money in and out" href={listHref("money", range)} link="See all records" className="lg:col-span-2">
+          <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm bg-brand-600" /> Received from schools
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm bg-amber-400" /> Paid out (vendors, salaries, expense claims)
             </span>
+            <span className="text-slate-500">By {range.unit}</span>
           </div>
-          <div className="relative flex h-44 items-end gap-2 border-b border-slate-200 sm:gap-4">
-            {cashFlow.every(month => month.in === 0 && month.out === 0) && <div className="cashflow-empty"><strong>No recorded cash flow yet</strong><span>Received payments and paid expenses will appear here.</span></div>}
-            {cashFlow.map((m) => (
-              <div
-                key={m.key}
-                className="flex h-full flex-1 items-end justify-center gap-0.5"
-                title={`${m.label}: in ${formatINR(m.in)}, out ${formatINR(m.out)} (vendors ${formatINR(m.vendors)}, salaries ${formatINR(m.salaries)}, claims ${formatINR(m.claims)})`}
-              >
-                <div className="bar-track w-1/3">
-                  <div className="bar-fill bg-brand-600" style={{ height: `${(m.in / flowMax) * 100}%` }} />
-                </div>
-                <div className="bar-track w-1/3">
-                  <div className="bar-fill bg-amber-400" style={{ height: `${(m.out / flowMax) * 100}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-1 flex gap-2 text-center text-[11px] sm:gap-4">
-            {cashFlow.map((m) => (
-              <div key={m.key} className="min-w-0 flex-1">
-                <div className="font-medium text-slate-700">{m.label}</div>
-                <div className="text-brand-700 tabular-nums">{short(m.in)}</div>
-                <div className="text-amber-800 tabular-nums">{short(m.out)}</div>
-              </div>
-            ))}
-          </div>
+          <CashFlowChart bars={cashFlow} unit={range.unit} />
           <p className="mt-3 text-xs text-slate-500">
-            This month: {formatINR(thisMonth.in)} in, {formatINR(thisMonth.out)} out. Salaries count once the month&apos;s payroll is finalised.
+            {period}: {formatINR(moneyIn.received.now)} in, {formatINR(moneyOut.paid.now)} out. Point at a bar for its figures, or open it for the records.
+            Salaries count in their payroll month once it is finalised.
           </p>
         </Card>
 
@@ -197,7 +220,8 @@ export default async function OwnerDashboardPage() {
               label: `${humanize(p.stage)} · ${p.count}`,
               value: p.value,
               display: formatINR(p.value),
-              href: "/crm/deals",
+              href: listHref("pipeline", range, { stage: p.stage }),
+              tip: `${p.count} open ${plural(p.count, "deal")} in ${humanize(p.stage).toLowerCase()}: ${formatINR(p.value)}`,
             }))}
           />
           <h3 className="mt-4 mb-1 text-xs font-semibold tracking-wider text-slate-500 uppercase">Expected to close in 30 days</h3>
@@ -227,9 +251,9 @@ export default async function OwnerDashboardPage() {
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card title="Money in" href="/invoices/dues" link="Payments due">
           <ul className="mb-3 divide-y divide-slate-100 text-sm">
-            <Row label={`Invoiced this month, less credit notes · ${moneyIn.invoicesThisMonth}`} value={formatINR(moneyIn.invoicedThisMonth)} href="/invoices" />
-            <Row label="Received this month" value={formatINR(moneyIn.receivedThisMonth)} href="/invoices" />
-            <Row label="Still to collect" value={formatINR(moneyIn.toCollect)} href="/invoices/dues" />
+            <Row label={`Invoiced, less credit notes · ${moneyIn.invoiceCount}`} value={formatINR(moneyIn.invoiced.now)} href={listHref("invoiced", range)} />
+            <Row label="Received" value={formatINR(moneyIn.received.now)} href={listHref("received", range)} />
+            <Row label="Still to collect, now" value={formatINR(moneyIn.toCollect)} href="/invoices/dues" />
           </ul>
           <Ageing values={moneyIn.ageing} href="/invoices/dues" />
           {moneyIn.topOwing.length > 0 && (
@@ -247,7 +271,7 @@ export default async function OwnerDashboardPage() {
         <Card title="Money out" href="/purchases/payables" link="Payables">
           <ul className="mb-3 divide-y divide-slate-100 text-sm">
             <Row label="Vendor bills due in 7 days" value={formatINR(moneyOut.dueThisWeek)} href="/purchases/payables" />
-            <Row label="Paid out this month" value={formatINR(thisMonth.out)} />
+            <Row label="Paid out" value={formatINR(moneyOut.paid.now)} href={listHref("paid", range)} />
           </ul>
           <Ageing values={moneyOut.ageing} href="/purchases/payables" />
           <h3 className="mt-4 mb-1 text-xs font-semibold tracking-wider text-slate-500 uppercase">Staff costs</h3>
@@ -282,21 +306,15 @@ export default async function OwnerDashboardPage() {
           </ul>
         </Card>
 
-        <Card title="School sessions this month" href="/operations" link="Sessions">
+        <Card title="School sessions" href="/operations" link="Sessions">
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-xl bg-brand-50 p-3">
-              <div className="text-2xl font-semibold text-brand-800">{sessions.held}</div>
-              <div className="text-xs text-slate-600">Held</div>
-            </div>
-            <div className="rounded-xl bg-red-50 p-3">
-              <div className="text-2xl font-semibold text-red-700">{sessions.missed}</div>
-              <div className="text-xs text-slate-600">Missed</div>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <div className="text-2xl font-semibold text-slate-700">{sessions.cancelled}</div>
-              <div className="text-xs text-slate-600">Cancelled</div>
-            </div>
+            {sessionTile("COMPLETED", "Held", sessions.held, "bg-brand-50 text-brand-800")}
+            {sessionTile("MISSED", "Missed", sessions.missed, "bg-red-50 text-red-700")}
+            {sessionTile("CANCELLED", "Cancelled", sessions.cancelled, "bg-slate-50 text-slate-700")}
           </div>
+          <p className="mt-2 text-xs">
+            <Change now={sessions.held} before={sessions.heldBefore} /> <span className="text-slate-500">in sessions held</span>
+          </p>
           <ul className="mt-3 divide-y divide-slate-100 text-sm">
             <Row label="Sessions today" value={sessions.today} href="/operations" />
             <Row label="Past sessions not logged" value={sessions.logsDue} href="/operations" tone={sessions.logsDue ? "red" : undefined} />

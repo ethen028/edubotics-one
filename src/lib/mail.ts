@@ -71,6 +71,7 @@ export type OutgoingEmail = {
   subject: string;
   message: string; // plain text the person typed or kept from the template
   attachments?: Attachment[];
+  automatic?: boolean; // the daily automatic payment reminder round, with no person sending it
   links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string; certificateId?: string; receiptId?: string; exitId?: string };
 };
 
@@ -78,7 +79,7 @@ export type OutgoingEmail = {
  * Sends one email from the company account and records it, sent or failed, in the email history.
  * Only a test email may go out before the account has passed a test.
  */
-export async function sendEmail(email: OutgoingEmail, settings: Settings, userId: string): Promise<{ ok: true } | { error: string }> {
+export async function sendEmail(email: OutgoingEmail, settings: Settings, userId: string | null): Promise<{ ok: true } | { error: string }> {
   const setup = mailSetup(settings);
   if (setup === "NOT_SET") return { error: MAIL_NOT_READY.NOT_SET };
   if (setup === "UNTESTED" && email.kind !== "TEST") return { error: MAIL_NOT_READY.UNTESTED };
@@ -112,6 +113,7 @@ export async function sendEmail(email: OutgoingEmail, settings: Settings, userId
       attachments: (email.attachments ?? []).map((a) => a.filename),
       error,
       sentById: userId,
+      automatic: !!email.automatic,
       quoteId: email.links?.quoteId,
       payslipId: email.links?.payslipId,
       interviewId: email.links?.interviewId,

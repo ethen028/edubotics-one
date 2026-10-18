@@ -117,6 +117,9 @@ model User {
   commissionLines       CommissionLine[]
   commissionsPrepared   CommissionStatement[]  @relation("CommissionPreparer")
   commissionsApproved   CommissionStatement[]  @relation("CommissionApprover")
+  conversationsStarted  Conversation[]         @relation("ConversationCreator")
+  conversations         ConversationMember[]
+  chatMessages          ChatMessage[]
   recognitionsGiven     Recognition[]          @relation("RecognitionGiver")
   recognitionsReceived  Recognition[]          @relation("RecognitionReceiver")
   recognitionsFeatured  Recognition[]          @relation("RecognitionFeaturer")
@@ -260,12 +263,27 @@ model CompanySettings {
   weeklyOffDays     Int[] @default([0, 6]) // 0 = Sunday … 6 = Saturday
 
   // Payroll. Deductions start switched off (Edubotics deducts none today).
-  lopDivisor       Int     @default(30) // LOP per day = monthly gross ÷ this, as in HR V1.2
-  noticePeriodDays Int     @default(30) // notice expected from someone resigning; the exit page shows any shortfall
-  pfEnabled        Boolean @default(false)
-  esiEnabled       Boolean @default(false)
-  ptEnabled        Boolean @default(false)
-  tdsEnabled       Boolean @default(false)
+  lopDivisor        Int     @default(30) // LOP per day = monthly gross ÷ this, as in HR V1.2
+  noticePeriodDays  Int     @default(30) // notice expected from someone resigning; the exit page shows any shortfall
+  pfEnabled         Boolean @default(false)
+  esiEnabled        Boolean @default(false)
+  ptEnabled         Boolean @default(false)
+  tdsEnabled        Boolean @default(false)
+  // ESI rates (percent of wages earned) and the wage limit for being covered; ESIC revises these by notification.
+  esiEmployeeRate   Decimal @default(0.75) @db.Decimal(5, 2)
+  esiEmployerRate   Decimal @default(3.25) @db.Decimal(5, 2)
+  esiWageLimit      Int     @default(21000)
+  // Kerala professional tax: slabs on half-year salary, as [{ from, tax }], taken once each half-year.
+  ptSlabs           Json    @default("[{\"from\":12000,\"tax\":120},{\"from\":18000,\"tax\":180},{\"from\":30000,\"tax\":300},{\"from\":45000,\"tax\":450},{\"from\":60000,\"tax\":600},{\"from\":75000,\"tax\":750},{\"from\":100000,\"tax\":1000},{\"from\":125000,\"tax\":1250}]")
+  ptFirstHalfMonth  Int     @default(8) // April–September half: taken on the August payslip
+  ptSecondHalfMonth Int     @default(2) // October–March half: taken on the February payslip
+  ptMinDays         Int     @default(60) // not liable if employed fewer days in the half-year
+  // Gratuity: switched on, each payslip shows the amount set aside for it. Payable on leaving after gratuityMinYears.
+  gratuityEnabled   Boolean @default(false)
+  gratuityDays      Int     @default(15) // days' wages per year of service
+  gratuityDivisor   Int     @default(26) // working days in a month
+  gratuityMinYears  Int     @default(5)
+  gratuityCap       Int     @default(2000000)
 
   // Expense claims: own-vehicle travel paid per km. 0 = enter the amount by hand.
   twoWheelerRatePerKm Decimal @default(0) @db.Decimal(6, 2)
@@ -305,6 +323,14 @@ model CompanySettings {
   mailReplyTo     String?
   mailBccSelf     Boolean   @default(true) // a copy of every email to the from address, for the sent record
   mailVerifiedAt  DateTime? // cleared whenever the account details change
+
+  // Automatic payment reminders to schools (src/lib/payment-reminders.ts): off until an admin turns
+  // them on, and never sent while the mail account above hasn't passed a test.
+  autoRemindersEnabled      Boolean   @default(false)
+  autoReminderAfterDays     Int       @default(7) // first reminder once an invoice is this many days past its due date
+  autoReminderEveryDays     Int       @default(7) // then no school hears from us more often than this (reminders sent by hand count)
+  autoReminderMaxPerInvoice Int       @default(3) // after this many automatic reminders an invoice is left for a phone call
+  autoReminderLastRunOn     DateTime? @db.Date // the India-time day the last round went out, so a day is never sent twice
 
   // Workshop certificates: who signs them. The signature image is printed above the name, so
   // emailed certificates arrive signed; without one there is a line to sign by hand.
@@ -547,38 +573,40 @@ model PayrollRun {
 }
 
 model Payslip {
-  id               String         @id @default(cuid())
-  runId            String
-  run              PayrollRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
-  employeeId       String
-  employee         Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  daysInMonth      Int
-  paidDays         Decimal        @db.Decimal(5, 1) // days employed in the month, minus LOP
-  lopDays          Decimal        @default(0) @db.Decimal(5, 1)
-  basic            Decimal        @db.Decimal(12, 2) // earned amounts, after proration
-  hra              Decimal        @db.Decimal(12, 2)
-  specialAllowance Decimal        @db.Decimal(12, 2)
-  otherEarnings    Decimal        @default(0) @db.Decimal(12, 2) // bonus, reimbursement…
-  gross            Decimal        @db.Decimal(12, 2)
-  lopDeduction     Decimal        @default(0) @db.Decimal(12, 2)
-  pf               Decimal        @default(0) @db.Decimal(12, 2)
-  esi              Decimal        @default(0) @db.Decimal(12, 2)
-  professionalTax  Decimal        @default(0) @db.Decimal(12, 2)
-  tds              Decimal        @default(0) @db.Decimal(12, 2)
-  otherDeductions  Decimal        @default(0) @db.Decimal(12, 2)
-  totalDeductions  Decimal        @db.Decimal(12, 2)
-  net              Decimal        @db.Decimal(12, 2)
-  note             String?
-  reimbursements   Decimal        @default(0) @db.Decimal(12, 2) // approved expense claims, paid on top of salary
+  id                String         @id @default(cuid())
+  runId             String
+  run               PayrollRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employeeId        String
+  employee          Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  daysInMonth       Int
+  paidDays          Decimal        @db.Decimal(5, 1) // days employed in the month, minus LOP
+  lopDays           Decimal        @default(0) @db.Decimal(5, 1)
+  basic             Decimal        @db.Decimal(12, 2) // earned amounts, after proration
+  hra               Decimal        @db.Decimal(12, 2)
+  specialAllowance  Decimal        @db.Decimal(12, 2)
+  otherEarnings     Decimal        @default(0) @db.Decimal(12, 2) // bonus, reimbursement…
+  gross             Decimal        @db.Decimal(12, 2)
+  lopDeduction      Decimal        @default(0) @db.Decimal(12, 2)
+  pf                Decimal        @default(0) @db.Decimal(12, 2)
+  esi               Decimal        @default(0) @db.Decimal(12, 2)
+  esiEmployer       Decimal        @default(0) @db.Decimal(12, 2) // company's share, paid on top of salary
+  professionalTax   Decimal        @default(0) @db.Decimal(12, 2)
+  tds               Decimal        @default(0) @db.Decimal(12, 2)
+  otherDeductions   Decimal        @default(0) @db.Decimal(12, 2)
+  totalDeductions   Decimal        @db.Decimal(12, 2)
+  net               Decimal        @db.Decimal(12, 2)
+  note              String?
+  reimbursements    Decimal        @default(0) @db.Decimal(12, 2) // approved expense claims, paid on top of salary
   // Final settlement, on the payslip for the month of the last working day (see EmployeeExit).
-  finalSettlement  Boolean        @default(false)
-  leaveEncashment  Decimal        @default(0) @db.Decimal(12, 2)
-  noticePay        Decimal        @default(0) @db.Decimal(12, 2) // paid in lieu of notice
-  gratuity         Decimal        @default(0) @db.Decimal(12, 2)
-  noticeRecovery   Decimal        @default(0) @db.Decimal(12, 2) // notice not served
-  exitRecovery     Decimal        @default(0) @db.Decimal(12, 2) // e.g. a laptop not returned
-  expenseClaims    ExpenseClaim[]
-  emails           EmailLog[]
+  finalSettlement   Boolean        @default(false)
+  leaveEncashment   Decimal        @default(0) @db.Decimal(12, 2)
+  noticePay         Decimal        @default(0) @db.Decimal(12, 2) // paid in lieu of notice
+  gratuity          Decimal        @default(0) @db.Decimal(12, 2)
+  noticeRecovery    Decimal        @default(0) @db.Decimal(12, 2) // notice not served
+  exitRecovery      Decimal        @default(0) @db.Decimal(12, 2) // e.g. a laptop not returned
+  gratuityProvision Decimal        @default(0) @db.Decimal(12, 2) // set aside by the company, not taken from pay
+  expenseClaims     ExpenseClaim[]
+  emails            EmailLog[]
 
   @@unique([runId, employeeId])
 }
@@ -597,32 +625,33 @@ enum OrgType {
 }
 
 model Organization {
-  id            String         @id @default(cuid())
-  name          String
-  type          OrgType        @default(SCHOOL)
-  board         String? // CBSE, ICSE, State, IB… for schools
-  phone         String?
-  email         String?
-  website       String?
-  address       String?
-  city          String?
-  district      String?
-  state         String?        @default("Kerala")
-  notes         String?
-  ownerId       String?
-  owner         User?          @relation("OrgOwner", fields: [ownerId], references: [id])
-  contacts      Contact[]
-  deals         Deal[]
-  activities    Activity[]
-  projects      Project[]
-  programmes    Programme[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  expenseClaims ExpenseClaim[]
-  gstin         String? // printed on invoices; schools usually have none
-  invoices      Invoice[]
-  quotes        Quote[]
-  workshops     Workshop[]
+  id                    String         @id @default(cuid())
+  name                  String
+  type                  OrgType        @default(SCHOOL)
+  board                 String? // CBSE, ICSE, State, IB… for schools
+  phone                 String?
+  email                 String?
+  website               String?
+  address               String?
+  city                  String?
+  district              String?
+  state                 String?        @default("Kerala")
+  notes                 String?
+  ownerId               String?
+  owner                 User?          @relation("OrgOwner", fields: [ownerId], references: [id])
+  contacts              Contact[]
+  deals                 Deal[]
+  activities            Activity[]
+  projects              Project[]
+  programmes            Programme[]
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  expenseClaims         ExpenseClaim[]
+  gstin                 String? // printed on invoices; schools usually have none
+  invoices              Invoice[]
+  autoRemindersPausedAt DateTime? // set when someone stops automatic payment reminders to this school
+  quotes                Quote[]
+  workshops             Workshop[]
 
   @@index([name])
 }
@@ -927,6 +956,56 @@ model Notification {
   createdAt DateTime  @default(now())
 
   @@index([userId, readAt, createdAt])
+}
+
+// ─── Staff messages ────────────────────────────────────────────────────────
+// Private conversations between staff: one-to-one or a small named group. Only the people in a conversation can
+// read it; there is no admin or manager view.
+
+model Conversation {
+  id            String               @id @default(cuid())
+  /// Set for groups; a one-to-one chat is named after the other person.
+  title         String?
+  isGroup       Boolean              @default(false)
+  /// "userA:userB" (ids sorted) for one-to-one chats, so the same two people always share one conversation.
+  directKey     String?              @unique
+  createdById   String?
+  createdBy     User?                @relation("ConversationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lastMessageAt DateTime             @default(now())
+  createdAt     DateTime             @default(now())
+  members       ConversationMember[]
+  messages      ChatMessage[]
+}
+
+model ConversationMember {
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Messages after this are unread for this person.
+  lastReadAt     DateTime     @default(now())
+  joinedAt       DateTime     @default(now())
+  /// Set when someone leaves a group: they stop seeing it and getting its messages.
+  leftAt         DateTime?
+
+  @@id([conversationId, userId])
+  @@index([userId, leftAt])
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  /// Empty once the sender removes it ("Message removed" is shown instead).
+  body           String
+  /// A line like "Anu added Rahul" rather than something a person wrote.
+  event          Boolean      @default(false)
+  removedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 /// A progress report on a project or one of its tasks: a note, a progress change and/or files (from Task Flow).
@@ -2090,8 +2169,9 @@ model EmailLog {
   receipt       WorkshopPayment?     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   exitId        String?
   exit          EmployeeExit?        @relation(fields: [exitId], references: [id], onDelete: Cascade)
-  sentById      String
-  sentBy        User                 @relation(fields: [sentById], references: [id])
+  sentById      String? // empty for an automatic payment reminder
+  sentBy        User?                @relation(fields: [sentById], references: [id], onDelete: Restrict)
+  automatic     Boolean              @default(false) // sent by the daily automatic reminder round, not by a person
   createdAt     DateTime             @default(now())
 
   @@index([kind, createdAt])
