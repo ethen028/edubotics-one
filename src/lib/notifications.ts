@@ -13,6 +13,9 @@ export const NOTIFICATION_KINDS = {
   "project.post": "Project post",
   "project.decided": "Project approval",
   "timesheet.decided": "Timesheet",
+  "plan.assigned": "Work plan",
+  "plan.review": "Weekly review",
+  "commission.ready": "Commission",
 } as const;
 
 export type NotificationKind = keyof typeof NOTIFICATION_KINDS;

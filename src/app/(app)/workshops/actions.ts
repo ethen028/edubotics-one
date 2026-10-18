@@ -13,6 +13,7 @@ import { PAYMENT_METHODS, financialYear } from "@/lib/invoices";
 import {
   CERTIFICATE_TITLES,
   WORKSHOP_AUDIENCES,
+  WORKSHOP_KINDS,
   WORKSHOP_FEE_TYPES,
   WORKSHOP_MODES,
   WORKSHOP_STATUSES,
@@ -60,6 +61,7 @@ async function workshopFor(user: CurrentUser, id: string, need: "manage" | "atte
 const workshopSchema = z.object({
   title: z.string().trim().min(1, "give it a title").max(200),
   description: optional,
+  kind: z.enum(WORKSHOP_KINDS).default("WORKSHOP"),
   audience: z.enum(WORKSHOP_AUDIENCES),
   mode: z.enum(WORKSHOP_MODES),
   venue: optional,

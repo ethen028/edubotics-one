@@ -7,6 +7,9 @@ import { cache } from "react";
 import type { Role, SignInMethod } from "@prisma/client";
 import { db } from "./db";
 import { requestIp } from "./activity";
+import { sessionAccessProblem } from "./session-access";
+import { createSessionRecord } from "./session-store";
+export { createSessionRecord } from "./session-store";
 
 const COOKIE = "eb_session";
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 days: everyone signs in again at least once a week
@@ -23,7 +26,7 @@ export const cookieSecure = () =>
   process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === "true" : process.env.NODE_ENV === "production";
 
 export async function hashPassword(password: string) {
-  return bcrypt.hash(password, 10);
+  return bcrypt.hash(password, 12);
 }
 
 export async function verifyPassword(password: string, hash: string) {
@@ -31,18 +34,19 @@ export async function verifyPassword(password: string, hash: string) {
 }
 
 /** Signs this browser in: a session row (which can be ended from anywhere) named by a signed cookie. */
-export async function createSession(userId: string, method: SignInMethod = "PASSWORD") {
+export async function createSession(userId: string, method: SignInMethod = "PASSWORD", expectedPasswordHash?: string) {
   const h = await headers();
-  const session = await db.session.create({
-    data: { userId, method, ip: await requestIp(), userAgent: h.get("user-agent")?.slice(0, 300) ?? null },
+  const session = await createSessionRecord(userId, method, expectedPasswordHash, {
+    ip: await requestIp(), userAgent: h.get("user-agent")?.slice(0, 300) ?? null,
   });
-  await db.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
+  if (!session) return false;
   const token = await new SignJWT({ sub: userId, sid: session.id })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
     .sign(sessionSecret());
   (await cookies()).set(COOKIE, token, { httpOnly: true, sameSite: "lax", secure: cookieSecure(), path: "/", maxAge: MAX_AGE });
+  return true;
 }
 
 /** Signs this browser out. */
@@ -67,7 +71,7 @@ export const getCurrentSession = cache(async () => {
   if (!token) return null;
   let sid: string;
   try {
-    const { payload } = await jwtVerify(token, sessionSecret());
+    const { payload } = await jwtVerify(token, sessionSecret(), { algorithms: ["HS256"] });
     if (!payload.sub || typeof payload.sid !== "string") return null; // older cookies had no session: sign in again
     sid = payload.sid;
   } catch {
@@ -77,7 +81,7 @@ export const getCurrentSession = cache(async () => {
     db.session.findUnique({ where: { id: sid }, include: { user: { include: { employee: true } } } }),
     db.companySettings.findUnique({ where: { id: 1 }, select: { sessionIdleHours: true } }),
   ]);
-  if (!session || session.endedAt || !session.user.active) return null;
+  if (!session || session.endedAt || !session.user.active || session.user.closedAt) return null;
   const now = Date.now();
   const idleLimit = (settings?.sessionIdleHours ?? 12) * 60 * 60 * 1000;
   if (now - session.lastSeenAt.getTime() > idleLimit) {
@@ -96,13 +100,25 @@ export const getCurrentUser = cache(async () => (await getCurrentSession())?.use
 
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
+/** API equivalent of requireUser: incomplete account setup never grants file access. */
+export async function getApiUser() {
+  const current = await getCurrentSession();
+  if (!current) return { error: new Response("Sign in first", { status: 401 }) };
+  if (sessionAccessProblem(current, process.env.REQUIRE_VERIFIED_EMAIL === "true")) {
+    return { error: new Response("Complete account security setup first", { status: 403 }) };
+  }
+  return { user: current.user };
+}
+
 /** Use at the top of every protected page and server action. */
 export async function requireUser(roles?: Role[]): Promise<CurrentUser> {
   const current = await getCurrentSession();
   if (!current) redirect("/login");
   const { user, session } = current;
   // A temporary or too-weak password has to be replaced before anything else (not when signed in with Google).
-  if (user.mustChangePassword && session.method === "PASSWORD") redirect("/change-password");
+  const problem = sessionAccessProblem({ user, session }, process.env.REQUIRE_VERIFIED_EMAIL === "true");
+  if (problem === "password") redirect("/change-password");
+  if (problem === "email") redirect("/verify-email");
   if (roles && !roles.includes(user.role)) redirect("/?denied=1");
   return user;
 }

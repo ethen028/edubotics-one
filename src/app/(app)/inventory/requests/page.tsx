@@ -15,6 +15,7 @@ const FILTERS = [
   ["PENDING", "Waiting for approval"],
   ["APPROVED", "To issue"],
   ["ISSUED", "Items out"],
+  ["overdue", "Overdue returns"],
   ["done", "Closed"],
 ] as const;
 
@@ -28,6 +29,8 @@ export default async function RequestsPage({ searchParams }: PageProps<"/invento
   const status: Prisma.StockRequestWhereInput =
     filter === "open"
       ? { status: { in: [...OPEN_REQUEST_STATUSES] } }
+      : filter === "overdue"
+        ? { status: "ISSUED", returnBy: { lt: today } }
       : filter === "done"
         ? { status: { in: ["CLOSED", "REJECTED", "CANCELLED"] } }
         : { status: filter as StockRequestStatus };
@@ -62,13 +65,13 @@ export default async function RequestsPage({ searchParams }: PageProps<"/invento
       />
       <div className="mb-4 flex flex-wrap gap-2 text-sm">
         {FILTERS.map(([k, label]) => (
-          <Link key={k} href={href(k)} className={filter === k ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>
+          <Link key={k} href={href(k)} aria-current={filter === k ? "page" : undefined} className={filter === k ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>
             {label}
           </Link>
         ))}
         {user.role !== "EMPLOYEE" && (
           <Link href={href(filter, !mineOnly)} className="btn-secondary btn-sm ml-auto">
-            {mineOnly ? "Show everyone's" : "Only mine"}
+            {mineOnly ? "Show visible team requests" : "Only mine"}
           </Link>
         )}
       </div>

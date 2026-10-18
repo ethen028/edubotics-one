@@ -1,6 +1,8 @@
 import "server-only";
 import { headers } from "next/headers";
 import { db } from "./db";
+import { trustedClientAddress } from "./http-security";
+import { reportServerError } from "./telemetry";
 
 /** The kinds of entry in Admin → Activity log. */
 export const ACTIVITY_AREAS = {
@@ -18,7 +20,7 @@ export type ActivityArea = keyof typeof ACTIVITY_AREAS;
 /** The address a request came from, as well as the app can tell (good enough for a log, not for proof). */
 export async function requestIp() {
   const h = await headers();
-  return h.get("cf-connecting-ip") ?? h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? null;
+  return trustedClientAddress(h);
 }
 
 /** Adds a line to the activity log. Never throws: a failed log line must not undo the action itself. */
@@ -26,7 +28,7 @@ export async function logActivity(user: { id: string } | null, area: ActivityAre
   try {
     await db.activityLog.create({ data: { userId: user?.id ?? null, area, action, summary: summary.slice(0, 500), ip: await requestIp() } });
   } catch (e) {
-    console.error("Could not write the activity log", e);
+    reportServerError(e);
   }
 }
 

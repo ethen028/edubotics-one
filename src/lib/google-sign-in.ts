@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { unseal } from "./secret-box";
+import { reportServerError } from "./telemetry";
 
 // "Sign in with Google" (OpenID Connect, authorization code with PKCE). Off until an admin fills in a
 // Google client under Admin → Settings and switches it on; see docs/google-sign-in.md.
@@ -114,7 +115,7 @@ export async function exchangeCode(setup: GoogleSetup, code: string, verifier: s
   });
   const body = (await res.json().catch(() => ({}))) as { id_token?: string; error?: string };
   if (!res.ok || !body.id_token) {
-    console.error("Google token exchange failed", res.status, body.error);
+    reportServerError(new Error("Google token exchange failed"));
     throw new GoogleSignInError("failed");
   }
   return body.id_token;
@@ -126,7 +127,7 @@ export async function verifyIdToken(idToken: string, setup: Pick<GoogleSetup, "c
   try {
     ({ payload: claims } = await jwtVerify(idToken, keys, { issuer: ISSUERS, audience: setup.clientId }));
   } catch (e) {
-    console.error("Google ID token rejected", e);
+    reportServerError(e);
     throw new GoogleSignInError("failed");
   }
   if (claims.nonce !== nonce) throw new GoogleSignInError("expired");

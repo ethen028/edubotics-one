@@ -6,14 +6,19 @@ export function PageHeader({
   title,
   subtitle,
   actions,
+  eyebrow,
 }: {
   title: string;
   subtitle?: ReactNode;
   actions?: ReactNode;
+  eyebrow?: string;
+  /** Accepted for pages that pass one; the flat header shows no icon. */
+  icon?: string;
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
+        {eyebrow && <div className="eyebrow mb-1 text-brand-700">{eyebrow}</div>}
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
         {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
       </div>

@@ -1,7 +1,14 @@
 /** Workshop rules and labels, shared by pages, actions and the certificate PDF. No database access here. */
-import type { Role, WorkshopAudience, WorkshopFeeType, WorkshopMode, WorkshopStatus } from "@prisma/client";
+import type { Role, WorkshopAudience, WorkshopFeeType, WorkshopMode, WorkshopStatus, WorkshopKind } from "@prisma/client";
 import { formatDate } from "./format";
 
+export const WORKSHOP_KINDS = ["WORKSHOP", "INTERNSHIP", "TEACHER_TRAINING", "BOOTCAMP"] as const satisfies readonly WorkshopKind[];
+export const kindLabel: Record<WorkshopKind, string> = {
+  WORKSHOP: "Workshop",
+  INTERNSHIP: "Internship batch",
+  TEACHER_TRAINING: "Teacher training",
+  BOOTCAMP: "Camp or bootcamp",
+};
 export const WORKSHOP_AUDIENCES = ["COLLEGE", "PROFESSIONAL", "SCHOOL", "OTHER"] as const satisfies readonly WorkshopAudience[];
 export const WORKSHOP_MODES = ["IN_PERSON", "ONLINE"] as const satisfies readonly WorkshopMode[];
 export const WORKSHOP_FEE_TYPES = ["PER_PERSON", "INSTITUTION", "FREE"] as const satisfies readonly WorkshopFeeType[];

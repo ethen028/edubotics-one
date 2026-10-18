@@ -133,13 +133,14 @@ export default async function RequestPage({ params }: PageProps<"/inventory/requ
                   .map((l) => (
                     <div key={l.id} className="grid grid-cols-[1fr_6rem_6rem] items-center gap-2 text-sm">
                       <span>
+                        <input type="hidden" name={`expected_${l.id}`} value={`${l.issued}:${l.returned}:${l.writtenOff}`} />
                         {l.item.name} <span className="text-slate-500">({outstanding(l)})</span>
                       </span>
-                      <input name={`return_${l.id}`} type="number" min={0} max={outstanding(l)} defaultValue={outstanding(l)} className="input" />
-                      <input name={`lost_${l.id}`} type="number" min={0} max={outstanding(l)} defaultValue={0} className="input" />
+                      <input aria-label={`Returned quantity for ${l.item.name}`} name={`return_${l.id}`} type="number" min={0} max={outstanding(l)} defaultValue={outstanding(l)} className="input" />
+                      <input aria-label={`Written off quantity for ${l.item.name}`} name={`lost_${l.id}`} type="number" min={0} max={outstanding(l)} defaultValue={0} className="input" />
                     </div>
                   ))}
-                <input name="note" placeholder="Note, e.g. 2 servo motors burnt out" className="input" />
+                <input aria-label="Return note; required for written off items" name="note" placeholder="Note (required for lost or damaged items)" className="input" />
                 <SubmitButton>Record return</SubmitButton>
               </ActionForm>
             </section>

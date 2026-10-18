@@ -1,9 +1,11 @@
+import { isHrOrAdmin } from "@/lib/permissions";
 import { db } from "@/lib/db";
-import { isAdmin, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { yearBounds } from "@/lib/leave";
 import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader, Stat } from "@/components/ui";
 import { formatDate } from "@/lib/format";
+import { todayIST } from "@/lib/time";
 import { confirmHoliday, createHoliday, deleteHoliday } from "../actions";
 
 export const metadata = { title: "Holidays" };
@@ -11,11 +13,10 @@ export const metadata = { title: "Holidays" };
 export default async function HolidaysPage({ searchParams }: PageProps<"/hr/holidays">) {
   const user = await requireUser();
   const sp = await searchParams;
-  const year = Number(sp.year) || new Date().getFullYear();
+  const today = todayIST();
+  const year = Number(sp.year) || today.getUTCFullYear();
   const holidays = await db.holiday.findMany({ where: { date: yearBounds(year) }, orderBy: { date: "asc" } });
-  const admin = isAdmin(user);
-  const now = new Date();
-  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const admin = isHrOrAdmin(user);
   const next = holidays.find((h) => h.date >= today);
   const day = (d: Date, o: Intl.DateTimeFormatOptions) => d.toLocaleDateString("en-IN", { ...o, timeZone: "UTC" });
 
@@ -81,12 +82,13 @@ export default async function HolidaysPage({ searchParams }: PageProps<"/hr/holi
             </div>
           ) : (
             <table className="table">
+              <caption className="sr-only">Company and restricted holidays for {year}</caption>
               <thead>
                 <tr>
                   <th>Date</th>
                   <th>Day</th>
                   <th>Holiday</th>
-                  {admin && <th></th>}
+                  {admin && <th><span className="sr-only">Actions</span></th>}
                 </tr>
               </thead>
               <tbody>

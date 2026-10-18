@@ -153,7 +153,7 @@ export function EmployeeForm({ action, employee: e, departments, managers, withL
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Role">
               <select name="role" defaultValue="EMPLOYEE" className="input">
-                <Options values={["EMPLOYEE", "MANAGER", "ADMIN"]} labels={humanize} />
+                <Options values={["EMPLOYEE", "MANAGER", "HR", "ADMIN"]} labels={humanize} />
               </select>
             </Field>
             <Field label="Temporary password (8+ characters)">

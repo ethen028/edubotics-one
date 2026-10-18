@@ -10,6 +10,7 @@ datasource db {
 // ─── Access ────────────────────────────────────────────────────────────────
 
 enum Role {
+  HR // people operations without payroll or account administration
   ADMIN // full access, manages users and HR records
   MANAGER // approves leave for their team
   EMPLOYEE
@@ -31,16 +32,19 @@ model User {
   employee     Employee?
 
   // Sign-in and safety
-  mustChangePassword Boolean       @default(false) // set for temporary passwords; asked for a new one at the next sign-in
+  mustChangePassword Boolean        @default(false) // set for temporary passwords; asked for a new one at the next sign-in
   passwordChangedAt  DateTime?
+  emailVerifiedAt    DateTime?
+  closedAt           DateTime?
+  accountTokens      AccountToken[]
   lastLoginAt        DateTime?
-  googleSub          String?       @unique // the Google account linked on first Google sign-in
-  theme              Theme         @default(LIGHT) // picked in My account
-  menuCollapsed      Boolean       @default(false) // side menu shrunk to icons; toggled from the menu itself
+  googleSub          String?        @unique // the Google account linked on first Google sign-in
+  theme              Theme          @default(LIGHT) // picked in My account
+  menuCollapsed      Boolean        @default(false) // side menu shrunk to icons; toggled from the menu itself
   sessions           Session[]
   activityLog        ActivityLog[]
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   ownedLeads            Lead[]                 @relation("LeadOwner")
   ownedOrganizations    Organization[]         @relation("OrgOwner")
@@ -107,6 +111,12 @@ model User {
   checklistAssignments  ChecklistAssignee[]
   checklistRuns         ChecklistRun[]         @relation("ChecklistRunner")
   checklistTicks        ChecklistTick[]
+  planTasksOwned        PlanTask[]             @relation("PlanTaskOwner")
+  planTasksCreated      PlanTask[]             @relation("PlanTaskCreator")
+  planTaskUpdates       PlanTaskUpdate[]
+  commissionLines       CommissionLine[]
+  commissionsPrepared   CommissionStatement[]  @relation("CommissionPreparer")
+  commissionsApproved   CommissionStatement[]  @relation("CommissionApprover")
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -301,10 +311,10 @@ model CompanySettings {
   certSignatureType  String? // image/png or image/jpeg
 
   // Careers page (/careers): off until an admin turns it on.
-  careersEnabled      Boolean @default(false)
-  careersIntro        String?
-  careersContactEmail String?
-  applicantRetentionMonths Int @default(12) // rejected or withdrawn applicants are deleted this long after their last change; 0 keeps them
+  careersEnabled           Boolean @default(false)
+  careersIntro             String?
+  careersContactEmail      String?
+  applicantRetentionMonths Int     @default(12) // rejected or withdrawn applicants are deleted this long after their last change; 0 keeps them
 
   // Sign-in and safety
   loginMaxAttempts Int @default(5) // wrong passwords in a row before the account is locked
@@ -1977,6 +1987,7 @@ model HelpdeskAttachment {
 // Every email the app sends, sent or failed, so each invoice, quote, payslip and interview shows its history.
 
 enum EmailKind {
+  ACCOUNT_SECURITY
   TEST
   INVOICE
   PAYMENT_REMINDER
@@ -1987,6 +1998,42 @@ enum EmailKind {
   CERTIFICATE
   EXIT_LETTER
   RECEIPT
+}
+
+/// Only SHA-256 digests of random one-use account tokens are persisted.
+model AccountToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  kind      String
+  userId    String
+  email     String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, kind])
+  @@index([expiresAt])
+}
+
+/// Shared fixed-window counters; keys hash identities rather than store raw addresses.
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+/// Recovery requests are queued uniformly, without looking up whether an account exists.
+model AccountMailJob {
+  id          String    @id @default(cuid())
+  sealedEmail String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  claimedAt   DateTime?
+
+  @@index([expiresAt, claimedAt])
 }
 
 enum EmailStatus {
@@ -2054,6 +2101,13 @@ enum WorkshopMode {
   ONLINE
 }
 
+enum WorkshopKind {
+  WORKSHOP // one-day or short college/school workshop
+  INTERNSHIP // multi-week internship batch (June–July)
+  TEACHER_TRAINING // training teachers at schools that signed up
+  BOOTCAMP // holiday camps and competitions prep
+}
+
 enum WorkshopFeeType {
   FREE
   PER_PERSON // each participant pays
@@ -2063,6 +2117,7 @@ enum WorkshopFeeType {
 model Workshop {
   id               String                 @id @default(cuid())
   title            String // "Arduino and IoT hands-on workshop"
+  kind             WorkshopKind           @default(WORKSHOP)
   description      String? // what it covers, also used in the certificate's wording
   audience         WorkshopAudience       @default(COLLEGE)
   mode             WorkshopMode           @default(IN_PERSON)
@@ -2506,4 +2561,154 @@ model ChecklistPhoto {
   mimeType String
   size     Int
   data     Bytes
+}
+
+// ─── Operating plan (from the company's operational calendar, June–May) ──────
+// One row per month of the operating year: its focus, activities and targets, decided at the planning
+// meeting on the 1st working day. Each month has a work plan (tasks with an owner, deadline and target)
+// updated every Friday and coloured Green / Amber / Red at the Saturday review.
+
+model PlanMonth {
+  id              String       @id @default(cuid())
+  month           DateTime     @unique @db.Date // first day of the month
+  focus           String
+  activities      String // one activity per line
+  targets         String? // as written in the plan, e.g. "25 leads · 20 meetings · 2 conversions"
+  leads           String? // who leads the month, e.g. "Mehdi, Dilshad, Yaseen"
+  planningMeeting DateTime? // 1st working day, 10 am
+  review          String? // month-end review: what was achieved, notes
+  reviewedAt      DateTime?
+  tasks           PlanTask[]
+  metrics         PlanMetric[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+enum PlanMetricKind {
+  LEADS // new leads added in the month
+  MEETINGS // CRM meetings and visits done
+  CONVERSIONS // deals won
+  WORKSHOP_STUDENTS // people registered on workshops held in the month
+  INTERNSHIP_STUDENTS // people registered on internship batches starting in the month
+  COLLEGE_PROJECTS // student projects started
+  SCHOOL_PROPOSALS // quotes sent to schools
+  INVOICED // invoiced in the month, GST included, less credit notes
+  RECEIVED // money received in the month (invoices and workshop fees)
+  CUSTOM // counted by hand
+}
+
+model PlanMetric {
+  id           String         @id @default(cuid())
+  monthId      String
+  month        PlanMonth      @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  kind         PlanMetricKind
+  label        String
+  target       Decimal        @db.Decimal(14, 2)
+  manualActual Decimal?       @db.Decimal(14, 2) // only for CUSTOM
+  sort         Int            @default(0)
+  createdAt    DateTime       @default(now())
+
+  @@index([monthId])
+}
+
+enum PlanTaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+enum Rag {
+  GREEN // 90% or more of the target, on time
+  AMBER // 70–89% of the target, or one deadline missed
+  RED // below 70%, or overdue: written recovery plan within 48 hours
+}
+
+model PlanTask {
+  id           String           @id @default(cuid())
+  monthId      String
+  month        PlanMonth        @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  area         String // Sales & Marketing, Operations, Training, Accounts…
+  activity     String
+  ownerId      String?
+  owner        User?            @relation("PlanTaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  deadline     DateTime?        @db.Date
+  target       Decimal?         @db.Decimal(14, 2)
+  unit         String? // students, leads, ₹…
+  actual       Decimal?         @db.Decimal(14, 2)
+  status       PlanTaskStatus   @default(NOT_STARTED)
+  rag          Rag? // this week's colour, set at the Saturday review
+  ragAt        DateTime?
+  recovery     String? // the written recovery plan when Red
+  notes        String?
+  lastUpdateAt DateTime? // owner's last Friday update
+  sort         Int              @default(0)
+  createdById  String
+  createdBy    User             @relation("PlanTaskCreator", fields: [createdById], references: [id])
+  updates      PlanTaskUpdate[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([monthId])
+  @@index([ownerId])
+}
+
+model PlanTaskUpdate {
+  id        String          @id @default(cuid())
+  taskId    String
+  task      PlanTask        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  review    Boolean         @default(false) // true for the Saturday review colour, false for a progress update
+  actual    Decimal?        @db.Decimal(14, 2)
+  status    PlanTaskStatus?
+  rag       Rag?
+  note      String?
+  createdAt DateTime        @default(now())
+
+  @@index([taskId])
+}
+
+// ─── Sales commission ────────────────────────────────────────────────────────
+// 5% to the sales executive who closed the sale, on money received in the month (GST taken out).
+// Prepared by the 5th of the next month, then approved.
+
+enum CommissionStatus {
+  PREPARED
+  APPROVED
+}
+
+model CommissionStatement {
+  id           String           @id @default(cuid())
+  month        DateTime         @unique @db.Date // first day of the month the money came in
+  rate         Decimal          @db.Decimal(5, 2) // percent
+  status       CommissionStatus @default(PREPARED)
+  total        Decimal          @db.Decimal(14, 2)
+  notes        String?
+  preparedById String
+  preparedBy   User             @relation("CommissionPreparer", fields: [preparedById], references: [id])
+  approvedById String?
+  approvedBy   User?            @relation("CommissionApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  lines        CommissionLine[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model CommissionLine {
+  id          String              @id @default(cuid())
+  statementId String
+  statement   CommissionStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User                @relation(fields: [userId], references: [id])
+  invoiceNo   String
+  dealTitle   String
+  school      String
+  receivedOn  DateTime            @db.Date
+  received    Decimal             @db.Decimal(14, 2) // amount received plus TDS withheld
+  base        Decimal             @db.Decimal(14, 2) // received without GST
+  commission  Decimal             @db.Decimal(14, 2)
+
+  @@index([statementId])
+  @@index([userId])
 }

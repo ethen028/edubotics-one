@@ -5,10 +5,10 @@ import { Badge, Empty, PageHeader, Stat } from "@/components/ui";
 import { formatDate, formatINR } from "@/lib/format";
 import { financialYear } from "@/lib/invoices";
 import { todayIST } from "@/lib/time";
-import { audienceLabel, dateSpan, modeLabel } from "@/lib/workshops";
+import { audienceLabel, dateSpan, kindLabel, modeLabel } from "@/lib/workshops";
 import { WorkshopBadge } from "./ui";
 
-export const metadata = { title: "Workshops" };
+export const metadata = { title: "Workshops and internships" };
 
 /** FY start (1 April) of a financial year label like "26-27". */
 const fyStart = (fy: string) => new Date(Date.UTC(2000 + Number(fy.slice(0, 2)), 3, 1));
@@ -64,7 +64,7 @@ export default async function WorkshopsPage({ searchParams }: PageProps<"/worksh
                   {w.title}
                 </Link>
                 <div className="text-xs text-slate-500">
-                  {audienceLabel[w.audience]} · {modeLabel[w.mode]}
+                  {kindLabel[w.kind]} · {audienceLabel[w.audience]} · {modeLabel[w.mode]}
                 </div>
               </td>
               <td className="whitespace-nowrap">{dateSpan(w)}</td>
@@ -87,8 +87,8 @@ export default async function WorkshopsPage({ searchParams }: PageProps<"/worksh
   return (
     <>
       <PageHeader
-        title="Workshops"
-        subtitle="College and professional workshops: registrations, fees, attendance and certificates."
+        title="Workshops and internships"
+        subtitle="Workshops, internship batches and teacher training: registrations, fees, attendance and certificates."
         actions={
           manager && (
             <Link href="/workshops/new" className="btn-primary">

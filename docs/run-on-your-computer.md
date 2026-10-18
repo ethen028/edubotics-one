@@ -31,6 +31,8 @@ Open Docker Desktop once and wait until it says **Engine running** at the bottom
 
 ## 4. Start it
 
+First copy `.env.example` to `.env` and set `DB_PASSWORD` (a long random hexadecimal value), `ADMIN_EMAIL`, `ADMIN_PASSWORD` and `ADMIN_NAME`. There is no shared default administrator password. Keep this file private. Changing `DB_PASSWORD` in the file does not change an already-created database password; coordinate that change with the database administrator.
+
 Type this and press Enter:
 
 ```
@@ -41,16 +43,15 @@ The first time takes **5 to 10 minutes** while it downloads and builds. After th
 
 ## 5. Sign in
 
-Open **http://localhost:3000** in your browser and sign in with:
-
-- Email: `admin@edubotics.local`
-- Password: `edubotics2026`
+Open **http://localhost:3000** in your browser and sign in with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` you set in `.env`.
 
 Then right away:
 1. Go to **Admin > Users** and change this password.
 2. Add your departments and people under **HR > People**. When you add someone, you can create their login, and they sign in with their work email.
 
 ## 6. Let staff use it from their laptops and phones
+
+The app now binds to this computer only by default. For a trusted office network, explicitly set `APP_BIND_ADDRESS=0.0.0.0` in `.env` and restart the app. This permits access from that network; use firewall rules to restrict it. For internet access, use the HTTPS gateway instructions in `docs/security-and-launch.md` instead of publishing port 3000.
 
 Find this computer's address on the office network:
 

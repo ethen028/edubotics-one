@@ -27,6 +27,7 @@ export function toDateInput(d: Date | null | undefined) {
 
 /** "SCHOOL" → "School", "WALK_IN" → "Walk in" */
 export function humanize(value: string) {
+  if (value === "HR") return "HR";
   const s = value.toLowerCase().replace(/_/g, " ");
   return s.charAt(0).toUpperCase() + s.slice(1);
 }

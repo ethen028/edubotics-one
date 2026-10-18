@@ -14,6 +14,7 @@ const THEMES = [
   { value: "DARK", label: "Dark" },
   { value: "SYSTEM", label: "Match my device" },
 ] as const;
+import { requestEmailVerification } from "../../account-actions";
 
 export const metadata = { title: "My account" };
 
@@ -72,6 +73,11 @@ export default async function AccountPage() {
             </div>
           </form>
 
+          <div className="card space-y-3">
+            <h2 className="font-semibold">Work email</h2>
+            <p className="text-sm text-slate-500">{user.emailVerifiedAt ? `Verified ${formatDateTime(user.emailVerifiedAt)}` : "Your work email has not been verified."}</p>
+            {!user.emailVerifiedAt && <ActionForm action={requestEmailVerification}><SubmitButton className="btn-secondary">Send verification email</SubmitButton></ActionForm>}
+          </div>
           <div className="card">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-semibold">Where you&apos;re signed in</h2>

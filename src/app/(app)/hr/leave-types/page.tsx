@@ -7,7 +7,7 @@ import { createLeaveType, updateLeaveType } from "../actions";
 export const metadata = { title: "Leave types" };
 
 export default async function LeaveTypesPage() {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   const types = await db.leaveType.findMany({ orderBy: { code: "asc" } });
   return (
     <>

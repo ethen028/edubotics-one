@@ -4,9 +4,13 @@
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { existsSync } from "node:fs";
+import { loadEnvFile } from "node:process";
 import { TRAINING_MODULES } from "../src/lib/hr-constants";
 import { KERALA_HOLIDAYS } from "./kerala-holidays";
 
+// tsx does not load .env the way Next.js and the Prisma CLI do.
+if (existsSync(".env")) loadEnvFile(".env");
 const db = new PrismaClient();
 
 const departments = ["Management", "Training & Delivery", "Sales & Partnerships", "Operations", "R&D / Technical"];
@@ -63,7 +67,7 @@ async function main() {
         email,
         name: process.env.SEED_ADMIN_NAME ?? "Admin",
         role: "ADMIN",
-        passwordHash: await bcrypt.hash(password, 10),
+        passwordHash: await bcrypt.hash(password, 12),
         mustChangePassword: true, // the starting password is in docker-compose.yml for anyone to read
       },
     });

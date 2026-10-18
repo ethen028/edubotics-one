@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, NAV_ICONS } from "./icons";
+import { isActive } from "@/lib/nav";
 
 export function NavLink({
   href,
@@ -17,9 +18,7 @@ export function NavLink({
   except?: string[];
 }) {
   const pathname = usePathname();
-  const active =
-    (href === "/" || exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)) &&
-    !except.some((e) => pathname === e || pathname.startsWith(`${e}/`));
+  const active = isActive({ href, exact, except }, pathname);
   return (
     <Link href={href} className="nav-link" data-active={active || undefined} aria-current={active ? "page" : undefined}>
       <Icon name={NAV_ICONS[href] ?? (href.startsWith("/hr/employees/") ? "user" : "dot")} className="nav-icon" />

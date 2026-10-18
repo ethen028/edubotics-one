@@ -11,7 +11,7 @@ import { unlockEmail } from "@/lib/sign-in";
 import { humanize } from "@/lib/format";
 import type { FormState } from "@/components/action-form";
 
-const roleSchema = z.enum(["ADMIN", "MANAGER", "EMPLOYEE"]);
+const roleSchema = z.enum(["ADMIN", "HR", "MANAGER", "EMPLOYEE"]);
 
 export async function createUser(_: FormState, formData: FormData): Promise<FormState> {
   const me = await requireUser(["ADMIN"]);
@@ -75,8 +75,14 @@ export async function resetPassword(id: string, _: FormState, formData: FormData
   const user = await db.user.findUniqueOrThrow({ where: { id } });
   const weak = passwordProblem(password, user);
   if (weak) return { error: weak };
-  await db.user.update({ where: { id }, data: { passwordHash: await hashPassword(password), mustChangePassword: id !== me.id } });
-  if (id !== me.id) await endSessions(id);
+  const passwordHash = await hashPassword(password);
+  const now = new Date();
+  await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${id} FOR UPDATE`;
+    await tx.user.update({ where: { id }, data: { passwordHash, mustChangePassword: id !== me.id, passwordChangedAt: now } });
+    if (id !== me.id) await tx.session.updateMany({ where: { userId: id, endedAt: null }, data: { endedAt: now } });
+    await tx.accountToken.updateMany({ where: { userId: id, usedAt: null }, data: { usedAt: now } });
+  });
   await unlockEmail(user.email);
   await logActivity(me, "LOGINS", "password.reset", `Set a new temporary password for ${user.name}`);
   revalidatePath("/admin/users");

@@ -80,6 +80,12 @@ Any Node host plus a managed PostgreSQL works. For a 10-person team the simplest
 
 On each deploy run `npm run db:deploy` before starting the app. Set a long random `SESSION_SECRET` (`openssl rand -base64 48`) and serve over HTTPS.
 
+For the supported Docker release process, readiness probe, first-hour checks and rollback steps, follow [docs/production-launch.md](docs/production-launch.md). `GET /api/health` returns 200 only when the application can reach PostgreSQL.
+
+## Local presentation data
+
+Run `npm run demo:seed` against the local `_test` database to add labelled profiles and representative records across HR, CRM, projects, inventory, operations, accounts, purchasing, recruitment, notices, helpdesk and workshops. The command refuses non-local and non-test databases, resets the four demo profiles to one newly generated temporary password, and prints that password once. Open **Admin → Launch readiness** to review all eight production workstreams.
+
 ## Scripts
 
 | Command | Purpose |
@@ -90,3 +96,5 @@ On each deploy run `npm run db:deploy` before starting the app. Set a long rando
 | `npm run db:migrate` | Create a migration after editing `prisma/schema.prisma` |
 | `npm run db:deploy` | Apply migrations in production |
 | `npm run db:seed` | Starter data and first admin |
+| `npm run demo:seed` | Guarded local demo profiles and module data |
+| `npm run test:acceptance` | Four role profiles, permissions and disposable payroll lifecycle |

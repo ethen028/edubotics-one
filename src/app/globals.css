@@ -335,7 +335,7 @@ h2 {
 
   /* Bar along the top of every page on computers. */
   .topbar {
-    @apply mb-6 hidden items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-surface px-4 py-2 md:flex;
+    @apply mb-3 flex items-center justify-between gap-2 rounded-2xl border border-[var(--line)] bg-surface px-2 py-2 sm:gap-3 md:px-4;
   }
   .icon-btn {
     @apply relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900;
@@ -430,5 +430,500 @@ h2 {
   [class*="btn"]:active,
   a.stat:hover {
     transform: none !important;
+  }
+}
+
+/* ── Navigation added with the final build (18 Oct 2026), after the two dashboard references:
+   a "find anything" bar in the top bar, and tabs for the pages of the section you are in. ── */
+@layer components {
+  .find-button {
+    @apply flex w-full max-w-md items-center gap-2 rounded-xl border border-slate-200 bg-[var(--page-bg)] px-3 py-2 text-sm text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900;
+  }
+  .find-button > span {
+    @apply hidden truncate sm:inline;
+  }
+  .find-kbd {
+    @apply hidden rounded-md border border-slate-200 bg-surface px-1.5 py-0.5 font-sans text-[11px] text-slate-500 sm:inline;
+  }
+  .palette {
+    @apply m-auto mt-[12vh] w-[min(36rem,calc(100vw-2rem))] max-w-none overflow-hidden rounded-2xl border border-[var(--line)] bg-surface p-0 text-slate-900 shadow-2xl;
+  }
+  .palette::backdrop {
+    background: rgb(24 34 53 / 0.45);
+  }
+  .palette-search {
+    @apply flex items-center gap-3 border-b border-[var(--line)] px-4 py-3;
+  }
+  .palette-results {
+    @apply max-h-[60vh] overflow-y-auto p-2;
+  }
+  .palette-item {
+    @apply flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700;
+  }
+  .palette-item[data-active] {
+    @apply bg-mint text-ink;
+  }
+  .waiting-strip {
+    @apply mb-3 flex flex-wrap items-center gap-2 px-1 text-sm;
+  }
+  .waiting-chip {
+    @apply rounded-full bg-mint px-3 py-1 text-xs font-medium text-ink hover:brightness-95;
+  }
+  .section-tabs {
+    @apply mb-5 flex items-center gap-3 md:mx-4;
+  }
+  .section-tabs-title {
+    @apply hidden shrink-0 items-center gap-1.5 text-xs font-semibold tracking-wider text-slate-500 uppercase lg:flex;
+  }
+  .section-tabs-track {
+    @apply flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-full border border-[var(--line)] bg-surface p-1;
+    scrollbar-width: none;
+  }
+  .section-tab {
+    @apply flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900;
+  }
+  .section-tab[data-active] {
+    @apply bg-navy font-semibold text-white hover:bg-navy hover:text-white;
+  }
+  .section-tab-count {
+    @apply rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950;
+  }
+
+  /* Home widgets, after the references: project cards with a progress line, a month calendar, inbox. */
+  .mini-cal {
+    @apply grid grid-cols-7 gap-1 text-center text-xs;
+  }
+  .mini-cal-day {
+    @apply relative flex aspect-square items-center justify-center rounded-lg text-slate-700;
+  }
+  .mini-cal-day[data-muted] {
+    @apply text-slate-400;
+  }
+  .mini-cal-day[data-today] {
+    @apply bg-brand-700 font-semibold text-white;
+  }
+  .mini-cal-day[data-holiday] {
+    @apply bg-mint text-ink;
+  }
+  .mini-cal-dot {
+    @apply absolute bottom-1 h-1 w-1 rounded-full bg-brand-700;
+  }
+  .mini-cal-day[data-today] .mini-cal-dot {
+    @apply bg-white;
+  }
+  .progress-track {
+    @apply h-1.5 w-full overflow-hidden rounded-full bg-slate-200;
+  }
+  .progress-fill {
+    @apply h-full rounded-full bg-brand-700;
+  }
+  .rag {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  .rag::before {
+    content: "";
+    @apply h-2 w-2 rounded-full bg-current;
+  }
+  .rag[data-rag="GREEN"] {
+    @apply bg-emerald-100 text-emerald-800;
+  }
+  .rag[data-rag="AMBER"] {
+    @apply bg-amber-100 text-amber-800;
+  }
+  .rag[data-rag="RED"] {
+    @apply bg-red-100 text-red-700;
+  }
+  .rag[data-rag="NONE"] {
+    @apply bg-slate-100 text-slate-600;
+  }
+
+  /* Month calendar page. */
+  .cal-grid {
+    @apply grid grid-cols-7 overflow-hidden rounded-2xl border border-[var(--line)] bg-surface;
+  }
+  .cal-head {
+    @apply border-b border-[var(--line)] px-2 py-2 text-center text-xs font-semibold tracking-wide text-slate-500 uppercase;
+  }
+  .cal-cell {
+    @apply min-h-28 border-r border-b border-[var(--line)] p-1.5 text-xs;
+  }
+  .cal-cell:nth-child(7n) {
+    @apply border-r-0;
+  }
+  .cal-cell[data-muted] {
+    @apply bg-slate-50 text-slate-400;
+  }
+  .cal-cell[data-today] .cal-date {
+    @apply bg-brand-700 text-white;
+  }
+  .cal-date {
+    @apply mb-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 font-semibold;
+  }
+  .cal-event {
+    @apply mb-0.5 block truncate rounded-md border-l-[3px] bg-slate-50 px-1.5 py-0.5 text-[11px] leading-4 text-slate-700 hover:bg-slate-100;
+  }
+  .cal-event[data-kind="holiday"] {
+    @apply border-l-emerald-600 bg-mint text-ink;
+  }
+  .cal-event[data-kind="rhythm"] {
+    @apply border-l-navy;
+  }
+  .cal-event[data-kind="plan"] {
+    @apply border-l-amber-500;
+  }
+  .cal-event[data-kind="session"] {
+    @apply border-l-brand-700;
+  }
+  .cal-event[data-kind="workshop"] {
+    @apply border-l-violet-500;
+  }
+  .cal-event[data-kind="leave"] {
+    @apply border-l-slate-400;
+  }
+  .cal-event[data-kind="due"] {
+    @apply border-l-red-500;
+  }
+  .cal-legend {
+    @apply inline-flex items-center gap-1.5 text-xs text-slate-600;
+  }
+  .cal-legend > i {
+    @apply h-2.5 w-2.5 rounded-sm;
+  }
+
+  /* Pages brought over from Ethen's 18 Oct build, restyled flat in the navy/cobalt/mint palette. */
+  .skip-link {
+    @apply fixed top-3 left-3 z-[70] -translate-y-[200%] rounded-lg bg-surface px-4 py-3 font-semibold text-ink shadow focus:translate-y-0;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold tracking-[0.12em] uppercase;
+  }
+  .filter-surface {
+    @apply rounded-2xl border border-[var(--line)] bg-surface p-4;
+  }
+  .filter-chip {
+    @apply inline-flex min-h-9 items-center justify-center rounded-full border border-slate-300 bg-surface px-3.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-slate-400 hover:text-slate-900;
+  }
+  .filter-chip-active {
+    @apply border-brand-700 bg-brand-700 text-white hover:border-brand-800 hover:text-white;
+  }
+  .notification-region {
+    @apply pointer-events-none fixed top-4 right-4 left-4 z-[65] flex justify-end;
+  }
+  .workspace-notification {
+    @apply pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-emerald-200 bg-surface px-4 py-3 text-sm shadow-lg;
+  }
+  .workspace-notification p {
+    @apply flex-1;
+  }
+  .workspace-notification button {
+    @apply h-9 w-9 shrink-0 rounded-lg text-xl text-slate-500 hover:bg-slate-100;
+  }
+  .notification-check {
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-mint font-semibold text-emerald-800;
+  }
+  .submit-spinner {
+    @apply h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent motion-safe:animate-spin;
+  }
+  .cashflow-empty {
+    @apply absolute inset-0 flex flex-col items-center justify-center gap-1 p-4 text-center text-xs text-slate-500;
+  }
+  .cashflow-empty strong {
+    @apply text-sm font-semibold text-slate-900;
+  }
+  .executive-stats .stat-value {
+    font-size: clamp(1.5rem, 2.2vw, 1.875rem);
+  }
+  .directory-heading {
+    @apply mx-1 mb-4 flex flex-wrap items-center justify-between gap-2;
+  }
+  .directory-heading h2 {
+    @apply text-sm font-semibold;
+  }
+  .directory-heading > span {
+    @apply text-xs text-slate-500;
+  }
+  .ledger-heading {
+    @apply flex items-center justify-between gap-3 border-b border-[var(--line)] p-5;
+  }
+
+  /* CRM deals board and list. */
+  .crm-summary > div {
+    @apply rounded-[1.25rem] border border-[var(--line)] bg-surface px-5 py-4;
+  }
+  .crm-summary > div > span,
+  .crm-summary small {
+    @apply block text-xs text-slate-500;
+  }
+  .crm-summary strong {
+    @apply mt-2 block text-2xl font-bold tracking-tight;
+  }
+  .crm-summary small {
+    @apply mt-1.5 text-[11px];
+  }
+  .crm-summary > .crm-summary-primary {
+    @apply border-navy bg-navy text-white;
+  }
+  .crm-summary-primary > span,
+  .crm-summary-primary small {
+    @apply text-white/75;
+  }
+  .crm-toolbar {
+    @apply mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-surface p-3;
+  }
+  .crm-search {
+    @apply flex min-w-0 flex-[1_1_22rem] items-center gap-2;
+  }
+  .crm-search > .nav-icon {
+    @apply text-slate-500;
+  }
+  .crm-search .input {
+    @apply min-w-0 flex-1;
+  }
+  .deal-view-switch {
+    @apply inline-flex gap-1 rounded-full bg-slate-100 p-1;
+  }
+  .deal-view-switch a {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-slate-600;
+  }
+  .deal-view-switch [aria-current] {
+    @apply bg-surface font-semibold text-ink;
+  }
+  .deal-view-switch .nav-icon {
+    @apply h-4 w-4;
+  }
+  .deal-board {
+    @apply flex gap-4 overflow-x-auto px-0.5 pb-4;
+  }
+  .deal-column {
+    @apply w-68 min-w-0 shrink-0;
+  }
+  .deal-column > header {
+    @apply mb-3 rounded-2xl border border-[var(--line)] bg-surface p-3;
+  }
+  .deal-column > header > div {
+    @apply flex items-center gap-2;
+  }
+  .deal-column h2 {
+    @apply flex-1 text-sm font-semibold;
+  }
+  .deal-column > header > p {
+    @apply mt-1 ml-4 text-xs text-slate-500 tabular-nums;
+  }
+  .deal-stage-dot {
+    @apply h-2 w-2 rounded-full bg-brand-700;
+  }
+  .deal-column[data-stage="PROSPECT"] .deal-stage-dot {
+    @apply bg-slate-400;
+  }
+  .deal-column[data-stage="DEMO"] .deal-stage-dot {
+    @apply bg-amber-400;
+  }
+  .deal-column[data-stage="NEGOTIATION"] .deal-stage-dot {
+    @apply bg-orange-500;
+  }
+  .deal-column[data-stage="WON"] .deal-stage-dot {
+    @apply bg-emerald-600;
+  }
+  .deal-column[data-stage="LOST"] .deal-stage-dot {
+    @apply bg-slate-300;
+  }
+  .deal-column-count {
+    @apply inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-700;
+  }
+  .deal-card {
+    @apply rounded-2xl border border-[var(--line)] bg-surface p-4;
+  }
+  .deal-card-title {
+    @apply block text-sm font-semibold text-slate-900 hover:text-brand-700 hover:underline;
+  }
+  .deal-card-value {
+    @apply my-3 block text-xl font-bold tracking-tight;
+  }
+  .deal-card-meta {
+    @apply mb-3 flex items-center gap-2 text-xs;
+  }
+  .deal-card-meta small {
+    @apply mt-0.5 block text-[11px];
+  }
+  .deal-stage-control {
+    @apply flex min-w-52 items-center gap-2;
+  }
+  .deal-stage-control select {
+    @apply min-w-0 flex-1 text-xs;
+  }
+  .deal-column-empty {
+    @apply rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-slate-500;
+  }
+  .deal-column-empty > .nav-icon {
+    @apply mx-auto mb-3 text-slate-400;
+  }
+  .deal-column-empty p {
+    @apply text-sm;
+  }
+  .deal-column-empty small {
+    @apply mt-1 block text-[11px];
+  }
+  .member-initials {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[11px] font-semibold text-brand-800;
+  }
+
+  /* Projects overview. */
+  .project-metric {
+    @apply block rounded-[1.25rem] border border-[var(--line)] bg-surface p-5;
+  }
+  .project-metric > div {
+    @apply flex items-center justify-between gap-2 text-xs text-slate-500;
+  }
+  .project-metric strong {
+    @apply mt-3 block text-3xl font-bold tracking-tight;
+  }
+  .project-metric p {
+    @apply mt-2 text-[11px] text-slate-500;
+  }
+  .project-metric-primary {
+    @apply border-navy bg-navy text-white;
+  }
+  .project-metric-primary > div,
+  .project-metric-primary p {
+    @apply text-white/75;
+  }
+  a.project-metric:hover {
+    @apply border-brand-300;
+  }
+  .project-metric.metric-attention {
+    @apply border-t-4 border-t-amber-400;
+  }
+  .project-card {
+    @apply border-t-4 border-t-brand-700;
+  }
+  .dashboard-section-heading {
+    @apply mb-5 flex items-start justify-between gap-4;
+  }
+  .dashboard-section-heading h2 {
+    @apply text-[15px] font-semibold;
+  }
+  .dashboard-section-heading p {
+    @apply mt-1 text-xs text-slate-500;
+  }
+  .dashboard-clear-state {
+    @apply px-2 py-6 text-center text-[13px] text-slate-500;
+  }
+  .dashboard-clear-state > .nav-icon {
+    @apply mx-auto mb-3 h-7 w-7 text-emerald-700;
+  }
+  .dashboard-clear-state h3 {
+    @apply mb-1 font-semibold text-slate-900;
+  }
+  .dashboard-clear-state .link {
+    @apply mt-3 inline-block;
+  }
+  .team-contributions li {
+    @apply flex items-center gap-3 border-b border-slate-100 py-2.5 text-[13px];
+  }
+  .workload-count {
+    @apply rounded-lg bg-slate-100 px-2 py-1 text-[11px] whitespace-nowrap text-slate-600;
+  }
+  .milestone-strip {
+    @apply rounded-2xl border border-[var(--line)] bg-surface p-5;
+  }
+  .milestone-strip h2 {
+    @apply mb-3 text-sm font-semibold;
+  }
+  .milestone-strip > div {
+    @apply flex flex-wrap gap-x-8 gap-y-4;
+  }
+  .milestone-strip a {
+    @apply flex min-w-0 items-center gap-3 text-[13px];
+  }
+  .milestone-strip small {
+    @apply mt-1 block text-slate-500;
+  }
+
+  /* HR "My day" and the inventory overview. */
+  .module-summary > :is(section, a, div) {
+    @apply block min-w-0 rounded-[1.25rem] border border-[var(--line)] bg-surface p-5;
+  }
+  .module-summary > :is(section, a, div) > span:first-child,
+  .module-summary small {
+    @apply block text-xs text-slate-500;
+  }
+  .module-summary strong {
+    @apply my-2 block text-3xl font-bold tracking-tight;
+  }
+  .module-summary small {
+    @apply mt-2 text-[11px];
+  }
+  .module-summary > .module-summary-primary {
+    @apply border-navy bg-navy text-white;
+  }
+  .module-summary > .module-summary-primary > span:first-child,
+  .module-summary > .module-summary-primary > small {
+    @apply text-white/75;
+  }
+  .module-summary-primary .btn-secondary {
+    @apply text-ink;
+  }
+  .module-summary a:hover {
+    @apply border-brand-300;
+  }
+  .module-notice {
+    @apply rounded-2xl border border-[var(--line)] bg-mint px-5 py-4 text-[13px] text-ink;
+  }
+  .module-notice p {
+    @apply mt-1.5 leading-relaxed text-slate-600;
+  }
+  .module-records {
+    @apply text-[13px];
+  }
+  .module-records li {
+    @apply flex items-center justify-between gap-3 border-b border-slate-100 py-3 last:border-b-0;
+  }
+  .module-records li > div {
+    @apply min-w-0;
+  }
+  .module-records b {
+    @apply font-medium;
+  }
+  .module-records small {
+    @apply mt-1 block text-[11px] text-slate-500;
+  }
+  .module-empty {
+    @apply px-1 py-5 text-[13px] leading-relaxed text-slate-500;
+  }
+  .module-balance {
+    @apply shrink-0 rounded-lg bg-brand-50 px-2 py-1 text-[11px] text-brand-800;
+  }
+  .module-mini-stats {
+    @apply grid grid-cols-2 gap-3 sm:grid-cols-4;
+  }
+  .module-mini-stats > div {
+    @apply rounded-xl border border-[var(--line)] bg-[var(--page-bg)] p-3;
+  }
+  .module-mini-stats strong {
+    @apply block text-2xl font-bold text-brand-700;
+  }
+  .module-mini-stats span {
+    @apply mt-1 block text-[11px] text-slate-500;
+  }
+  .module-links {
+    @apply flex flex-wrap gap-2 rounded-2xl border border-[var(--line)] bg-surface p-3;
+  }
+  .module-links a {
+    @apply inline-flex min-h-9 items-center rounded-full px-3 py-1.5 text-[13px] font-medium text-brand-700 hover:bg-brand-50;
+  }
+
+  /* Admin › Roles and permissions table. */
+  .permissions-matrix table {
+    min-width: 850px;
+  }
+  .permissions-matrix th,
+  .permissions-matrix td {
+    @apply align-top leading-relaxed;
+  }
+  .permissions-matrix .permissions-hr {
+    @apply bg-mint text-ink;
+  }
+  .permissions-matrix tbody th {
+    min-width: 210px;
   }
 }

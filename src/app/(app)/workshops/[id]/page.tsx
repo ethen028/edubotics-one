@@ -8,6 +8,7 @@ import { todayIST } from "@/lib/time";
 import { PAYMENT_METHODS, methodLabel } from "@/lib/invoices";
 import {
   audienceLabel,
+  kindLabel,
   canManageWorkshop,
   canMarkAttendance,
   dateSpan,
@@ -73,7 +74,7 @@ export default async function WorkshopPage({ params }: PageProps<"/workshops/[id
               </>
             )}
             {" · "}
-            {audienceLabel[w.audience]}
+            {kindLabel[w.kind]} · {audienceLabel[w.audience]}
           </>
         }
         actions={

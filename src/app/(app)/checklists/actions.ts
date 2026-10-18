@@ -145,7 +145,7 @@ const templateSchema = z
       .regex(/^(\d{2}:\d{2})?$/, "Pick a time")
       .optional(),
     audience: z.enum(["EVERYONE", "ROLE", "PEOPLE"]).default("EVERYONE"),
-    role: z.enum(["ADMIN", "MANAGER", "EMPLOYEE"]).optional(),
+    role: z.enum(["ADMIN", "HR", "MANAGER", "EMPLOYEE"]).optional(),
     people: z.array(z.string()),
   })
   .superRefine((v, ctx) => {

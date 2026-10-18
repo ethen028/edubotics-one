@@ -1,3 +1,4 @@
+import { isHrOrAdmin, HR_DOCUMENT_TYPES } from "@/lib/permissions";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -25,7 +26,7 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
       onboardingTasks: { orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }] },
       trainings: { include: { module: true }, orderBy: { createdAt: "asc" } },
       assets: { where: { status: "ASSIGNED" }, orderBy: { assignedAt: "desc" } },
-      salaries: { orderBy: { effectiveFrom: "desc" } },
+      salaries: { where: isAdmin(user) || user.employee?.id === id ? {} : { id: "__denied__" }, orderBy: { effectiveFrom: "desc" } },
       reviews: { include: { cycle: true, reviewer: { select: { name: true } } }, orderBy: { cycle: { periodEnd: "desc" } } },
       exits: { where: { stage: { not: "WITHDRAWN" } }, orderBy: { createdAt: "desc" }, take: 1 },
     },
@@ -35,19 +36,22 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
   const admin = isAdmin(user);
   const isSelf = user.employee?.id === employee.id;
   const isManager = user.employee?.id === employee.managerId;
-  const canSeePrivate = admin || isSelf || isManager;
+  const peopleAdmin = isHrOrAdmin(user);
+  const canEditRecord = admin || (user.role === "HR" && employee.user?.role !== "ADMIN" && employee.status !== "EXITED");
+  const canSeePrivate = peopleAdmin || isSelf || isManager;
   const name = `${employee.firstName} ${employee.lastName}`;
   const exit = employee.exits[0];
 
-  const canSeeDocuments = admin || isSelf;
+  const canSeeDocuments = peopleAdmin || isSelf;
+  const canSeeSalary = admin || isSelf;
   const [balances, departments, managers, documents, modules] = await Promise.all([
     canSeePrivate ? getLeaveBalances(employee.id) : Promise.resolve([]),
-    admin ? db.department.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
-    admin ? db.employee.findMany({ where: { status: { not: "EXITED" } }, orderBy: { firstName: "asc" } }) : Promise.resolve([]),
+    canEditRecord ? db.department.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
+    canEditRecord ? db.employee.findMany({ where: { status: { not: "EXITED" } }, orderBy: { firstName: "asc" } }) : Promise.resolve([]),
     canSeeDocuments
-      ? db.employeeDocument.findMany({ where: { employeeId: id }, omit: { data: true }, orderBy: { createdAt: "desc" } })
+      ? db.employeeDocument.findMany({ where: { employeeId: id, ...(user.role === "HR" && !isSelf ? { type: { in: [...HR_DOCUMENT_TYPES] } } : {}) }, omit: { data: true }, orderBy: { createdAt: "desc" } })
       : Promise.resolve([]),
-    admin || isManager ? db.trainingModule.findMany({ orderBy: { title: "asc" } }) : Promise.resolve([]),
+    peopleAdmin || isManager ? db.trainingModule.findMany({ orderBy: { title: "asc" } }) : Promise.resolve([]),
   ]);
 
   return (
@@ -196,18 +200,18 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
 
       {canSeePrivate && (
         <div className="mb-6 grid gap-4 lg:grid-cols-2">
-          <OnboardingSection employeeId={employee.id} tasks={employee.onboardingTasks} canEdit={admin || isManager} isSelf={isSelf} />
-          {canSeeDocuments && <DocumentsSection employeeId={employee.id} documents={documents} isSelf={isSelf} admin={admin} />}
+          <OnboardingSection employeeId={employee.id} tasks={employee.onboardingTasks} canEdit={peopleAdmin || isManager} isSelf={isSelf} />
+          {canSeeDocuments && <DocumentsSection employeeId={employee.id} documents={documents} isSelf={isSelf} admin={peopleAdmin} hrOnly={user.role === "HR" && !isSelf} />}
           <TrainingSection
             employeeId={employee.id}
             assignments={employee.trainings}
             modules={modules}
-            canEdit={admin || isManager}
+            canEdit={peopleAdmin || isManager}
             isSelf={isSelf}
           />
-          <AssetsSection assets={employee.assets} admin={admin} />
-          <ReviewsSection reviews={employee.reviews} isSelf={isSelf} />
-          {canSeeDocuments && (
+          <AssetsSection assets={employee.assets} admin={peopleAdmin} />
+          {(admin || isSelf || isManager) && <ReviewsSection reviews={employee.reviews} isSelf={isSelf} />}
+          {canSeeSalary && (
             <div className="lg:col-span-2">
               <SalarySection
                 employeeId={employee.id}
@@ -229,7 +233,7 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
         </p>
       )}
 
-      {admin && (
+      {canEditRecord && (
         <>
           <h2 className="mb-3 text-lg font-semibold">Edit record</h2>
           <EmployeeForm

@@ -42,6 +42,8 @@ export default async function LeadsPage({ searchParams }: PageProps<"/crm/leads"
     <>
       <PageHeader
         title="Leads"
+        eyebrow="Customer relationships"
+        icon="crm"
         subtitle="Enquiries that haven't become deals yet."
         actions={
           <Link href="/crm/leads/new" className="btn-primary">
@@ -49,30 +51,35 @@ export default async function LeadsPage({ searchParams }: PageProps<"/crm/leads"
           </Link>
         }
       />
-      <div className="mb-3 flex flex-wrap gap-1">
+      <section className="filter-surface mb-6" aria-label="Lead filters">
+      <div className="mb-4 flex flex-wrap gap-2">
         {TABS.map((t) => (
           <Link
             key={t}
             href={qs(t)}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${t === tab ? "bg-brand-600 text-white" : "bg-surface text-slate-600 ring-1 ring-slate-200"}`}
+            aria-current={t === tab ? "page" : undefined}
+            className={`filter-chip ${t === tab ? "filter-chip-active" : ""}`}
           >
             {humanize(t)}
           </Link>
         ))}
       </div>
-      <form className="mb-4 flex flex-wrap items-center gap-2">
+      <form className="flex flex-wrap items-center gap-3">
         <input type="hidden" name="status" value={tab} />
-        <input name="q" defaultValue={q} placeholder="Search name, institution, phone, city" className="input max-w-xs" />
+        <input aria-label="Search leads" name="q" defaultValue={q} placeholder="Search name, institution, phone, city" className="input max-w-xs" />
         <label className="flex items-center gap-1 text-sm">
           <input type="checkbox" name="mine" value="1" defaultChecked={mine} /> Only mine
         </label>
         <button className="btn-secondary">Filter</button>
       </form>
+      </section>
+      <div className="directory-heading"><h2>Lead directory</h2><span>{leads.length === 200 ? "Showing up to 200 matches" : `${leads.length} matching ${leads.length === 1 ? "lead" : "leads"}`}</span></div>
       {leads.length === 0 ? (
         <Empty>No leads here.</Empty>
       ) : (
         <div className="card overflow-x-auto p-0">
           <table className="table">
+            <caption className="sr-only">Leads matching the selected filters</caption>
             <thead>
               <tr>
                 <th>Lead</th>
