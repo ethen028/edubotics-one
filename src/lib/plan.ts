@@ -2,35 +2,7 @@ import "server-only";
 import type { PlanMetricKind } from "@prisma/client";
 import { db } from "@/lib/db";
 import { todayIST } from "@/lib/time";
-import { OPERATING_CALENDAR, monthEnd, monthStart, needsUpdate } from "@/lib/plan-rules";
-
-/**
- * Puts the June 2026 – May 2027 operating calendar into the Annual plan. Months already there are left
- * as they are, so running it twice changes nothing. Returns how many months were added.
- */
-export async function loadOperatingCalendar() {
-  let added = 0;
-  for (const m of OPERATING_CALENDAR) {
-    const month = new Date(`${m.month}-01T00:00:00Z`);
-    const exists = await db.planMonth.findUnique({ where: { month }, select: { id: true } });
-    if (exists) continue;
-    await db.planMonth.create({
-      data: {
-        month,
-        focus: m.focus,
-        activities: m.activities.join("\n"),
-        targets: m.targets,
-        leads: m.leads,
-        review: m.review,
-        reviewedAt: m.review ? new Date(`${m.month}-28T12:00:00Z`) : null,
-        planningMeeting: new Date(`${m.planningMeeting}T04:30:00Z`), // 10:00 India time
-        metrics: { create: m.metrics.map((x, i) => ({ kind: x.kind, label: x.label, target: x.target, sort: i })) },
-      },
-    });
-    added++;
-  }
-  return added;
-}
+import { monthEnd, monthStart, needsUpdate } from "@/lib/plan-rules";
 
 /** How many of this person's plan tasks still need this week's update. Counted from Thursday, ahead of Friday's deadline. */
 export async function myPlanTasksToUpdate(userId: string) {

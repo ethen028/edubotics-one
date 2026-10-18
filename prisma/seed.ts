@@ -1,5 +1,6 @@
 /**
- * Starter data: departments, leave types, fixed-date national holidays, training modules and the first admin login.
+ * Starter data: departments, leave types, fixed-date national holidays, training modules, the June 2026 – May 2027
+ * operating calendar and the first admin login.
  * Safe to run more than once. Run with `npm run db:seed`.
  */
 import { PrismaClient } from "@prisma/client";
@@ -8,6 +9,7 @@ import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { TRAINING_MODULES } from "../src/lib/hr-constants";
 import { KERALA_HOLIDAYS } from "./kerala-holidays";
+import { loadOperatingCalendar } from "../src/lib/plan-load";
 
 // tsx does not load .env the way Next.js and the Prisma CLI do.
 if (existsSync(".env")) loadEnvFile(".env");
@@ -54,6 +56,9 @@ async function main() {
   for (const m of TRAINING_MODULES) {
     await db.trainingModule.upsert({ where: { title: m.title }, update: {}, create: m });
   }
+
+  // Only on a database with no plan yet, so months someone removed on purpose don't come back on the next restart.
+  if ((await db.planMonth.count()) === 0) console.log(`Loaded ${await loadOperatingCalendar(db)} months of the operating calendar.`);
 
   const email = (process.env.SEED_ADMIN_EMAIL ?? "").trim().toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD ?? "";

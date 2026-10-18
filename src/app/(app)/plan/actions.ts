@@ -6,7 +6,7 @@ import type { PlanMetricKind } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { notify } from "@/lib/notifications";
-import { loadOperatingCalendar } from "@/lib/plan";
+import { loadOperatingCalendar } from "@/lib/plan-load";
 import { monthLabel, monthParam, parseMonth } from "@/lib/plan-rules";
 import type { FormState } from "@/components/action-form";
 
@@ -241,7 +241,7 @@ export async function deleteMetric(id: string) {
 export async function loadCalendar(): Promise<FormState> {
   const user = await requireUser();
   if (!isManagerOrAdmin(user)) return { error: "Only managers and admins load the annual plan." };
-  const added = await loadOperatingCalendar();
+  const added = await loadOperatingCalendar(db);
   refresh();
   return { ok: added ? `Loaded ${added} months of the operating calendar.` : "The calendar is already loaded." };
 }
