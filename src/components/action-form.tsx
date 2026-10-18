@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useEffect, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { useNotification } from "./notifications";
 
 export type FormState = { error?: string; ok?: string } | undefined;
 
@@ -16,10 +17,12 @@ export function ActionForm({
   className?: string;
 }) {
   const [state, formAction] = useActionState(action, undefined);
+  const notify = useNotification();
+  useEffect(() => { if (state?.ok) notify(state.ok); }, [state, notify]);
   return (
     <form action={formAction} className={className}>
       {state?.error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</div>
+        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</div>
       )}
       {state?.ok && (
         <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{state.ok}</div>
@@ -40,8 +43,8 @@ export function SubmitButton({
 }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className={className}>
-      {pending ? pendingLabel : children}
+    <button type="submit" disabled={pending} aria-busy={pending} className={className}>
+      {pending && <span className="submit-spinner" aria-hidden="true" />}{pending ? pendingLabel : children}
     </button>
   );
 }

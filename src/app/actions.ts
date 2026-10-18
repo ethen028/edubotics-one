@@ -16,10 +16,11 @@ import { logActivity, requestIp } from "@/lib/activity";
 import { passwordProblem } from "@/lib/passwords";
 import { emailLock, ipBlocked, minutesUntil, recordAttempt } from "@/lib/sign-in";
 import type { FormState } from "@/components/action-form";
+import { allowRequest } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
-  password: z.string().min(1),
+  email: z.string().trim().toLowerCase().max(254).email(),
+  password: z.string().min(1).max(200),
 });
 
 // Compared against when the email has no login, so a wrong email takes as long as a wrong password.
@@ -30,6 +31,7 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
   if (!parsed.success) return { error: "Enter your email and password." };
   const { email, password } = parsed.data;
   const ip = await requestIp();
+  if (!(await allowRequest("login", ip ?? "unknown", 30, 900000))) return { error: "Too many sign-in attempts. Try again in 15 minutes." };
   const rules = (await db.companySettings.findUnique({ where: { id: 1 } })) ?? { loginMaxAttempts: 5, loginLockMinutes: 15 };
 
   if (await ipBlocked(ip)) return { error: "Too many wrong sign-ins from this device. Wait 15 minutes and try again." };
@@ -43,7 +45,7 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
   const user = await db.user.findUnique({ where: { email } });
   dummyHash ??= hashPassword("not-a-real-password-1");
   const matches = await verifyPassword(password, user?.passwordHash ?? (await dummyHash));
-  if (!user || !user.active || !matches) {
+  if (!user || !user.active || user.closedAt || !matches) {
     await recordAttempt(email, ip, false);
     const left = lock.left - 1;
     if (left <= 0) {
@@ -56,12 +58,15 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
     };
   }
 
-  await recordAttempt(email, ip, true);
   // Passwords set before the rules existed (or the starting admin password) are replaced now.
   if (!user.mustChangePassword && passwordProblem(password, user)) {
-    await db.user.update({ where: { id: user.id }, data: { mustChangePassword: true } });
+    await db.user.updateMany({ where: { id: user.id, passwordHash: user.passwordHash }, data: { mustChangePassword: true } });
   }
-  await createSession(user.id, "PASSWORD");
+  if (!(await createSession(user.id, "PASSWORD", user.passwordHash))) {
+    await recordAttempt(email, ip, false);
+    return { error: "Email or password is incorrect." };
+  }
+  await recordAttempt(email, ip, true);
   await logActivity(user, "SIGN_IN", "sign-in", `${user.name} signed in with a password`);
   redirect("/");
 }
@@ -76,6 +81,7 @@ export async function changePassword(_: FormState, formData: FormData): Promise<
   const current = await getCurrentSession();
   if (!current) redirect("/login");
   const { user, session } = current;
+  if (!(await allowRequest("password-change", user.id, 5, 900000))) return { error: "Too many attempts. Try again in 15 minutes." };
   const now = String(formData.get("current") ?? "");
   const next = String(formData.get("password") ?? "");
   if (next !== String(formData.get("confirm") ?? "")) return { error: "The two new passwords don't match." };
@@ -83,12 +89,21 @@ export async function changePassword(_: FormState, formData: FormData): Promise<
   if (now === next) return { error: "Pick a password different from the current one." };
   const problem = passwordProblem(next, user);
   if (problem) return { error: problem };
-  await db.user.update({
-    where: { id: user.id },
-    data: { passwordHash: await hashPassword(next), mustChangePassword: false, passwordChangedAt: new Date() },
+  const passwordHash = await hashPassword(next);
+  const ended = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user.id} FOR UPDATE`;
+    const activeSession = await tx.session.findFirst({ where: { id: session.id, userId: user.id, endedAt: null } });
+    if (!activeSession) return null;
+    const changed = await tx.user.updateMany({
+      where: { id: user.id, active: true, closedAt: null, passwordHash: user.passwordHash },
+      data: { passwordHash, mustChangePassword: false, passwordChangedAt: new Date() },
+    });
+    if (changed.count !== 1) return null;
+    const revoked = await tx.session.updateMany({ where: { userId: user.id, id: { not: session.id }, endedAt: null }, data: { endedAt: new Date() } });
+    await tx.accountToken.updateMany({ where: { userId: user.id, kind: "RESET_PASSWORD", usedAt: null }, data: { usedAt: new Date() } });
+    return revoked.count;
   });
-  // Anyone else signed in with the old password is signed out.
-  const ended = await endSessions(user.id, session.id);
+  if (ended === null) return { error: "Your account changed during this request. Sign in again and retry." };
   await logActivity(user, "LOGINS", "password.changed", `${user.name} changed their password${ended ? ` (signed out ${ended} other ${ended === 1 ? "device" : "devices"})` : ""}`);
   if (formData.get("then") === "home") redirect("/");
   revalidatePath("/account");

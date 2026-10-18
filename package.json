@@ -4,13 +4,21 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/generate-breadcrumb-routes.mjs && next build",
     "start": "next start",
     "lint": "eslint",
+    "security:secrets": "node scripts/check-secrets.mjs",
+    "security:dependencies": "node scripts/check-dependencies.mjs",
+    "test": "tsx --test tests/*.test.ts",
+    "test:smoke": "node --env-file=.env --import tsx scripts/smoke-test.ts",
+    "test:workflows": "node --env-file=.env --import tsx scripts/hr-inventory-smoke.ts",
+    "test:acceptance": "node --env-file=.env --import tsx scripts/acceptance-test.ts",
+    "test:security": "node --conditions=react-server --env-file-if-exists=.env --import tsx scripts/security-integration.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "demo:seed": "tsx scripts/seed-demo.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -24,6 +32,11 @@
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
     "zod": "^4.6.5"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.0"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

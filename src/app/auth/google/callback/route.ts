@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { reportServerError } from "@/lib/telemetry";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
@@ -26,10 +27,10 @@ export async function GET(request: NextRequest) {
     outcome = await signIn(flowToken, params);
   } catch (e) {
     outcome = e instanceof GoogleSignInError ? e.code : "failed";
-    if (!(e instanceof GoogleSignInError)) console.error("Google sign-in failed", e);
+    if (!(e instanceof GoogleSignInError)) reportServerError(e, { path: "/auth/google/callback" });
   }
   if (typeof outcome === "string") redirect(`/login?google=${outcome}`);
-  await createSession(outcome.userId, "GOOGLE");
+  if (!(await createSession(outcome.userId, "GOOGLE"))) redirect("/login?google=disabled");
   redirect("/");
 }
 
@@ -59,11 +60,15 @@ async function signIn(flowToken: string | undefined, params: URLSearchParams): P
     return "no-login";
   }
   if (user.googleSub && user.googleSub !== google.sub) return "other-google";
-  if (!user.active) {
+  if (!user.active || user.closedAt) {
     await logActivity(user, "SIGN_IN", "sign-in.failed", `${user.email} tried to sign in with Google but the login is switched off`);
     return "disabled";
   }
-  if (!user.googleSub) await db.user.update({ where: { id: user.id }, data: { googleSub: google.sub } });
+  const linked = await db.user.updateMany({ where: { id: user.id, active: true, closedAt: null, email: user.email, googleSub: user.googleSub }, data: {
+    googleSub: google.sub,
+    ...(user.email === google.email ? { emailVerifiedAt: new Date() } : {}),
+  } });
+  if (linked.count !== 1) return "disabled";
   await logActivity(user, "SIGN_IN", "sign-in.google", `${user.name} signed in with Google (${google.email})`);
   return { userId: user.id };
 }

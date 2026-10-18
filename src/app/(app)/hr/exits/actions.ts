@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser, type CurrentUser } from "@/lib/auth";
 import { canManage } from "@/lib/team";
-import { parseDateOnly } from "@/lib/leave";
+import { dateOnlyInput } from "@/lib/date-input";
 import { getSettings } from "@/lib/settings";
 import { todayIST } from "@/lib/time";
 import { exitFor, openExitOf } from "@/lib/exits";
@@ -15,7 +15,7 @@ import { OPEN_PROJECT_STAGES } from "@/lib/projects";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
 
-const date = z.string().trim().min(1, "Pick a date.").transform(parseDateOnly);
+const date = dateOnlyInput;
 const text = (max: number) =>
   z
     .string()

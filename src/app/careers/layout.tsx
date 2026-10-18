@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { careersSettings } from "@/lib/careers";
+import { PublicFooter } from "@/components/public-footer";
 
 // The public jobs page. It sits outside the signed-in app (no sidebar, no login) and reads only
 // what src/lib/careers.ts lets it.
 export const dynamic = "force-dynamic";
+export const metadata = { robots: { index: true, follow: true } };
 
 export default async function CareersLayout({ children }: LayoutProps<"/careers">) {
   const { companyName, contactEmail } = await careersSettings();
@@ -18,7 +20,7 @@ export default async function CareersLayout({ children }: LayoutProps<"/careers"
           </Link>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">{children}</main>
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">{children}</main>
       <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-500">
         {companyName}
         {contactEmail && (
@@ -29,6 +31,7 @@ export default async function CareersLayout({ children }: LayoutProps<"/careers"
             </a>
           </>
         )}
+        <PublicFooter />
       </footer>
     </div>
   );

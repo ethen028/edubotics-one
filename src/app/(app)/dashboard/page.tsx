@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { requireUser } from "@/lib/auth";
-import { Badge, Stat } from "@/components/ui";
+import { Badge, PageHeader, Stat } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
 import { AGE_BUCKETS } from "@/lib/purchase-math";
 import { ownerDashboard } from "./data";
@@ -123,13 +123,9 @@ export default async function OwnerDashboardPage() {
 
   return (
     <>
-      <div className="mb-6">
-        <div className="text-xs font-semibold tracking-wider text-brand-700 uppercase">
-          {d.today.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}
-        </div>
-        <h1 className="mt-1 text-2xl font-semibold text-slate-900">Owner dashboard</h1>
-        <p className="text-sm text-slate-500">Sales, money, schools, projects and people in one place. Every number opens its page.</p>
-      </div>
+      <PageHeader title="Owner dashboard"
+        subtitle="Sales, money, schools, projects and people in one place. Open a metric to explore its records."
+        actions={<span className="workspace-date-chip">{d.today.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</span>} />
 
       {alerts.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
@@ -145,7 +141,7 @@ export default async function OwnerDashboardPage() {
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="executive-stats mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6">
         <Stat label={`Open pipeline · ${sales.openCount} deals`} value={formatINR(sales.openValue)} href="/crm/deals" />
         <Stat label={`Won this month · ${sales.wonCountThisMonth}`} value={formatINR(sales.wonThisMonth)} href="/crm/deals" />
         <Stat label="Received this month" value={formatINR(moneyIn.receivedThisMonth)} href="/invoices" />
@@ -164,7 +160,8 @@ export default async function OwnerDashboardPage() {
               <span className="h-2.5 w-2.5 rounded-sm bg-amber-400" /> Paid out (vendors, salaries, expense claims)
             </span>
           </div>
-          <div className="flex h-44 items-end gap-2 border-b border-slate-200 sm:gap-4">
+          <div className="relative flex h-44 items-end gap-2 border-b border-slate-200 sm:gap-4">
+            {cashFlow.every(month => month.in === 0 && month.out === 0) && <div className="cashflow-empty"><strong>No recorded cash flow yet</strong><span>Received payments and paid expenses will appear here.</span></div>}
             {cashFlow.map((m) => (
               <div
                 key={m.key}

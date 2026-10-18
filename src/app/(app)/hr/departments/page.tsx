@@ -7,7 +7,7 @@ import { createDepartment, deleteDepartment } from "../actions";
 export const metadata = { title: "Departments" };
 
 export default async function DepartmentsPage() {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   const departments = await db.department.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { employees: true } } },

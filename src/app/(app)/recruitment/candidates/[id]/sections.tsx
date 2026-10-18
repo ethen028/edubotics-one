@@ -450,7 +450,7 @@ export function HireForm({
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <Field label="Role">
             <select name="role" defaultValue="EMPLOYEE" className="input">
-              <Options values={["EMPLOYEE", "MANAGER", "ADMIN"]} labels={humanize} />
+              <Options values={["EMPLOYEE", "MANAGER", "HR", "ADMIN"]} labels={humanize} />
             </select>
           </Field>
           <Field label="Temporary password (8+ characters)">

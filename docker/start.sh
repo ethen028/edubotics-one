@@ -1,6 +1,7 @@
 #!/bin/sh
 # Starts Edubotics One inside Docker: applies database changes, adds starter data, runs the app.
 set -e
+umask 077
 
 # Make a random session secret on first start and keep it in the data volume.
 if [ -z "$SESSION_SECRET" ]; then
@@ -11,4 +12,5 @@ fi
 
 npx prisma migrate deploy
 npx tsx prisma/seed.ts
+unset SEED_ADMIN_PASSWORD
 exec npx next start -H 0.0.0.0 -p 3000

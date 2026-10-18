@@ -1,7 +1,8 @@
+import { isHrOrAdmin } from "@/lib/permissions";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { isAdmin, requireUser } from "@/lib/auth";
-import { managedEmployees } from "@/lib/team";
+import { requireUser } from "@/lib/auth";
+import { peopleEmployees } from "@/lib/team";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
 import { createModule, toggleModule } from "./actions";
@@ -12,9 +13,9 @@ const CELL = { ASSIGNED: "○", IN_PROGRESS: "◐", COMPLETED: "●" } as const;
 const CELL_COLOR = { ASSIGNED: "text-slate-400", IN_PROGRESS: "text-brand-600", COMPLETED: "text-emerald-600" } as const;
 
 export default async function TrainingPage() {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
-  const admin = isAdmin(user);
-  const team = await managedEmployees(user);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
+  const admin = isHrOrAdmin(user);
+  const team = await peopleEmployees(user);
   const [modules, assignments] = await Promise.all([
     db.trainingModule.findMany({ orderBy: [{ active: "desc" }, { title: "asc" }], include: { _count: { select: { assignments: true } } } }),
     db.trainingAssignment.findMany({ where: { employeeId: { in: team.map((e) => e.id) } } }),

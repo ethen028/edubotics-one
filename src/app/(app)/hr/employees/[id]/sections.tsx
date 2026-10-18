@@ -1,3 +1,4 @@
+import { HR_DOCUMENT_TYPES } from "@/lib/permissions";
 import Link from "next/link";
 import type { Asset, EmployeeDocument, OnboardingTask, PerformanceReview, ReviewCycle, SalaryStructure, TrainingAssignment, TrainingModule } from "@prisma/client";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -115,16 +116,18 @@ export function DocumentsSection({
   documents,
   isSelf,
   admin,
+  hrOnly = false,
 }: {
   employeeId: string;
   documents: Doc[];
   isSelf: boolean;
   admin: boolean;
+  hrOnly?: boolean;
 }) {
   return (
     <section className="card text-sm">
       <h2 className="mb-1 font-semibold">Documents</h2>
-      <p className="mb-3 text-xs text-slate-500">Only you and admins can open these.</p>
+      <p className="mb-3 text-xs text-slate-500">Private to you and Admin. HR can also manage ID, PAN, education and resume documents.</p>
       {documents.length === 0 ? (
         <p className="text-slate-500">No documents yet.</p>
       ) : (
@@ -168,7 +171,7 @@ export function DocumentsSection({
       {(isSelf || admin) && (
         <ActionForm action={uploadDocument.bind(null, employeeId)} className="mt-3 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
           <select name="type" className="input w-auto py-1">
-            {DOCUMENT_TYPES.map((t) => (
+            {(hrOnly ? HR_DOCUMENT_TYPES : DOCUMENT_TYPES).map((t) => (
               <option key={t}>{t}</option>
             ))}
           </select>

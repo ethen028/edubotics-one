@@ -18,6 +18,7 @@ export function RequestLines({ items, initialItemId }: { items: Item[]; initialI
         return (
           <div key={row.key} className="flex flex-wrap items-center gap-2">
             <select
+              aria-label={`Item ${idx + 1}`}
               name="itemId"
               value={row.itemId}
               onChange={(e) => setRows(rows.map((r) => (r.key === row.key ? { ...r, itemId: e.target.value } : r)))}
@@ -37,11 +38,12 @@ export function RequestLines({ items, initialItemId }: { items: Item[]; initialI
                 </optgroup>
               ))}
             </select>
-            <input name="quantity" type="number" min={1} defaultValue={1} className="input w-24" aria-label="Quantity" />
+            <input name="quantity" type="number" min={1} defaultValue={1} className="input w-24" aria-label={`Quantity for item ${idx + 1}`} />
             <span className="w-12 text-xs text-slate-500">{item?.unit}</span>
             {rows.length > 1 && (
               <button
                 type="button"
+                aria-label={`Remove item ${idx + 1}`}
                 onClick={() => setRows(rows.filter((r) => r.key !== row.key))}
                 className="text-xs text-slate-500 hover:text-red-600"
               >
@@ -78,6 +80,7 @@ export function KeepValuesForm({
   const [state, formAction, pending] = useActionState(action, undefined);
   return (
     <form
+      action={formAction}
       className={className}
       onSubmit={(e) => {
         e.preventDefault();
@@ -86,7 +89,7 @@ export function KeepValuesForm({
       }}
     >
       {state?.error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</div>
+        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</div>
       )}
       {children}
       <button type="submit" disabled={pending} className="btn-primary">

@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/format";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Field, PageHeader } from "@/components/ui";
 import { changePassword, signOutOtherDevices } from "../../actions";
+import { closeAccount, requestEmailVerification } from "../../account-actions";
 
 export const metadata = { title: "My account" };
 
@@ -43,6 +44,11 @@ export default async function AccountPage() {
         </ActionForm>
 
         <div className="space-y-6">
+          <div className="card space-y-3">
+            <h2 className="font-semibold">Work email</h2>
+            <p className="text-sm text-slate-500">{user.emailVerifiedAt ? `Verified ${formatDateTime(user.emailVerifiedAt)}` : "Your work email has not been verified."}</p>
+            {!user.emailVerifiedAt && <ActionForm action={requestEmailVerification}><SubmitButton className="btn-secondary">Send verification email</SubmitButton></ActionForm>}
+          </div>
           <div className="card">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-semibold">Where you&apos;re signed in</h2>
@@ -87,6 +93,15 @@ export default async function AccountPage() {
           )}
         </div>
       </div>
+      <section className="card mt-8 max-w-xl border-red-200">
+        <h2 className="font-semibold">Delete my account login</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">This immediately closes your login, anonymizes your login name and email, and signs out every device. Linked employment, payroll, project, email and audit records remain for company recordkeeping. Contact your admin to request review or deletion of those records and backups. This cannot be undone from this page.</p>
+        <ActionForm action={closeAccount} className="mt-4 space-y-3">
+          <Field label="Current password" className="block"><input type="password" name="password" autoComplete="current-password" required className="input" /></Field>
+          <Field label="Type DELETE to confirm" className="block"><input name="confirm" required pattern="DELETE" autoComplete="off" className="input" /></Field>
+          <SubmitButton className="btn-danger">Delete my account login</SubmitButton>
+        </ActionForm>
+      </section>
     </>
   );
 }

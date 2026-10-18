@@ -1,7 +1,8 @@
+import { isHrOrAdmin } from "@/lib/permissions";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { isAdmin, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { Empty, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { decideLeave } from "../actions";
@@ -10,9 +11,9 @@ import { LeaveStatusBadge } from "../leave/status-badge";
 export const metadata = { title: "Leave approvals" };
 
 export default async function ApprovalsPage() {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   // Admins see everyone's requests; managers see their direct reports'.
-  const scope: Prisma.LeaveRequestWhereInput = isAdmin(user)
+  const scope: Prisma.LeaveRequestWhereInput = isHrOrAdmin(user)
     ? {}
     : { employee: { managerId: user.employee?.id ?? "__none__" } };
 
@@ -32,7 +33,7 @@ export default async function ApprovalsPage() {
 
   return (
     <>
-      <PageHeader title="Leave approvals" subtitle={isAdmin(user) ? "All employees" : "Your direct reports"} />
+      <PageHeader title="Leave approvals" subtitle={isHrOrAdmin(user) ? "All employees" : "Your direct reports"} />
       <h2 className="mb-3 font-semibold">Waiting for you ({pending.length})</h2>
       {pending.length === 0 ? (
         <Empty>Nothing to approve.</Empty>

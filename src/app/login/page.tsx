@@ -4,28 +4,48 @@ import { db } from "@/lib/db";
 import { GOOGLE_ERRORS, googleSetup } from "@/lib/google-sign-in";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { login } from "../actions";
+import Link from "next/link";
 
 export const metadata = { title: "Sign in" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (await getCurrentUser()) redirect("/");
-  const { google } = (await searchParams) as Record<string, string | undefined>;
+  const { google, reset, closed } = (await searchParams) as Record<string, string | undefined>;
   const settings = await db.companySettings.findUnique({ where: { id: 1 } });
   const withGoogle = !!settings && !!googleSetup(settings);
   const googleError = google && google in GOOGLE_ERRORS ? GOOGLE_ERRORS[google as keyof typeof GOOGLE_ERRORS] : null;
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main id="main-content" tabIndex={-1} className="grid min-h-screen lg:grid-cols-2">
+      <section className="relative hidden flex-col justify-between bg-brand-900 p-12 text-white lg:flex xl:p-16">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 font-display font-bold">E1</span>
+          <span className="text-sm font-semibold">Edubotics Global</span>
+        </div>
+        <div className="py-16">
+          <p className="mb-6 text-xs font-semibold tracking-[0.2em] text-brand-200 uppercase">Your team. One workspace.</p>
+          <h2 className="max-w-lg text-5xl leading-[1.12] font-semibold xl:text-6xl">Good work starts<br />with a clear day.</h2>
+          <p className="mt-6 max-w-sm text-base leading-relaxed text-brand-200">Bring your people, projects and school programmes together. Everything you need to keep moving.</p>
+          <div className="mt-10 flex gap-6 border-t border-white/15 pt-6 text-xs text-brand-200">
+            <span>People & teams</span><span>Projects & delivery</span><span>Business operations</span>
+          </div>
+        </div>
+        <p className="text-xs text-brand-300">Edubotics One · Internal operations</p>
+      </section>
+      <section aria-label="Sign in" className="flex items-center justify-center px-6 py-12 sm:px-12">
       <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">
+        <div className="mb-8">
+          <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white lg:hidden">
             E1
           </div>
-          <h1 className="text-xl font-semibold">Edubotics One</h1>
-          <p className="text-sm text-slate-500">Sign in with your work account</p>
+          <p className="mb-2 text-xs font-semibold tracking-widest text-brand-600 uppercase">Edubotics One</p>
+          <h1 className="text-3xl font-semibold">Welcome back</h1>
+          <p className="mt-3 text-sm text-slate-500">Sign in with your work account to continue.</p>
         </div>
         {googleError && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{googleError}</div>
+          <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{googleError}</div>
         )}
+        {reset && <p role="status" className="mb-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">Password reset. Sign in with your new password.</p>}
+        {closed && <p role="status" className="mb-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">Your login is closed. Contact the company admin for requests about retained records.</p>}
         {withGoogle && (
           <>
             <a href="/auth/google" className="btn-secondary flex w-full items-center justify-center gap-2 py-2.5">
@@ -39,10 +59,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             </div>
           </>
         )}
-        <ActionForm action={login} className="card space-y-4">
+        <ActionForm action={login} className="space-y-5">
           <label className="block">
             <span className="label">Email</span>
-            <input name="email" type="email" required autoComplete="email" className="input" />
+            <input name="email" type="email" required autoComplete="email" placeholder="you@eduboticsglobal.com" className="input" />
           </label>
           <label className="block">
             <span className="label">Password</span>
@@ -52,8 +72,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             Sign in
           </SubmitButton>
         </ActionForm>
-        <p className="mt-4 text-center text-xs text-slate-500">Forgot your password? Ask an admin to set a new one.</p>
+        <p className="mt-4 text-center text-xs text-slate-500"><Link href="/forgot-password" className="link">Forgot your password?</Link></p>
+        <p className="mt-6 text-center text-xs text-slate-500"><Link href="/privacy" className="hover:underline">Privacy</Link> · <Link href="/terms" className="hover:underline">Terms</Link> · <Link href="/cookies" className="hover:underline">Cookies</Link></p>
       </div>
+      </section>
     </main>
   );
 }
