@@ -142,15 +142,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               <CommandPalette groups={groups} />
             </div>
             <div className="flex items-center gap-2">
-              <form action={setAppearance}>
-                <button
-                  name="theme"
-                  value={dark ? "LIGHT" : "DARK"}
-                  className="icon-btn"
-                  title={dark ? "Switch to light colours" : "Switch to dark colours"}
-                  aria-label={dark ? "Switch to light colours" : "Switch to dark colours"}
-                >
-                  <Icon name={dark ? "sun" : "moon"} className="h-4 w-4" />
+              <form action={setAppearance} className="theme-pill" aria-label="Colours">
+                <button name="theme" value="LIGHT" aria-pressed={!dark} title="Light colours">
+                  <Icon name="sun" className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Light</span>
+                </button>
+                <button name="theme" value="DARK" aria-pressed={dark} title="Dark colours">
+                  <Icon name="moon" className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Dark</span>
                 </button>
               </form>
               <Link href="/calendar" className="icon-btn" title="Calendar" aria-label="Calendar">

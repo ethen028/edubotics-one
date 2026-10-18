@@ -2,48 +2,48 @@
 @import "./theme-dark.css";
 
 @theme inline {
-  /* Edubotics One look (Oct 2026), after the client's "Fernly" reference: floating white menu,
-     big soft cards, pill buttons, a filled first number card, Plus Jakarta Sans, navy menu, cobalt actions, mint selections. */
+  /* Edubotics One look (Oct 2026): violet icon rail and buttons after Ethen's second reference dashboard,
+     big soft white cards, pill buttons, Plus Jakarta Sans, pale violet selections. */
   --font-sans: var(--font-jakarta);
   --font-display: var(--font-jakarta);
 }
 
 @theme {
-  /* Ethen's palette (17 Oct 2026): midnight navy menu #182235, cobalt #3659d9 for buttons and active states
-     (brand-700), soft mint #ddf5e9 for selected backgrounds, ink #1b2635 text, slate #526174 secondary text,
-     pale grey #dee5ed borders, cool off-white #f5f7fa page. */
-  --color-brand-50: #eff3fd;
-  --color-brand-100: #dfe7fb;
-  --color-brand-200: #c3d1f6;
-  --color-brand-300: #9bb0ef;
-  --color-brand-400: #6f8ae6;
-  --color-brand-500: #5373df;
-  --color-brand-600: #4565db;
-  --color-brand-700: #3659d9;
-  --color-brand-800: #2b47b0;
-  --color-brand-900: #223889;
-  --color-navy: #182235;
-  --color-mint: #ddf5e9;
-  --color-ink: #1b2635;
-  --color-slate-200: #dee5ed;
-  --color-slate-400: #61708a; /* faint helper text; darker than stock so it passes 4.5:1 on the page */
-  --color-slate-500: #526174;
-  --color-slate-900: #1b2635;
+  /* Violet look (18 Oct 2026), after Ethen's second reference dashboard: a violet icon rail, violet buttons and
+     tabs (brand-700 #5546f0), soft lavender page #f5f4fb, white cards, pale violet #ecebfe for selected backgrounds,
+     deep ink #1e1b3a text, slate #545a72 secondary text, lavender-grey #e6e4f2 borders. */
+  --color-brand-50: #f3f2ff;
+  --color-brand-100: #e8e6ff;
+  --color-brand-200: #d4cffe;
+  --color-brand-300: #b5acfc;
+  --color-brand-400: #8f82f8;
+  --color-brand-500: #7062f5;
+  --color-brand-600: #6253f3;
+  --color-brand-700: #5546f0;
+  --color-brand-800: #4537d0;
+  --color-brand-900: #372ca6;
+  --color-navy: #5546f0; /* the menu rail, banners and sign-in panel: the reference's violet */
+  --color-mint: #ecebfe;
+  --color-ink: #2e2591;
+  --color-slate-200: #e6e4f2;
+  --color-slate-400: #646a85; /* faint helper text; darker than stock so it passes 4.5:1 on the page */
+  --color-slate-500: #545a72;
+  --color-slate-900: #1e1b3a;
   --color-surface: #fff; /* cards, menu, inputs: white here, dark grey in dark mode */
 }
 
 :root {
-  --page-bg: #f5f7fa;
-  --line: #dee5ed;
-  --side-line: rgb(255 255 255 / 0.1);
+  --page-bg: #f5f4fb;
+  --line: #e6e4f2;
+  --side-line: rgb(255 255 255 / 0.16);
   /* Soft fills for the number cards, in turn: white, mint, lavender, sand. */
   --tint-1: var(--color-surface);
-  --tint-2: #e3f6ec;
-  --tint-3: #eaeefc;
-  --tint-4: #fdf2df;
-  --tint-line-2: #cbebd9;
-  --tint-line-3: #d7dff8;
-  --tint-line-4: #f5e1bb;
+  --tint-2: #efedff;
+  --tint-3: #e9f3ff;
+  --tint-4: #fff1e6;
+  --tint-line-2: #dcd8fd;
+  --tint-line-3: #d3e6fc;
+  --tint-line-4: #fadcc4;
 }
 
 body {
@@ -201,10 +201,10 @@ h2 {
      The greys inside it are re-pointed to light tints, so every grey used in the menu reads on navy. */
   .sidebar {
     --ease-menu: cubic-bezier(0.22, 1, 0.36, 1);
-    --color-slate-100: rgb(255 255 255 / 0.07);
-    --color-slate-400: #7d8aa0;
-    --color-slate-500: #aeb8c7;
-    --color-slate-600: #c3cbd7;
+    --color-slate-100: rgb(255 255 255 / 0.12);
+    --color-slate-400: #d6d2fd;
+    --color-slate-500: #e7e4fe;
+    --color-slate-600: #f0eeff;
     --color-slate-900: #ffffff;
     color: var(--color-slate-900);
     @apply border-b border-[var(--side-line)] bg-navy md:m-3 md:h-[calc(100vh-1.5rem)] md:rounded-3xl md:border md:shadow-[0_8px_24px_-16px_rgba(16,24,40,0.15)];
@@ -245,7 +245,7 @@ h2 {
 
   /* The round button on the menu's edge that shrinks and widens it (computers only). */
   .sidebar-collapse {
-    @apply absolute top-7 -right-3 z-10 h-6 w-6 items-center justify-center rounded-full bg-brand-700 text-white shadow-md ring-2 ring-[var(--page-bg)] transition-colors hover:bg-brand-800;
+    @apply absolute top-7 -right-3 z-10 h-6 w-6 items-center justify-center rounded-full bg-white text-brand-700 shadow-md ring-2 ring-[var(--page-bg)] transition-colors hover:bg-brand-50;
   }
   .sidebar-collapse-icon {
     @apply rotate-180 transition-transform duration-300;
@@ -257,6 +257,9 @@ h2 {
 
   .brand-mark {
     @apply flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700 font-display text-sm font-bold text-white;
+  }
+  .sidebar .brand-mark {
+    @apply bg-white text-brand-700;
   }
   .nav-search {
     @apply mb-3 flex items-center rounded-xl border border-[var(--side-line)] bg-white/[0.06] px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-within:border-brand-400;
@@ -298,7 +301,7 @@ h2 {
     @apply fixed z-[60];
   }
   .nav-flyout-card {
-    @apply min-w-52 rounded-2xl border border-[var(--side-line)] bg-navy p-2 shadow-2xl;
+    @apply min-w-52 rounded-2xl border border-[var(--side-line)] bg-brand-800 p-2 shadow-2xl;
     animation: flyout-in 160ms var(--ease-menu);
   }
   .nav-flyout-title {
@@ -311,11 +314,10 @@ h2 {
     @apply relative flex items-center gap-2.5 rounded-xl px-3 py-1.5 text-sm text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-900;
   }
   .nav-link[data-active] {
-    @apply bg-mint font-semibold text-ink;
+    @apply bg-white font-semibold text-brand-700;
   }
   .nav-link[data-active]::before {
-    content: "";
-    @apply absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r-full bg-brand-700;
+    content: none;
   }
   .nav-icon {
     @apply h-4 w-4 shrink-0 opacity-75;
@@ -324,7 +326,7 @@ h2 {
     @apply opacity-100;
   }
   .nav-badge {
-    @apply rounded-full bg-brand-700 px-1.5 text-[11px] font-semibold text-white;
+    @apply rounded-full bg-white px-1.5 text-[11px] font-semibold text-brand-700;
   }
   .sidebar-user {
     @apply mt-4 flex items-start gap-2.5 border-t border-[var(--side-line)] pt-3;
@@ -336,6 +338,16 @@ h2 {
   /* Bar along the top of every page on computers. */
   .topbar {
     @apply mb-3 flex items-center justify-between gap-2 rounded-2xl border border-[var(--line)] bg-surface px-2 py-2 sm:gap-3 md:px-4;
+  }
+  /* Light / Dark switch in the top bar, as in the reference: two halves, the current one filled. */
+  .theme-pill {
+    @apply flex items-center gap-0.5 rounded-full border border-slate-200 p-0.5;
+  }
+  .theme-pill button {
+    @apply flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-slate-600 transition-colors hover:text-slate-900;
+  }
+  .theme-pill button[aria-pressed="true"] {
+    @apply bg-brand-700 text-white hover:text-white;
   }
   .icon-btn {
     @apply relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900;
@@ -408,8 +420,11 @@ h2 {
     text-align: center;
   }
   /* The group you are in is lit up in the rail, like the current page is in the open menu. */
+  .sidebar[data-collapsed] .nav-group-head {
+    @apply border-transparent bg-transparent text-white/80 hover:bg-white/15 hover:text-white;
+  }
   .sidebar[data-collapsed] .nav-group[data-here] > .nav-group-head {
-    @apply border-transparent bg-mint text-ink;
+    @apply bg-white text-brand-700 shadow-sm hover:bg-white hover:text-brand-700;
   }
 }
 
@@ -449,7 +464,7 @@ h2 {
     @apply m-auto mt-[12vh] w-[min(36rem,calc(100vw-2rem))] max-w-none overflow-hidden rounded-2xl border border-[var(--line)] bg-surface p-0 text-slate-900 shadow-2xl;
   }
   .palette::backdrop {
-    background: rgb(24 34 53 / 0.45);
+    background: rgb(30 27 58 / 0.45);
   }
   .palette-search {
     @apply flex items-center gap-3 border-b border-[var(--line)] px-4 py-3;
@@ -483,7 +498,7 @@ h2 {
     @apply flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900;
   }
   .section-tab[data-active] {
-    @apply bg-navy font-semibold text-white hover:bg-navy hover:text-white;
+    @apply bg-brand-700 font-semibold text-white hover:bg-brand-700 hover:text-white;
   }
   .section-tab-count {
     @apply rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950;

@@ -95,7 +95,7 @@ export const WORK_STATUSES: WorkStatus[] = ["TODO", "IN_PROGRESS", "REVIEW", "DO
 
 const HEALTH: { key: TaskHealth; label: string; color: string }[] = [
   { key: "TODO", label: "To do", color: "#94a3b8" },
-  { key: "IN_PROGRESS", label: "In progress", color: "#3659d9" },
+  { key: "IN_PROGRESS", label: "In progress", color: "#5546f0" },
   { key: "REVIEW", label: "Review", color: "#8b5cf6" },
   { key: "DONE", label: "Done", color: "#10b981" },
   { key: "OVERDUE", label: "Overdue", color: "#dc2626" },
