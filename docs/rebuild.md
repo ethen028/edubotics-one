@@ -1,4 +1,4 @@
-# Edubotics One rebuild
+# Orbit rebuild
 
 Scope requested on 17 October 2026: analyse and rebuild both the interface and existing functionality.
 

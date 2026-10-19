@@ -35,7 +35,7 @@ export function appAddressProblem(address: string) {
   } catch {
     return "Enter the full address, starting with https://";
   }
-  if (url.pathname !== "/" || url.search || url.hash) return "Enter just the address, like https://one.eduboticsglobal.com (nothing after the name).";
+  if (url.pathname !== "/" || url.search || url.hash) return "Enter just the address, like https://orbit.eduboticsglobal.com (nothing after the name).";
   if (url.protocol === "https:") return null;
   if (url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) return null;
   return "Google only sends people back to an https:// address (or http://localhost on the office computer itself). An office Wi-Fi address like http://192.168.1.20:3000 won't work.";

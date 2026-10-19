@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
   icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
   openGraph: { title: "Edubotics Global", description: "People, projects and learning programmes.", images: ["/opengraph-image"] },
-  title: { default: "Edubotics One", template: "%s · Edubotics One" },
+  title: { default: "Orbit", template: "%s · Orbit" },
   description: "Internal operations for Edubotics Global: CRM, HR, payroll, projects and timesheets",
 };
 

@@ -1,6 +1,6 @@
-# Run Edubotics One on your own computer
+# Run Orbit on your own computer
 
-This runs Edubotics One on one office computer, with no hosting. Anyone on the same office Wi-Fi can use it from their own laptop or phone.
+This runs Orbit on one office computer, with no hosting. Anyone on the same office Wi-Fi can use it from their own laptop or phone.
 
 **Good to know before you start**
 - The computer that runs it must stay **on and awake** during office hours. If it is off, nobody can open the app.
@@ -18,7 +18,7 @@ Docker Desktop is a free program that runs the app and its database for you.
 
 Open Docker Desktop once and wait until it says **Engine running** at the bottom left. Then, in its **Settings > General**, tick **Start Docker Desktop when you sign in to your computer**.
 
-## 2. Download Edubotics One
+## 2. Download Orbit
 
 1. Sign in to GitHub and open https://github.com/ethen028/edubotics-one
 2. Click the green **Code** button, then **Download ZIP**.
@@ -66,13 +66,13 @@ The address can change when the router restarts. To keep it fixed, ask whoever m
 
 ## 7. Every day
 
-Nothing to do. When the computer starts and Docker Desktop opens, Edubotics One starts on its own.
+Nothing to do. When the computer starts and Docker Desktop opens, Orbit starts on its own.
 
 To stop it, run `docker compose stop` in the folder. To start it again, run `docker compose up -d`.
 
 ## 8. Backups
 
-Edubotics One backs itself up every day at 5 PM into a `backups` folder inside this folder, and keeps a month of them. Admins see the backups, and a **Back up now** button, under **Admin > Backups**.
+Orbit backs itself up every day at 5 PM into a `backups` folder inside this folder, and keeps a month of them. Admins see the backups, and a **Back up now** button, under **Admin > Backups**.
 
 A backup on the same computer won't help if the computer is lost, so also keep a copy somewhere else: either name a second folder (a synced Google Drive or OneDrive folder) as explained in `docs/backups.md`, or press **Download** on a backup once a week and save it to a USB drive. The same guide explains how to bring a backup back.
 

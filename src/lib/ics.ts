@@ -30,7 +30,7 @@ export function calendarInvite(e: {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Edubotics One//EN",
+    "PRODID:-//Orbit//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",

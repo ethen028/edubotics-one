@@ -1,5 +1,5 @@
 #!/bin/sh
-# Starts Edubotics One inside Docker: applies database changes, adds starter data, runs the app.
+# Starts Orbit inside Docker: applies database changes, adds starter data, runs the app.
 set -e
 umask 077
 

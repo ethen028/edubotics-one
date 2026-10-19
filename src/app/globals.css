@@ -2,7 +2,7 @@
 @import "./theme-dark.css";
 
 @theme inline {
-  /* Edubotics One look (Oct 2026): violet icon rail and buttons after Ethen's second reference dashboard,
+  /* Orbit look (Oct 2026): violet icon rail and buttons after Ethen's second reference dashboard,
      big soft white cards, pill buttons, Plus Jakarta Sans, pale violet selections. */
   --font-sans: var(--font-jakarta);
   --font-display: var(--font-jakarta);

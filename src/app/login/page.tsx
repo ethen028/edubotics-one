@@ -25,7 +25,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
                 <div className="brand-mark h-10 w-10 rounded-xl" role="img" aria-label="Edubotics">
                   <LogoMark />
                 </div>
-                <span className="font-semibold">Edubotics One</span>
+                <span className="font-semibold">Orbit</span>
               </div>
               <h1 className="text-3xl font-bold tracking-tight">Sign in</h1>
               <p className="mt-1 text-sm text-slate-500">Welcome back. Use your work email and password.</p>

@@ -111,7 +111,7 @@ export function payslipEmail(p: PayslipFacts, s: Settings): Draft {
     message: paragraphs(
       `Dear ${p.firstName},`,
       `Your payslip for ${p.monthLabel} is attached. Net pay: ${formatMoney(Number(p.net))}${p.paidOn ? `, paid on ${formatDate(p.paidOn)}` : ""}.`,
-      "You can see all your payslips in Edubotics One under Payroll → My payslips. If anything looks wrong, reply to this email.",
+      "You can see all your payslips in Orbit under Payroll → My payslips. If anything looks wrong, reply to this email.",
       `Regards,\n${s.companyName}`,
     ),
   };

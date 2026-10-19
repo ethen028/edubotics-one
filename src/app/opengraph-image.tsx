@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { LOGO_PATH, LOGO_VIEWBOX } from "@/lib/logo";
 
-export const alt = "Edubotics One · Global Operations";
+export const alt = "Orbit · Global Operations";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -13,7 +13,7 @@ export default function Image() {
       {/* eslint-disable-next-line jsx-a11y/alt-text */}
       <img src={mark} width={54} height={72} style={{ marginRight: 24 }} />EDUBOTICS
     </div>
-    <div style={{ display: "flex", flexDirection: "column" }}><div style={{ fontSize: 86 }}>Edubotics One</div><div style={{ fontSize: 32, color: "#a78bfa", marginTop: 24 }}>Learn. Build. Innovate.</div></div>
+    <div style={{ display: "flex", flexDirection: "column" }}><div style={{ fontSize: 86 }}>Orbit</div><div style={{ fontSize: 32, color: "#a78bfa", marginTop: 24 }}>Learn. Build. Innovate.</div></div>
     <div style={{ fontSize: 25 }}>Global Operations</div>
   </div>, size);
 }

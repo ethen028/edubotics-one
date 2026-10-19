@@ -61,7 +61,7 @@ export async function requestEmailVerification(): Promise<FormState> {
   let raw: string;
   try { raw = await issueAccountToken(current.user.id, "VERIFY_EMAIL", current.user.email); }
   catch { return { error: "Your account changed. Reload this page and try again." }; }
-  const result = await sendEmail({ kind: "ACCOUNT_SECURITY", to: [current.user.email], subject: "Verify your Edubotics One email",
+  const result = await sendEmail({ kind: "ACCOUNT_SECURITY", to: [current.user.email], subject: "Verify your Orbit email",
     message: `Verify your work email with this one-use link. It expires in one hour:\n\n${origin}/verify-email?token=${raw}\n\nIf you did not request this, ignore this email.` }, settings, current.user.id);
   if ("error" in result) {
     await db.accountToken.updateMany({ where: { tokenHash: tokenHash(raw) }, data: { usedAt: new Date() } });

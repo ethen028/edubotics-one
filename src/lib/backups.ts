@@ -43,7 +43,7 @@ export function copyDir() {
 /** How the folders are named on the computer itself, for the Admin page. */
 export function folderLabels() {
   return {
-    main: process.env.BACKUP_FOLDER_SHOWN?.trim() || "the backups folder inside the Edubotics One folder",
+    main: process.env.BACKUP_FOLDER_SHOWN?.trim() || "the backups folder inside the edubotics-one folder",
     copy: process.env.BACKUP_COPY_FOLDER_SHOWN?.trim() || null,
   };
 }
@@ -117,7 +117,7 @@ export async function helperRunning() {
   return !!stat && Date.now() - stat.mtimeMs < HELPER_SILENT_AFTER;
 }
 
-const HELPER_DOWN = "The backup helper isn't running. Open a command window in the Edubotics One folder and run: docker compose up -d";
+const HELPER_DOWN = "The backup helper isn't running. Open a command window in the edubotics-one folder and run: docker compose up -d";
 
 /**
  * Asks the backup helper (docker/backup-worker.sh, the "backup" service in docker-compose.yml) to
