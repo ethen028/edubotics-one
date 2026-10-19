@@ -1,4 +1,4 @@
-# Edubotics One
+# Orbit
 
 Internal operations software for **Edubotics Global** (Kochi, Kerala). One app for the whole team, starting with:
 

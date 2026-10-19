@@ -89,7 +89,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               <LogoMark />
             </div>
             <div className="rail-hide ml-2 leading-tight">
-              <div className="font-display text-sm font-semibold">Edubotics One</div>
+              <div className="font-display text-sm font-semibold">Orbit</div>
               <div className="sidebar-muted text-[11px]">Global Operations</div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 /**
- * Demo data for trying Edubotics One or showing it to someone: eight made-up staff with logins for every role,
+ * Demo data for trying Orbit or showing it to someone: eight made-up staff with logins for every role,
  * and a few weeks of Kerala ed-tech work around today (schools, deals, invoices, workshops, sessions, plan).
  *
  * Run with `npm run db:seed-demo` after `npm run db:seed`, on a database of its own. It refuses to run:

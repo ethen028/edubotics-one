@@ -122,7 +122,7 @@ export default async function LaunchReadinessPage() {
 
   return (
     <div className="max-w-6xl">
-      <PageHeader title="Launch readiness" eyebrow="Administration" icon="admin" subtitle="Live evidence for the eight workstreams required to operate Edubotics One. A green gate is verified by the application; purple gates need organization-owned information or approval." />
+      <PageHeader title="Launch readiness" eyebrow="Administration" icon="admin" subtitle="Live evidence for the eight workstreams required to operate Orbit. A green gate is verified by the application; purple gates need organization-owned information or approval." />
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
         <div className="card border-emerald-200 bg-emerald-50"><div className="text-sm text-emerald-800">Ready</div><div className="mt-1 text-3xl font-semibold text-emerald-950">{summary.ready}</div></div>
         <div className="card border-amber-200 bg-amber-50"><div className="text-sm text-amber-800">Needs setup</div><div className="mt-1 text-3xl font-semibold text-amber-950">{summary.setup}</div></div>

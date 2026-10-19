@@ -202,8 +202,8 @@ export async function sendTestEmail(_: FormState, formData: FormData): Promise<F
     {
       kind: "TEST",
       to: to.list,
-      subject: `Test email from ${settings.companyName} (Edubotics One)`,
-      message: `This is a test from Edubotics One, sent by ${user.name}.\n\nIf you can read this, invoices, quotes, payslips, interview invites and payment reminders can now be emailed from the app.`,
+      subject: `Test email from ${settings.companyName} (Orbit)`,
+      message: `This is a test from Orbit, sent by ${user.name}.\n\nIf you can read this, invoices, quotes, payslips, interview invites and payment reminders can now be emailed from the app.`,
     },
     settings,
     user.id,

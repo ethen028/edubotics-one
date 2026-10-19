@@ -5,7 +5,7 @@ import { allowRequest } from "./rate-limit";
 import { trustedClientAddress } from "./http-security";
 
 /**
- * The careers page is the one part of Edubotics One meant for people outside the company.
+ * The careers page is the one part of Orbit meant for people outside the company.
  * Everything it shows goes through these selects, so nothing about staff (salary ranges,
  * hiring managers, candidates, who created the job) can leak onto it by accident.
  */

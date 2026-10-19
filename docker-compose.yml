@@ -1,4 +1,4 @@
-# Run Edubotics One on this computer: `docker compose up -d`, then open http://localhost:3000
+# Run Orbit on this computer: `docker compose up -d`, then open http://localhost:3000
 # Staff on the same Wi-Fi open http://<this computer's IP address>:3000
 # A fixed name keeps the same data when you replace this folder with a newer download.
 name: edubotics-one
@@ -54,7 +54,7 @@ services:
       SEED_ADMIN_NAME: ${ADMIN_NAME:-Admin}
       # Daily backups (Admin → Backups, docs/backups.md). The folders are set in .env; see .env.example.
       BACKUP_DIR: /backups
-      BACKUP_FOLDER_SHOWN: ${BACKUP_FOLDER:-the "backups" folder inside the Edubotics One folder}
+      BACKUP_FOLDER_SHOWN: ${BACKUP_FOLDER:-the "backups" folder inside the edubotics-one folder}
       BACKUP_COPY_DIR: ${BACKUP_COPY_FOLDER:+/backup-copy}
       BACKUP_COPY_FOLDER_SHOWN: ${BACKUP_COPY_FOLDER:-}
     volumes:

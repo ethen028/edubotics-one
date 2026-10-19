@@ -4,7 +4,7 @@ export const metadata = { title: "Terms of use", robots: { index: true, follow: 
 
 export default function TermsPage() {
   return <LegalPage title="Terms of use">
-    <p>Edubotics One is an operations workspace for authorized Edubotics users, with a public careers section for job applicants.</p>
+    <p>Orbit is an operations workspace for authorized Edubotics users, with a public careers section for job applicants.</p>
     <h2 className="text-lg font-semibold">Using the service</h2>
     <p>Use your own authorized account, keep credentials confidential and report suspected unauthorized access to your administrator. Only access, download or change information you are permitted to handle. Do not upload malicious files, interfere with the service or submit information you have no right to share.</p>
     <h2 className="text-lg font-semibold">Job applications</h2>

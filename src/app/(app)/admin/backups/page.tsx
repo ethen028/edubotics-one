@@ -30,7 +30,7 @@ export default async function BackupsPage() {
     <>
       <PageHeader
         title="Backups"
-        subtitle="A full copy of Edubotics One every day: all records and every uploaded file (documents, receipts, resumes, photos). Only admins see this."
+        subtitle="A full copy of Orbit every day: all records and every uploaded file (documents, receipts, resumes, photos). Only admins see this."
       />
 
       {!dir ? (
@@ -56,7 +56,7 @@ export default async function BackupsPage() {
                   }`}
                 >
                   {problem.text}
-                  {problem.level === "red" && " Open a command window in the Edubotics One folder and run: docker compose up -d"}
+                  {problem.level === "red" && " Open a command window in the edubotics-one folder and run: docker compose up -d"}
                 </div>
               ) : null}
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -173,7 +173,7 @@ export default async function BackupsPage() {
                   Start the app again: <code className="rounded bg-slate-100 px-1.5 py-0.5">docker compose start app</code>
                 </li>
               </ol>
-              <p className="text-slate-600">Everyone signs in again afterwards. The full guide is docs/backups.md in the Edubotics One folder.</p>
+              <p className="text-slate-600">Everyone signs in again afterwards. The full guide is docs/backups.md in the edubotics-one folder.</p>
             </section>
           </div>
 

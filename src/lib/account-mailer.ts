@@ -31,7 +31,7 @@ export async function processRecoveryEmails() {
       const user = email ? await db.user.findUnique({ where: { email } }) : null;
       if (user?.active && !user.closedAt) {
         const raw = await issueAccountToken(user.id, "RESET_PASSWORD", user.email);
-        const result = await sendEmail({ kind: "ACCOUNT_SECURITY", to: [user.email], subject: "Reset your Edubotics One password",
+        const result = await sendEmail({ kind: "ACCOUNT_SECURITY", to: [user.email], subject: "Reset your Orbit password",
           message: `A password reset was requested for your account. This one-use link expires in 30 minutes:\n\n${origin}/reset-password?token=${raw}\n\nIf you did not request it, ignore this email.` }, settings, user.id);
         if ("error" in result) await db.accountToken.updateMany({ where: { tokenHash: tokenHash(raw) }, data: { usedAt: new Date() } });
         await db.activityLog.create({ data: { userId: user.id, area: "SIGN_IN", action: "password.reset-requested", summary: "An account recovery link was requested" } });

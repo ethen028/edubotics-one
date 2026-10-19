@@ -527,7 +527,7 @@ export default async function SettingsPage() {
           </p>
           <ActionForm action={updateGoogleSettings} className="space-y-3">
             <Field label="App address" className="block">
-              <input name="appAddress" defaultValue={s.appAddress ?? ""} className="input" placeholder="https://one.eduboticsglobal.com" />
+              <input name="appAddress" defaultValue={s.appAddress ?? ""} className="input" placeholder="https://orbit.eduboticsglobal.com" />
             </Field>
             {s.appAddress && (
               <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">

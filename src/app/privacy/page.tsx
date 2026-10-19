@@ -4,7 +4,7 @@ export const metadata = { title: "Privacy", robots: { index: true, follow: true 
 
 export default function PrivacyPage() {
   return <LegalPage title="Privacy notice">
-    <p>Edubotics One supports Edubotics Global’s internal operations and public job applications. This notice describes the information handled by this application.</p>
+    <p>Orbit supports Edubotics Global’s internal operations and public job applications. This notice describes the information handled by this application.</p>
     <h2 className="text-lg font-semibold">Information and purpose</h2>
     <p>When you apply for a job, we collect the contact details, application answers and resume you submit to assess your application and contact you about recruitment. Please avoid including sensitive information that is unnecessary for your application.</p>
     <p>For authorized staff, the workspace holds account details and work records such as attendance, leave, payroll, expenses, projects and business contacts. These support employment administration and daily business operations. Access depends on your account permissions.</p>
