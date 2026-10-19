@@ -7,6 +7,7 @@ import { NavGroup } from "@/components/nav-group";
 import { SectionTabs } from "@/components/section-tabs";
 import { CommandPalette } from "@/components/command-palette";
 import { Icon } from "@/components/icons";
+import { LogoMark } from "@/components/logo";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
 import { lowStockItems } from "@/lib/inventory";
@@ -84,7 +85,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         defaultCollapsed={user.menuCollapsed}
         header={
           <div className="flex items-center">
-            <div className="brand-mark">E</div>
+            <div className="brand-mark" role="img" aria-label="Edubotics">
+              <LogoMark />
+            </div>
             <div className="rail-hide ml-2 leading-tight">
               <div className="font-display text-sm font-semibold">Edubotics One</div>
               <div className="sidebar-muted text-[11px]">Global Operations</div>

@@ -9,22 +9,23 @@
 }
 
 @theme {
-  /* Violet look (18 Oct 2026), after Ethen's second reference dashboard: a violet icon rail, violet buttons and
-     tabs (brand-700 #5546f0), soft lavender page #f5f4fb, white cards, pale violet #ecebfe for selected backgrounds,
-     deep ink #1e1b3a text, slate #545a72 secondary text, lavender-grey #e6e4f2 borders. */
-  --color-brand-50: #f3f2ff;
-  --color-brand-100: #e8e6ff;
-  --color-brand-200: #d4cffe;
-  --color-brand-300: #b5acfc;
-  --color-brand-400: #8f82f8;
-  --color-brand-500: #7062f5;
-  --color-brand-600: #6253f3;
-  --color-brand-700: #5546f0;
-  --color-brand-800: #4537d0;
-  --color-brand-900: #372ca6;
-  --color-navy: #5546f0; /* the menu rail, banners and sign-in panel: the reference's violet */
-  --color-mint: #ecebfe;
-  --color-ink: #2e2591;
+  /* Violet look (18 Oct 2026), after Ethen's second reference dashboard, in the logo's electric purple (19 Oct 2026):
+     a purple icon rail, purple buttons and tabs (brand-700 #7c3aed), soft lavender page #f5f4fb, white cards, pale
+     violet #ede9fe for selected backgrounds, deep ink #1e1b3a text, slate #545a72 secondary text, lavender-grey #e6e4f2
+     borders. Lavender #a78bfa is the logo's support colour. */
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #9061f9;
+  --color-brand-600: #8b5cf6;
+  --color-brand-700: #7c3aed;
+  --color-brand-800: #6d28d9;
+  --color-brand-900: #5b21b6;
+  --color-navy: #7c3aed; /* the menu rail, banners and sign-in panel: the logo's purple */
+  --color-mint: #ede9fe;
+  --color-ink: #4c1d95;
   --color-slate-200: #e6e4f2;
   --color-slate-400: #646a85; /* faint helper text; darker than stock so it passes 4.5:1 on the page */
   --color-slate-500: #545a72;

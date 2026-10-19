@@ -12,7 +12,7 @@ Font.register({
 // Keep long words (school names, descriptions) whole instead of breaking them with hyphens.
 Font.registerHyphenationCallback((word) => [word]);
 
-export const BRAND = "#0a5a4d";
+export const BRAND = "#7c3aed"; // the logo's electric purple
 export const MUTED = "#64748b";
 export const LINE = "#e2e8f0";
 
