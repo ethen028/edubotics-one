@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { GOOGLE_ERRORS, googleSetup } from "@/lib/google-sign-in";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { LogoMark } from "@/components/logo";
 import { login } from "../actions";
 import Link from "next/link";
 
@@ -21,7 +22,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <div className="w-full max-w-sm">
             <div className="mb-8">
               <div className="mb-6 flex items-center gap-2.5">
-                <div className="brand-mark h-10 w-10 rounded-xl">E1</div>
+                <div className="brand-mark h-10 w-10 rounded-xl" role="img" aria-label="Edubotics">
+                  <LogoMark />
+                </div>
                 <span className="font-semibold">Edubotics One</span>
               </div>
               <h1 className="text-3xl font-bold tracking-tight">Sign in</h1>

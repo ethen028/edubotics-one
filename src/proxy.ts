@@ -44,7 +44,7 @@ function publicBoundary(request: NextRequest, requestHeaders: Headers) {
   if (request.method === "GET" || request.method === "HEAD") {
     if (pathname === "/") return NextResponse.redirect(new URL("/careers", request.url));
     if (pathname === "/careers" || pathname.startsWith("/careers/") || pathname.startsWith("/_next/static/") ||
-      ["/privacy", "/terms", "/cookies", "/robots.txt", "/sitemap.xml", "/icon.svg", "/favicon.ico", "/opengraph-image"].includes(pathname)) {
+      ["/privacy", "/terms", "/cookies", "/robots.txt", "/sitemap.xml", "/icon.svg", "/apple-icon.png", "/favicon.ico", "/opengraph-image"].includes(pathname)) {
       return next();
     }
     return notFound();

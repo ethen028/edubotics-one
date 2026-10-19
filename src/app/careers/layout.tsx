@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { careersSettings } from "@/lib/careers";
 import { PublicFooter } from "@/components/public-footer";
+import { LogoMark } from "@/components/logo";
 
 // The public jobs page. It sits outside the signed-in app (no sidebar, no login) and reads only
 // what src/lib/careers.ts lets it.
@@ -13,7 +14,9 @@ export default async function CareersLayout({ children }: LayoutProps<"/careers"
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-[var(--side-line)] bg-surface">
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-4">
-          <div className="brand-mark h-9 w-9">E</div>
+          <div className="brand-mark h-9 w-9" role="img" aria-label="Edubotics">
+            <LogoMark />
+          </div>
           <Link href="/careers" className="leading-tight">
             <div className="font-display font-semibold">{companyName}</div>
             <div className="text-xs text-slate-500">Careers</div>
