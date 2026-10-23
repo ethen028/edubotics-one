@@ -67,7 +67,12 @@ export async function endSessions(userId: string, exceptSessionId?: string) {
 
 /** The signed-in session and user (with their employee record), or null. Cached per request. */
 export const getCurrentSession = cache(async () => {
-  const token = (await cookies()).get(COOKIE)?.value;
+  // Native clients send the same signed session JWT as a Bearer token; browsers keep using the
+  // HTTP-only cookie. The session row remains authoritative, so ending a session revokes either.
+  const requestHeaders = await headers();
+  const authorization = requestHeaders.get("authorization");
+  const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const token = bearer ?? (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   let sid: string;
   try {

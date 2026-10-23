@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Edubotics One",
+    "slug": "edubotics-one-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "eduboticsone",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.eduboticsglobal.eduboticsone"
+    },
+    "android": {
+      "package": "com.eduboticsglobal.eduboticsone",
+      "versionCode": 1,
+      "permissions": [],
+      "adaptiveIcon": {
+        "backgroundColor": "#F5F8FF"
+      }
+    },
+    "plugins": ["expo-secure-store"],
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    }
+  }
+}
