@@ -14,7 +14,7 @@ Browser ──► src/proxy.ts ──► page.tsx (server component) ──► s
 
 | Layer | Used | Notes |
 | --- | --- | --- |
-| Framework | Next.js 16.3 App Router, React 19.2, TypeScript 5 (strict) | Read `node_modules/next/dist/docs/` before using a Next API; this version differs from older docs |
+| Framework | Next.js 16.4 App Router, React 19.2, TypeScript 5 (strict) | Read `node_modules/next/dist/docs/` before using a Next API; this version differs from older docs |
 | Styling | Tailwind CSS 4 | Tokens and component classes in `src/app/globals.css`, dark mode in `src/app/theme-dark.css` |
 | Database | PostgreSQL 16, Prisma 6 | `prisma/schema.prisma` (about 100 models), migrations in `prisma/migrations/` |
 | Auth | Own email + password | bcryptjs hashes; a `jose`-signed HTTP-only cookie names a `Session` row. Google sign-in is built but off (needs HTTPS) |
