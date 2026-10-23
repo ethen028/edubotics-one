@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/auth";
 import { allowRequest } from "@/lib/rate-limit";
 import { MAX_GROUP_TITLE, MAX_MESSAGE, directKey, loadMyConversation } from "@/lib/messages";
 import type { FormState } from "@/components/action-form";
+import { flash } from "@/lib/flash";
 
 function refresh(id?: string) {
   revalidatePath("/messages");
@@ -71,6 +72,7 @@ export async function createGroup(_: FormState, formData: FormData): Promise<For
     },
   });
   refresh();
+  await flash("Group created.");
   redirect(`/messages/${c.id}`);
 }
 
@@ -175,5 +177,6 @@ export async function leaveGroup(conversationId: string) {
     db.chatMessage.create({ data: { conversationId, senderId: user.id, event: true, body: `${user.name} left`, createdAt: now } }),
   ]);
   refresh(conversationId);
+  await flash("You left the group.");
   redirect("/messages");
 }

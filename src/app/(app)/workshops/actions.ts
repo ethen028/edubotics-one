@@ -28,6 +28,7 @@ import {
 } from "@/lib/workshops";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const optional = z
   .string()
@@ -122,6 +123,7 @@ export async function createWorkshop(_: FormState, formData: FormData): Promise<
     },
   });
   refresh();
+  await flash("Workshop added.");
   redirect(`/workshops/${w.id}`);
 }
 
@@ -164,6 +166,7 @@ export async function deleteWorkshop(id: string) {
   const workshop = await db.workshop.delete({ where: { id } });
   await logActivity(user, "DELETED", "workshop.deleted", `Deleted workshop ${workshop.title}`);
   refresh();
+  await flash("Workshop deleted.");
   redirect("/workshops");
 }
 
@@ -312,6 +315,7 @@ export async function deleteRegistration(id: string) {
   if (payments || marks || cert) throw new Error("This person has payments, attendance or a certificate. Cancel the registration instead.");
   await db.workshopRegistration.delete({ where: { id } });
   refresh(r.workshopId);
+  await flash("Participant removed.");
   redirect(`/workshops/${r.workshopId}`);
 }
 

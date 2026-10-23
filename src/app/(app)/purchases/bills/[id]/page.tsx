@@ -34,6 +34,7 @@ export default async function BillPage({ params }: PageProps<"/purchases/bills/[
     <>
       <PageHeader
         title={`Bill ${bill.billNo} · ${bill.vendor.name}`}
+        copy={bill.billNo}
         subtitle={<>Entered by {bill.by.name}, {formatDateTime(bill.createdAt)}</>}
         actions={
           <Link href="/purchases/payables" className="btn-secondary">

@@ -11,6 +11,7 @@ import { todayIST } from "@/lib/time";
 import { GST_RATES, INDIAN_STATES, computeTotals, formatMoney } from "@/lib/invoices";
 import { dealNote, markQuoteSent } from "@/lib/quote-send";
 import type { FormState } from "@/components/action-form";
+import { flash } from "@/lib/flash";
 
 const BILLING_ROLES = ["ADMIN", "MANAGER"] as const;
 
@@ -108,6 +109,7 @@ export async function createQuote(_: FormState, formData: FormData): Promise<For
     data: { ...form.data, createdById: user.id, lines: { create: form.lines } },
   });
   refresh();
+  await flash("Quote saved as a draft.");
   redirect(`/quotes/${quote.id}`);
 }
 
@@ -138,6 +140,7 @@ export async function deleteQuoteDraft(id: string) {
   await draft(id);
   await db.quote.delete({ where: { id } });
   refresh();
+  await flash("Draft quote deleted.");
   redirect("/quotes");
 }
 
@@ -257,5 +260,6 @@ export async function reviseQuote(id: string) {
     },
   });
   refresh(id);
+  await flash("New version of the quote made.");
   redirect(`/quotes/${copy.id}`);
 }

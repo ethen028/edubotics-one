@@ -50,6 +50,7 @@ export default async function OrderPage({ params }: PageProps<"/purchases/[id]">
     <>
       <PageHeader
         title={`${poNo(order.number)} · ${order.vendor.name}`}
+        copy={poNo(order.number)}
         subtitle={<>Raised by {order.requester.name}, {formatDateTime(order.createdAt)}</>}
         actions={
           <>

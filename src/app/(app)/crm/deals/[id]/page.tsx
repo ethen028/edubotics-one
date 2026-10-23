@@ -12,6 +12,7 @@ import { dealStageColor } from "../../constants";
 import { quoteState, quoteStateLabel } from "@/lib/quotes";
 import { todayIST } from "@/lib/time";
 import { ConfirmButton } from "@/components/action-form";
+import { ContactValue } from "@/components/copy-button";
 
 export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">) {
   const user = await requireUser();
@@ -69,7 +70,12 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
                 <Link href={`/crm/contacts/${deal.contact.id}`} className="link">
                   {deal.contact.name}
                 </Link>
-                {deal.contact.phone && ` (${deal.contact.phone})`}
+                {deal.contact.phone && (
+                  <>
+                    {" "}
+                    <ContactValue value={deal.contact.phone} kind="phone" />
+                  </>
+                )}
               </>
             )}
           </>

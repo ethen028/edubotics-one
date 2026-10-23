@@ -20,6 +20,7 @@ import {
 } from "@/lib/recruitment";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const optional = z
   .string()
@@ -87,6 +88,7 @@ export async function createJob(_: FormState, formData: FormData): Promise<FormS
   if (!parsed.success) return { error: firstError(parsed.error) };
   const job = await db.jobOpening.create({ data: { ...parsed.data, createdById: user.id } });
   refresh();
+  await flash("Job opening added.");
   redirect(`/recruitment/jobs/${job.id}`);
 }
 
@@ -158,6 +160,7 @@ export async function createCandidate(_: FormState, formData: FormData): Promise
     },
   });
   refresh(undefined, candidate.jobId);
+  await flash("Candidate added.");
   redirect(`/recruitment/candidates/${candidate.id}`);
 }
 
@@ -207,6 +210,7 @@ export async function deleteCandidate(id: string) {
   await db.candidate.delete({ where: { id } });
   await logActivity(user, "DELETED", "candidate.deleted", `Deleted candidate ${candidate.name} and their files`);
   refresh(undefined, candidate.jobId);
+  await flash("Candidate deleted.");
   redirect(`/recruitment/jobs/${candidate.jobId}`);
 }
 
@@ -461,5 +465,6 @@ export async function hireCandidate(candidateId: string, _: FormState, formData:
   refresh(candidateId, candidate.jobId);
   revalidatePath("/hr/employees");
   revalidatePath("/hr/onboarding");
+  await flash("Hired. Onboarding has started.");
   redirect(`/hr/employees/${employeeId}`);
 }

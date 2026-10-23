@@ -13,6 +13,7 @@ import { notify } from "@/lib/notifications";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
 import { formatDate } from "@/lib/format";
+import { flash } from "@/lib/flash";
 
 const optional = z
   .string()
@@ -77,6 +78,7 @@ export async function createProject(_: FormState, formData: FormData): Promise<F
     },
   });
   refresh();
+  await flash("Project created.");
   redirect(`/projects/${project.id}`);
 }
 
@@ -104,6 +106,7 @@ export async function deleteProject(id: string) {
   const project = await db.project.delete({ where: { id } });
   await logActivity(admin, "DELETED", "project.deleted", `Deleted project ${project.name}`);
   refresh();
+  await flash("Project deleted.");
   redirect("/projects");
 }
 

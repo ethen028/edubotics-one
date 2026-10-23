@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/auth";
 import { MAX_DOCUMENT_BYTES, sniffMime } from "@/lib/hr-constants";
 import { canEditNotice } from "@/lib/notices";
 import type { FormState } from "@/components/action-form";
+import { flash } from "@/lib/flash";
 
 const optionalDate = z
   .string()
@@ -69,6 +70,7 @@ export async function createNotice(_: FormState, formData: FormData): Promise<Fo
     },
   });
   refresh();
+  await flash("Notice posted.");
   redirect(`/notices/${notice.id}`);
 }
 
@@ -109,6 +111,7 @@ export async function updateNotice(id: string, _: FormState, formData: FormData)
       : []),
   ]);
   refresh(id);
+  await flash("Notice updated.");
   redirect(`/notices/${id}`);
 }
 

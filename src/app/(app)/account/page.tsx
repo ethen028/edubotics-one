@@ -15,6 +15,7 @@ const THEMES = [
   { value: "SYSTEM", label: "Match my device" },
 ] as const;
 import { requestEmailVerification } from "../../account-actions";
+import { PasswordInput } from "@/components/password-input";
 
 export const metadata = { title: "My account" };
 
@@ -36,13 +37,13 @@ export default async function AccountPage() {
         <ActionForm action={changePassword} className="card space-y-3 self-start">
           <h2 className="font-semibold">Change password</h2>
           <Field label="Current password" className="block">
-            <input name="current" type="password" required autoComplete="current-password" className="input" />
+            <PasswordInput name="current" required autoComplete="current-password" className="input" />
           </Field>
           <Field label="New password" className="block">
-            <input name="password" type="password" required minLength={8} autoComplete="new-password" className="input" />
+            <PasswordInput name="password" required minLength={8} autoComplete="new-password" className="input" />
           </Field>
           <Field label="New password again" className="block">
-            <input name="confirm" type="password" required minLength={8} autoComplete="new-password" className="input" />
+            <PasswordInput name="confirm" required minLength={8} autoComplete="new-password" className="input" />
           </Field>
           <p className="text-xs text-slate-500">{PASSWORD_RULES} Changing it signs you out on your other devices.</p>
           <SubmitButton>Change password</SubmitButton>

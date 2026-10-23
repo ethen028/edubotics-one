@@ -10,6 +10,7 @@ import { dateKey } from "@/lib/attendance";
 import { formatDate } from "@/lib/format";
 import { canLogSession, canManageProgramme, findClashes } from "@/lib/operations";
 import type { FormState } from "@/components/action-form";
+import { flash } from "@/lib/flash";
 
 const optional = z
   .string()
@@ -86,6 +87,7 @@ export async function createProgramme(_: FormState, formData: FormData): Promise
   if (data.startDate && data.endDate && data.endDate < data.startDate) return { error: "End date is before the start date." };
   const programme = await db.programme.create({ data });
   refresh();
+  await flash("Programme added.");
   redirect(`/operations/programmes/${programme.id}`);
 }
 
@@ -113,6 +115,7 @@ export async function deleteProgramme(id: string) {
   await requireUser(["ADMIN"]);
   await db.programme.delete({ where: { id } });
   refresh();
+  await flash("Programme deleted.");
   redirect("/operations/programmes");
 }
 
@@ -277,5 +280,6 @@ export async function deleteSession(id: string) {
   await managedProgramme(user, session.programmeId);
   await db.programmeSession.delete({ where: { id } });
   refresh(session.programmeId);
+  await flash("Session deleted.");
   redirect(`/operations/programmes/${session.programmeId}`);
 }

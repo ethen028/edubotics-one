@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { defaultReviewer, reviewFor } from "@/lib/reviews";
 import type { FormState } from "@/components/action-form";
+import { flash } from "@/lib/flash";
 
 function refresh(reviewId?: string, cycleId?: string, employeeId?: string) {
   revalidatePath("/hr/reviews");
@@ -71,6 +72,7 @@ export async function createCycle(_: FormState, formData: FormData): Promise<For
     throw e;
   }
   refresh();
+  await flash("Review cycle started.");
   redirect(`/hr/reviews/cycles/${id}`);
 }
 

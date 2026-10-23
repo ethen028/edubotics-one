@@ -15,6 +15,7 @@ import { canApproveOrder, RECEIVABLE_STATUSES, BILLABLE_STATUSES, settledByBill 
 import { COMPANY_STATE, GST_RATES, INDIAN_STATES, PAYMENT_METHODS, orderTotals, poNo, round2 } from "@/lib/purchase-math";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const optional = z
   .string()
@@ -203,6 +204,7 @@ export async function createOrder(_: FormState, formData: FormData): Promise<For
     },
   });
   refresh({ projectId: data.projectId });
+  await flash("Purchase order saved.");
   redirect(`/purchases/${order.id}`);
 }
 
@@ -363,6 +365,7 @@ export async function createBill(_: FormState, formData: FormData): Promise<Form
     throw e;
   }
   refresh({ vendorId: vendor.id, orderId: data.orderId ?? undefined });
+  await flash("Vendor bill saved.");
   redirect(`/purchases/bills/${bill.id}`);
 }
 

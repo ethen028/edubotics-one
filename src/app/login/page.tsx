@@ -6,6 +6,7 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { LogoMark } from "@/components/logo";
 import { login } from "../actions";
 import Link from "next/link";
+import { PasswordInput } from "@/components/password-input";
 
 export const metadata = { title: "Sign in" };
 
@@ -54,7 +55,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
               </label>
               <label className="block">
                 <span className="label">Password</span>
-                <input name="password" type="password" required autoComplete="current-password" className="input" />
+                <PasswordInput name="password" required autoComplete="current-password" className="input" />
               </label>
               <SubmitButton className="btn-primary w-full py-2.5" pendingLabel="Signing in…">
                 Sign in

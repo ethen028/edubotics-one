@@ -22,6 +22,7 @@ import {
   updateRegistration,
 } from "../../actions";
 import { emailCertificate, emailReceipt } from "../../../emails/actions";
+import { CopyButton } from "@/components/copy-button";
 
 export const metadata = { title: "Participant" };
 
@@ -150,7 +151,7 @@ export default async function RegistrationPage({ params, searchParams }: PagePro
                     <li key={p.id} className="py-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className={p.cancelledAt ? "text-slate-400" : undefined}>
-                          <span className="font-medium">{p.number}</span> · <span className={p.cancelledAt ? "line-through" : undefined}>{formatINR(p.amount)}</span> on{" "}
+                          <span className="font-medium">{p.number}</span> <CopyButton value={p.number} label="Copy receipt number" /> · <span className={p.cancelledAt ? "line-through" : undefined}>{formatINR(p.amount)}</span> on{" "}
                           {formatDate(p.paidOn)} · {methodLabel[p.method]}
                           {p.reference && ` · ${p.reference}`}
                           <span className="text-xs text-slate-500"> · recorded by {p.recordedBy.name}</span>{" "}
@@ -240,7 +241,7 @@ export default async function RegistrationPage({ params, searchParams }: PagePro
             {cert ? (
               <>
                 <p>
-                  <strong>{cert.number}</strong>, issued {formatDate(cert.issuedOn)}{" "}
+                  <strong>{cert.number}</strong> <CopyButton value={cert.number} label="Copy certificate number" />, issued {formatDate(cert.issuedOn)}{" "}
                   {cert.status === "CANCELLED" && <Badge color="red">Cancelled</Badge>}
                 </p>
                 {cert.status === "CANCELLED" && <p className="text-xs text-slate-500">“{cert.cancelReason}”</p>}
