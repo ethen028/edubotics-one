@@ -12,6 +12,7 @@ import { CandidateForm } from "../../forms";
 import { deleteCandidate, updateCandidate } from "../../actions";
 import { StageBadge } from "../../ui";
 import { ConfirmButton } from "@/components/action-form";
+import { ContactValue } from "@/components/copy-button";
 import {
   FilesList,
   HireForm,
@@ -218,9 +219,9 @@ export default async function CandidatePage({ params }: PageProps<"/recruitment/
             <h2 className="mb-3 font-semibold">Details</h2>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
               <dt className="text-slate-500">Phone</dt>
-              <dd>{candidate.phone ? <a href={`tel:${candidate.phone}`} className="link">{candidate.phone}</a> : "—"}</dd>
+              <dd><ContactValue value={candidate.phone} kind="phone" /></dd>
               <dt className="text-slate-500">Email</dt>
-              <dd className="break-all">{candidate.email ? <a href={`mailto:${candidate.email}`} className="link">{candidate.email}</a> : "—"}</dd>
+              <dd className="break-all"><ContactValue value={candidate.email} kind="email" /></dd>
               <dt className="text-slate-500">City</dt>
               <dd>{candidate.city ?? "—"}</dd>
               <dt className="text-slate-500">Now</dt>

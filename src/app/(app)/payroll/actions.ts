@@ -11,6 +11,7 @@ import { claimsDueFor, draftSlip } from "@/lib/payroll-data";
 import { payableOf } from "@/lib/expenses";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const money = z.coerce.number().min(0, "Amounts can't be negative").max(10_000_000);
 
@@ -89,6 +90,7 @@ export async function startRun(_: FormState, formData: FormData): Promise<FormSt
   for (const e of await employeesFor(month)) await createSlip(run.id, month, e);
   revalidatePath("/payroll");
   revalidatePath("/expenses", "layout");
+  await flash("Payroll run started.");
   redirect(`/payroll/${month}`);
 }
 
@@ -200,5 +202,6 @@ export async function deleteRun(runId: string) {
   await logActivity(await requireUser(["ADMIN"]), "PAYROLL", "payroll.deleted", `Deleted the draft payroll for ${run.month}`);
   revalidatePath("/payroll");
   revalidatePath("/expenses", "layout");
+  await flash("Payroll run deleted.");
   redirect("/payroll");
 }

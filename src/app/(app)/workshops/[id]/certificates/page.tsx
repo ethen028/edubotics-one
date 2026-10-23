@@ -12,6 +12,7 @@ import { canManageWorkshop, dateSpan, standing } from "@/lib/workshops";
 import { issueCertificates } from "../../actions";
 import { emailWorkshopCertificates } from "../../../emails/actions";
 import { loadWorkshop } from "../../data";
+import { CopyButton } from "@/components/copy-button";
 
 export const metadata = { title: "Certificates" };
 
@@ -107,6 +108,7 @@ export default async function WorkshopCertificatesPage({ params }: PageProps<"/w
                           <a href={`/workshops/certificates/${r.certificate!.id}/pdf`} target="_blank" className="link whitespace-nowrap">
                             {r.certificate!.number}
                           </a>
+                          <CopyButton value={r.certificate!.number} label="Copy certificate number" />
                         </td>
                         <td className="whitespace-nowrap">{formatDate(r.certificate!.issuedOn)}</td>
                         <td className="text-xs">

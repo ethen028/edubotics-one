@@ -61,6 +61,7 @@ export default async function InvoicePage({ params }: PageProps<"/invoices/[id]"
       <div className="print:hidden">
         <PageHeader
           title={invoice.number ?? "Draft invoice"}
+          copy={invoice.number}
           subtitle={
             <>
               <Badge color={payStateColor[state]}>{payStateLabel[state]}</Badge>{" "}

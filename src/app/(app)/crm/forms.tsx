@@ -33,7 +33,7 @@ function OwnerSelect({ users, value }: { users: Option[]; value?: string | null 
 export function LeadForm({ action, lead, users }: { action: Action; lead?: Lead; users: Option[] }) {
   const converted = lead?.status === "CONVERTED";
   return (
-    <ActionForm action={action} className="card space-y-4">
+    <ActionForm action={action} className="card space-y-4" draft={lead ? undefined : "new-lead"}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Person's name *">
           <input name="name" required defaultValue={lead?.name} className="input" />
@@ -84,7 +84,7 @@ export function LeadForm({ action, lead, users }: { action: Action; lead?: Lead;
 
 export function OrganizationForm({ action, org, users }: { action: Action; org?: Organization; users: Option[] }) {
   return (
-    <ActionForm action={action} className="card space-y-4">
+    <ActionForm action={action} className="card space-y-4" draft={org ? undefined : "new-institution"}>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="Name *" className="sm:col-span-2">
           <input name="name" required defaultValue={org?.name} className="input" />
@@ -206,7 +206,7 @@ export function DealForm({
   defaultOrganizationId?: string;
 }) {
   return (
-    <ActionForm action={action} className="card space-y-4">
+    <ActionForm action={action} className="card space-y-4" draft={deal ? undefined : `new-deal${defaultOrganizationId ? `-${defaultOrganizationId}` : ""}`}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Deal title *" className="sm:col-span-2">
           <input name="title" required defaultValue={deal?.title} className="input" placeholder="Robotics lab setup 2026-27" />

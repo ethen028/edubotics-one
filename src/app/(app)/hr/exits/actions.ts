@@ -14,6 +14,7 @@ import { EXIT_REASONS, EXIT_TASK_CATEGORIES, EXIT_TASK_TEMPLATE } from "@/lib/ex
 import { OPEN_PROJECT_STAGES } from "@/lib/projects";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const date = dateOnlyInput;
 const text = (max: number) =>
@@ -87,6 +88,7 @@ export async function submitResignation(_: FormState, formData: FormData): Promi
     },
   });
   refresh(exit.id, employee.id);
+  await flash("Resignation sent for approval.");
   redirect(`/hr/exits/${exit.id}`);
 }
 
@@ -124,6 +126,7 @@ export async function startExit(_: FormState, formData: FormData): Promise<FormS
   });
   await putOnNotice(exit.id, employee.id, d.lastWorkingDay, user.id);
   refresh(exit.id, employee.id);
+  await flash("Exit started.");
   redirect(`/hr/exits/${exit.id}`);
 }
 

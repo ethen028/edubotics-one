@@ -22,6 +22,7 @@ import { mailSetup } from "@/lib/mail";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui";
 import { EmailHistory, emailLogSelect } from "@/components/email";
+import { PasswordInput } from "@/components/password-input";
 
 export const metadata = { title: "Settings" };
 
@@ -313,9 +314,8 @@ export default async function SettingsPage() {
                 <input name="smtpUser" defaultValue={s.smtpUser ?? ""} className="input" autoComplete="off" placeholder="accounts@yourdomain.com" />
               </Field>
               <Field label="Password">
-                <input
+                <PasswordInput
                   name="smtpPassword"
-                  type="password"
                   className="input"
                   autoComplete="new-password"
                   placeholder={s.smtpPassword ? "Saved. Leave blank to keep it" : "App password"}
@@ -539,9 +539,8 @@ export default async function SettingsPage() {
               <input name="googleClientId" defaultValue={s.googleClientId ?? ""} className="input" placeholder="1234567890-abc.apps.googleusercontent.com" />
             </Field>
             <Field label="Client secret" className="block">
-              <input
+              <PasswordInput
                 name="googleClientSecret"
-                type="password"
                 autoComplete="off"
                 className="input"
                 placeholder={s.googleClientSecret ? "Saved. Type a new one to replace it." : "GOCSPX-…"}

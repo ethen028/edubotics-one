@@ -60,6 +60,7 @@ export default async function QuotePage({ params }: PageProps<"/quotes/[id]">) {
       <div className="print:hidden">
         <PageHeader
           title={quote.number ?? "Draft quote"}
+          copy={quote.number}
           subtitle={
             <>
               <Badge color={quoteStateColor[state]}>{quoteStateLabel[state]}</Badge>{" "}

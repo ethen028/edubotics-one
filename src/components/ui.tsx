@@ -1,14 +1,18 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icon } from "./icons";
+import { CopyButton } from "./copy-button";
 
 export function PageHeader({
   title,
   subtitle,
   actions,
   eyebrow,
+  copy,
 }: {
   title: string;
+  /** A number worth pasting elsewhere (EBG/26-27/001); shows a copy button beside the title. */
+  copy?: string | null;
   subtitle?: ReactNode;
   actions?: ReactNode;
   eyebrow?: string;
@@ -19,7 +23,10 @@ export function PageHeader({
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
         {eyebrow && <div className="eyebrow mb-1 text-brand-700">{eyebrow}</div>}
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
+        <h1 className="flex flex-wrap items-center gap-1.5 text-2xl font-bold tracking-tight text-slate-900">
+          {title}
+          {copy && <CopyButton value={copy} label="Copy number" />}
+        </h1>
         {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}

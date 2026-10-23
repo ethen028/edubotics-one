@@ -19,7 +19,7 @@ export function JobForm({
   users: Option[];
 }) {
   return (
-    <ActionForm action={action} className="card space-y-4">
+    <ActionForm action={action} className="card space-y-4" draft={job ? undefined : "new-job"}>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Job title *">
           <input name="title" required defaultValue={job?.title} className="input" placeholder="Robotics Trainer" />
@@ -103,7 +103,7 @@ export function CandidateForm({
   withResume?: boolean;
 }) {
   return (
-    <ActionForm action={action} className="card space-y-4">
+    <ActionForm action={action} className="card space-y-4" draft={candidate ? undefined : `new-candidate${jobId ? `-${jobId}` : ""}`}>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="Applying for *">
           <select name="jobId" required defaultValue={candidate?.jobId ?? jobId ?? ""} className="input">

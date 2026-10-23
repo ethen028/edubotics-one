@@ -11,6 +11,7 @@ import { EmployeeForm } from "../../employee-form";
 import { updateEmployee } from "../../actions";
 import { LeaveStatusBadge } from "../../leave/status-badge";
 import { AssetsSection, DocumentsSection, OnboardingSection, ReviewsSection, SalarySection, TrainingSection } from "./sections";
+import { ContactValue } from "@/components/copy-button";
 
 export default async function EmployeePage({ params }: PageProps<"/hr/employees/[id]">) {
   const user = await requireUser();
@@ -105,9 +106,13 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
           <h2 className="mb-3 font-semibold">Overview</h2>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
             <dt className="text-slate-500">Email</dt>
-            <dd>{employee.workEmail}</dd>
+            <dd className="min-w-0">
+              <ContactValue value={employee.workEmail} kind="email" />
+            </dd>
             <dt className="text-slate-500">Phone</dt>
-            <dd>{employee.phone ?? "—"}</dd>
+            <dd>
+              <ContactValue value={employee.phone} kind="phone" />
+            </dd>
             <dt className="text-slate-500">Reports to</dt>
             <dd>
               {employee.manager ? (

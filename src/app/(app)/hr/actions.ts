@@ -15,6 +15,7 @@ import { getLeaveBalances } from "@/lib/leave-balance";
 import { getSettings } from "@/lib/settings";
 import { checklistRows } from "@/lib/hr-constants";
 import type { FormState } from "@/components/action-form";
+import { flash } from "@/lib/flash";
 
 const optional = z
   .string()
@@ -115,6 +116,7 @@ export async function createEmployee(_: FormState, formData: FormData): Promise<
     return { error: uniqueError(e) ?? "Could not save the employee." };
   }
   revalidatePath("/hr/employees");
+  await flash("Employee added.");
   redirect(`/hr/employees/${id}`);
 }
 

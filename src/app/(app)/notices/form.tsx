@@ -17,7 +17,7 @@ export function NoticeForm({
 }) {
   const policy = kind === "POLICY";
   return (
-    <ActionForm action={action} className="card space-y-4">
+    <ActionForm action={action} className="card space-y-4" draft={notice ? undefined : `new-notice-${kind}`}>
       <input type="hidden" name="kind" value={kind} />
       <Field label="Title">
         <input

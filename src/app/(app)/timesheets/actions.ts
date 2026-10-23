@@ -18,6 +18,7 @@ import { overlapping, workedMinutes } from "@/lib/daily-log";
 import { notify } from "@/lib/notifications";
 import { formatDate } from "@/lib/format";
 import type { FormState } from "@/components/action-form";
+import { flash } from "@/lib/flash";
 
 function refresh() {
   revalidatePath("/timesheets", "layout");
@@ -240,6 +241,7 @@ export async function updateEntry(id: string, _: FormState, formData: FormData):
   });
   if (clash) return { error: clash };
   refresh();
+  await flash("Time entry saved.");
   redirect(`/timesheets?week=${toDateInput(entry.timesheet.weekStart)}`);
 }
 

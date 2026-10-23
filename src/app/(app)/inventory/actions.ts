@@ -10,6 +10,7 @@ import { optionalDateOnlyInput } from "@/lib/date-input";
 import { projectScope } from "@/lib/projects";
 import { INVENTORY_CATEGORIES, STOCK_UNITS, canApproveRequest, outstanding, requestNo } from "@/lib/inventory";
 import type { FormState } from "@/components/action-form";
+import { flash } from "@/lib/flash";
 
 const optional = z
   .string()
@@ -182,6 +183,7 @@ export async function createRequest(_: FormState, formData: FormData): Promise<F
     },
   });
   refresh({ projectId: data.projectId });
+  await flash("Stock request sent.");
   redirect(`/inventory/requests/${request.id}`);
 }
 

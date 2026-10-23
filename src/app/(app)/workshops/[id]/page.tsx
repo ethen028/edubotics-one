@@ -30,6 +30,7 @@ import {
 } from "../actions";
 import { loadWorkshop, workshopFormOptions, type LoadedWorkshop } from "../data";
 import { WorkshopBadge, WorkshopForm, type WorkshopValues } from "../ui";
+import { CopyButton } from "@/components/copy-button";
 
 export const metadata = { title: "Workshop" };
 
@@ -217,6 +218,7 @@ export default async function WorkshopPage({ params }: PageProps<"/workshops/[id
                               <a href={`/workshops/certificates/${r.certificate.id}/pdf`} target="_blank" className="link whitespace-nowrap">
                                 {r.certificate.number}
                               </a>
+                              <CopyButton value={r.certificate.number} label="Copy certificate number" />
                               <div className="text-slate-500">
                                 {r.certificate.status === "CANCELLED" ? "Cancelled" : r.certificate.emails.length ? "Emailed" : "Not emailed yet"}
                               </div>

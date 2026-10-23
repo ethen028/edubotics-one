@@ -49,6 +49,7 @@ export default async function CreditNotePage({ params }: PageProps<"/credit-note
       <div className="print:hidden">
         <PageHeader
           title={note.number}
+          copy={note.number}
           subtitle={
             <>
               <Badge color={live ? "purple" : "gray"}>{live ? "Credit note" : "Cancelled"}</Badge> against invoice{" "}

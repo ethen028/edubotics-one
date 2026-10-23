@@ -12,6 +12,7 @@ import { GST_RATES, INDIAN_STATES, PAYMENT_METHODS, computeTotals, financialYear
 import { invoiceMoney } from "@/lib/credit-notes";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const BILLING_ROLES = ["ADMIN", "MANAGER"] as const;
 
@@ -114,6 +115,7 @@ export async function createInvoice(_: FormState, formData: FormData): Promise<F
     data: { ...form.data, createdById: user.id, lines: { create: form.lines } },
   });
   refresh();
+  await flash("Invoice saved as a draft.");
   redirect(`/invoices/${invoice.id}`);
 }
 
@@ -142,6 +144,7 @@ export async function deleteDraft(id: string) {
   await draft(id);
   await db.invoice.delete({ where: { id } });
   refresh();
+  await flash("Draft invoice deleted.");
   redirect("/invoices");
 }
 

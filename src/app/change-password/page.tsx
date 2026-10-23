@@ -3,6 +3,7 @@ import { getCurrentSession } from "@/lib/auth";
 import { PASSWORD_RULES } from "@/lib/passwords";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { changePassword, logout } from "../actions";
+import { PasswordInput } from "@/components/password-input";
 
 export const metadata = { title: "Choose a new password" };
 
@@ -25,15 +26,15 @@ export default async function ChangePasswordPage() {
           <input type="hidden" name="then" value="home" />
           <label className="block">
             <span className="label">Current password</span>
-            <input name="current" type="password" required autoComplete="current-password" className="input" />
+            <PasswordInput name="current" required autoComplete="current-password" className="input" />
           </label>
           <label className="block">
             <span className="label">New password</span>
-            <input name="password" type="password" required minLength={8} autoComplete="new-password" className="input" />
+            <PasswordInput name="password" required minLength={8} autoComplete="new-password" className="input" />
           </label>
           <label className="block">
             <span className="label">New password again</span>
-            <input name="confirm" type="password" required minLength={8} autoComplete="new-password" className="input" />
+            <PasswordInput name="confirm" required minLength={8} autoComplete="new-password" className="input" />
           </label>
           <p className="text-xs text-slate-500">{PASSWORD_RULES}</p>
           <SubmitButton className="btn-primary w-full">Save and continue</SubmitButton>

@@ -10,6 +10,7 @@ import { convertLead, deleteLead, updateLead } from "../../actions";
 import { activeUsers, orgOptions } from "../../data";
 import { ActivityPanel, activityInclude } from "../../activity-panel";
 import { ORG_TYPES, leadStatusColor } from "../../constants";
+import { ContactValue } from "@/components/copy-button";
 
 export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">) {
   const user = await requireUser();
@@ -35,6 +36,12 @@ export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">)
           <>
             {lead.organizationName && `${lead.organizationName} · `}
             <Badge color={leadStatusColor[lead.status]}>{humanize(lead.status)}</Badge>
+            {(lead.phone || lead.email) && (
+              <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                {lead.phone && <ContactValue value={lead.phone} kind="phone" />}
+                {lead.email && <ContactValue value={lead.email} kind="email" />}
+              </span>
+            )}
           </>
         }
         actions={

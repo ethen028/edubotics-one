@@ -6,6 +6,11 @@ import { Sidebar } from "@/components/sidebar";
 import { NavGroup } from "@/components/nav-group";
 import { SectionTabs } from "@/components/section-tabs";
 import { CommandPalette } from "@/components/command-palette";
+import { BackToTop, OfflineNote } from "@/components/page-touches";
+import { FlashNotice } from "@/components/flash-notice";
+import { DraftOwnerProvider } from "@/components/action-form";
+import { FLASH_COOKIE } from "@/lib/flash";
+import { cookies } from "next/headers";
 import { Icon } from "@/components/icons";
 import { LogoMark } from "@/components/logo";
 import { humanize } from "@/lib/format";
@@ -78,6 +83,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     { n: myInterviews, label: `${myInterviews} interview${myInterviews === 1 ? "" : "s"}`, href: "/recruitment/interviews" },
   ].filter((w) => w.n > 0);
   const dark = user.theme === "DARK";
+  const flashed = (await cookies()).get(FLASH_COOKIE)?.value;
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -145,7 +151,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <div className="mx-auto max-w-[1400px]">
           <header className="topbar">
             <div className="min-w-0 flex-1">
-              <CommandPalette groups={groups} />
+              <CommandPalette groups={groups} userId={user.id} />
             </div>
             <div className="flex items-center gap-2">
               <form action={setAppearance} className="theme-pill" aria-label="Colours">
@@ -189,8 +195,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             </div>
           )}
           <SectionTabs groups={groups} />
-          <div className="md:px-4 md:pt-1 md:pb-6">{children}</div>
+          <div className="md:px-4 md:pt-1 md:pb-6">
+            <DraftOwnerProvider userId={user.id}>{children}</DraftOwnerProvider>
+          </div>
         </div>
+        <BackToTop />
+        <OfflineNote />
+        <FlashNotice initial={flashed} />
       </main>
     </div>
   );
