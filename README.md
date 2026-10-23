@@ -47,6 +47,10 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 
 **Roles**: `ADMIN` (HR records, assets, document verification and settings), `MANAGER` (approves their team's leave and attendance fixes, runs their onboarding and training), `EMPLOYEE`. Everyone can use the CRM; only admins delete CRM records.
 
+## Docs for developers and coding agents
+
+Start with [AGENTS.md](AGENTS.md). It links the product brief ([docs/PRD.md](docs/PRD.md)), [architecture](docs/ARCHITECTURE.md), [design system](docs/DESIGN_SYSTEM.md), [code style](docs/CODE_STYLE.md), [security rules](docs/SECURITY.md) and [testing](docs/TESTING.md).
+
 ## Tech
 
 Next.js 16 (App Router, server actions) · TypeScript · Tailwind CSS 4 · PostgreSQL · Prisma 6. Sign-in is email + password with a signed, HTTP-only session cookie.
