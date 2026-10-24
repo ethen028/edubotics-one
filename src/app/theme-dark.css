@@ -6,42 +6,46 @@
 @media screen {
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) {
     color-scheme: dark;
-    --page-bg: #0e1420;
-    --line: #263044;
-    --color-surface: #161d2b;
-    --color-navy: #221c4f; /* deep violet menu rail */
-    /* Selected backgrounds: deep violet with pale violet text. */
-    --color-mint: #2a2363;
-    --color-ink: #dcd8ff;
-    --tint-2: #221d4a;
+    --logo-top: #f4f8f8;
+    --logo-bottom-from: #8fe0df;
+    --logo-bottom-to: #8fe0df;
+    --logo-spark: #ff8a3d;
+    --page-bg: #0c1517;
+    --line: #22343a;
+    --color-surface: #132126;
+    --color-navy: #0d3139; /* deep teal-navy menu rail */
+    /* Selected backgrounds: deep teal with pale teal text. */
+    --color-mint: #123c42;
+    --color-ink: #c9f0ef;
+    --tint-2: #112f31;
     --tint-3: #18213a;
     --tint-4: #2a2416;
-    --tint-line-2: #312a66;
+    --tint-line-2: #1c4a4c;
     --tint-line-3: #263256;
     --tint-line-4: #3d3420;
 
-    --color-slate-50: #1a2232;
-    --color-slate-100: #212a3c;
-    --color-slate-200: #2b3549;
-    --color-slate-300: #3a465c;
-    --color-slate-400: #8390a5;
-    --color-slate-500: #97a3b6;
-    --color-slate-600: #b3bdcc;
-    --color-slate-700: #cad2dd;
-    --color-slate-800: #dde3ea;
-    --color-slate-900: #ecf0f4;
-    --color-slate-950: #f6f8fa;
+    --color-slate-50: #172427;
+    --color-slate-100: #1d2c30;
+    --color-slate-200: #27393e;
+    --color-slate-300: #36494f;
+    --color-slate-400: #7f969b;
+    --color-slate-500: #94a9ad;
+    --color-slate-600: #b1c2c5;
+    --color-slate-700: #c8d5d7;
+    --color-slate-800: #dce5e6;
+    --color-slate-900: #ebf1f2;
+    --color-slate-950: #f5f8f8;
 
-    /* Violet: pale tints darken, link and heading shades lighten, the button violet stays strong. */
-    --color-brand-50: #22163f;
-    --color-brand-100: #2c1b55;
-    --color-brand-200: #3a2272;
-    --color-brand-300: #5129a0;
-    --color-brand-500: #9061f9;
-    --color-brand-600: #8b5cf6;
-    --color-brand-700: #c4b5fd;
-    --color-brand-800: #ddd6fe;
-    --color-brand-900: #ede9fe;
+    /* Teal: pale tints darken, link and heading shades lighten, the button teal stays strong. */
+    --color-brand-50: #0f2a2e;
+    --color-brand-100: #12363b;
+    --color-brand-200: #164a50;
+    --color-brand-300: #1b6a70;
+    --color-brand-500: #2bb8bc;
+    --color-brand-600: #11808a;
+    --color-brand-700: #6fd6d4;
+    --color-brand-800: #a6e8e6;
+    --color-brand-900: #d5f3f2;
 
     --color-red-50: color-mix(in oklab, oklch(25.8% 0.092 26.042) 45%, var(--color-surface));
     --color-red-100: color-mix(in oklab, oklch(25.8% 0.092 26.042) 80%, var(--color-surface));
@@ -153,28 +157,28 @@
     --color-rose-950: oklch(96.9% 0.015 12.422);
   }
 
-  /* Panels that stay violet in both looks keep the light-look colours inside them. */
+  /* Panels that stay teal-navy in both looks keep the light-look colours inside them. */
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .brand-mark, .avatar, .recognition-spotlight-avatar, .nav-badge, .sidebar-collapse, .theme-pill, .section-tab[data-active], .sidebar .nav-link[data-active], .sidebar .nav-group[data-here]) {
-    --color-brand-50: #f5f3ff;
-    --color-brand-100: #ede9fe;
-    --color-brand-300: #c4b5fd;
-    --color-brand-500: #9061f9;
-    --color-brand-600: #8b5cf6;
-    --color-brand-700: #7c3aed;
-    --color-brand-800: #6d28d9;
-    --color-brand-900: #5b21b6;
+    --color-brand-50: #f0fafa;
+    --color-brand-100: #e0f5f4;
+    --color-brand-300: #8fe0df;
+    --color-brand-500: #14a3a8;
+    --color-brand-600: #11808a;
+    --color-brand-700: #0e7480;
+    --color-brand-800: #0f5b66;
+    --color-brand-900: #0a3d47;
     --color-red-200: oklch(88.5% 0.062 18.334);
     --color-amber-200: oklch(92.4% 0.12 95.746);
-    --color-mint: #ede9fe;
-    --color-navy: #5b21b6; /* a step lighter than the dark page, so the banner still stands out */
+    --color-mint: #e0f5f4;
+    --color-navy: #0f4a55; /* a step lighter than the dark page, so the banner still stands out */
   }
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .cal-tile {
-    --color-mint: #ede9fe;
-    --color-ink: #4c1d95;
+    --color-mint: #e0f5f4;
+    --color-ink: #0a3d47;
   }
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .btn-primary {
-    --color-brand-700: #7c3aed;
-    --color-brand-800: #6d28d9;
+    --color-brand-700: #0e7480;
+    --color-brand-800: #0f5b66;
   }
   /* Small count pills: dark text on a bright pill, as in the light look. */
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .bg-amber-400 {

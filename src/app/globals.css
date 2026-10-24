@@ -2,47 +2,54 @@
 @import "./theme-dark.css";
 
 @theme inline {
-  /* Orbit look (Oct 2026): violet icon rail and buttons after Ethen's second reference dashboard,
-     big soft white cards, pill buttons, Plus Jakarta Sans, pale violet selections. */
+  /* Orbit look (Oct 2026): coloured icon rail and buttons after Ethen's second reference dashboard,
+     big soft white cards, pill buttons, Plus Jakarta Sans, pale tinted selections. */
   --font-sans: var(--font-jakarta);
   --font-display: var(--font-jakarta);
 }
 
 @theme {
-  /* Violet look (18 Oct 2026), after Ethen's second reference dashboard, in the logo's electric purple (19 Oct 2026):
-     a purple icon rail, purple buttons and tabs (brand-700 #7c3aed), soft lavender page #f5f4fb, white cards, pale
-     violet #ede9fe for selected backgrounds, deep ink #1e1b3a text, slate #545a72 secondary text, lavender-grey #e6e4f2
-     borders. Lavender #a78bfa is the logo's support colour. */
-  --color-brand-50: #f5f3ff;
-  --color-brand-100: #ede9fe;
-  --color-brand-200: #ddd6fe;
-  --color-brand-300: #c4b5fd;
-  --color-brand-400: #a78bfa;
-  --color-brand-500: #9061f9;
-  --color-brand-600: #8b5cf6;
-  --color-brand-700: #7c3aed;
-  --color-brand-800: #6d28d9;
-  --color-brand-900: #5b21b6;
-  --color-navy: #7c3aed; /* the menu rail, banners and sign-in panel: the logo's purple */
-  --color-mint: #ede9fe;
-  --color-ink: #4c1d95;
-  --color-slate-200: #e6e4f2;
-  --color-slate-400: #646a85; /* faint helper text; darker than stock so it passes 4.5:1 on the page */
-  --color-slate-500: #545a72;
-  --color-slate-900: #1e1b3a;
+  /* Teal look (24 Oct 2026), from the owner's new Edubotics brand files: a deep teal-navy icon rail (#0a3d47, the
+     logo's main colour), teal buttons and tabs (brand-700 #0e7480, a touch darker than the logo's mid teal #0f7c86
+     so white text and links pass 4.5:1), the orange spark #ff7a30 as a small accent, a pale teal-grey page #f4f8f8,
+     white cards, pale teal #e0f5f4 for selected backgrounds, deep ink #132a30 text and the brand grey #4f6a70 for
+     secondary text. Same layout as the violet look of #36/#38, new colours. */
+  --color-brand-50: #f0fafa;
+  --color-brand-100: #e0f5f4;
+  --color-brand-200: #b9e9e8;
+  --color-brand-300: #8fe0df;
+  --color-brand-400: #5ed3cf;
+  --color-brand-500: #14a3a8;
+  --color-brand-600: #11808a;
+  --color-brand-700: #0e7480;
+  --color-brand-800: #0f5b66;
+  --color-brand-900: #0a3d47;
+  --color-navy: #0a3d47; /* the menu rail, banners and sign-in panel: the logo's deep teal-navy */
+  --color-spark: #ff7a30; /* the logo's orange: small marks only (card bars, dots), never text on white */
+  --color-mint: #e0f5f4;
+  --color-ink: #0a3d47;
+  --color-slate-200: #dde8e9;
+  --color-slate-400: #587176; /* faint helper text; darker than stock so it passes 4.5:1 on the page */
+  --color-slate-500: #4f6a70;
+  --color-slate-900: #132a30;
   --color-surface: #fff; /* cards, menu, inputs: white here, dark grey in dark mode */
 }
 
 :root {
-  --page-bg: #f5f4fb;
-  --line: #e6e4f2;
+  /* The logo's colours for <LogoMark variant="auto">; dark mode swaps in the reverse mark. */
+  --logo-top: #0a3d47;
+  --logo-bottom-from: #0a3d47;
+  --logo-bottom-to: #14a3a8;
+  --logo-spark: #ff7a30;
+  --page-bg: #f4f8f8;
+  --line: #dde8e9;
   --side-line: rgb(255 255 255 / 0.16);
-  /* Soft fills for the number cards, in turn: white, mint, lavender, sand. */
+  /* Soft fills for the number cards, in turn: white, pale teal, pale blue, sand. */
   --tint-1: var(--color-surface);
-  --tint-2: #efedff;
+  --tint-2: #e7f6f5;
   --tint-3: #e9f3ff;
   --tint-4: #fff1e6;
-  --tint-line-2: #dcd8fd;
+  --tint-line-2: #c6ebe9;
   --tint-line-3: #d3e6fc;
   --tint-line-4: #fadcc4;
 }
@@ -101,20 +108,20 @@ h2 {
     @apply font-medium text-brand-700 hover:underline;
   }
 
-  /* Number cards: flat white with a short violet bar; the first card of a row is the accent tile, filled violet. */
+  /* Number cards: flat white with a short orange bar; the first card of a row is the accent tile, filled teal-navy. */
   .stat {
     @apply relative flex flex-col justify-between pt-8 transition-colors duration-150;
   }
   .stat::before {
     content: "";
-    @apply absolute top-4 left-5 h-1 w-6 rounded-full bg-brand-700;
+    @apply absolute top-4 left-5 h-1 w-6 rounded-full bg-spark;
   }
   .grid > .stat:first-child {
-    @apply border-transparent bg-brand-700;
-    background-image: linear-gradient(135deg, #6a5cf5, #4a3be0);
+    @apply border-transparent bg-navy;
+    background-image: linear-gradient(135deg, #0f5b66, var(--color-navy)); /* fixed teal: dark mode lightens brand-800 */
   }
   .grid > .stat:first-child::before {
-    @apply bg-white/70;
+    @apply bg-spark;
   }
   .grid > .stat:first-child .stat-arrow {
     @apply border-white/40 text-white;
@@ -138,7 +145,7 @@ h2 {
     @apply relative;
   }
 
-  /* Recognition in the spotlight on Home: a soft violet card with the person's initials. */
+  /* Recognition in the spotlight on Home: a soft teal card with the person's initials. */
   .recognition-spotlight {
     @apply relative overflow-hidden rounded-[1.5rem] border border-brand-200 bg-linear-120 from-brand-50 to-surface;
   }
@@ -208,9 +215,9 @@ h2 {
   .sidebar {
     --ease-menu: cubic-bezier(0.22, 1, 0.36, 1);
     --color-slate-100: rgb(255 255 255 / 0.12);
-    --color-slate-400: #d6d2fd;
-    --color-slate-500: #e7e4fe;
-    --color-slate-600: #f0eeff;
+    --color-slate-400: #a9cfd2;
+    --color-slate-500: #d6ebec;
+    --color-slate-600: #eaf5f5;
     --color-slate-900: #ffffff;
     color: var(--color-slate-900);
     @apply border-b border-[var(--side-line)] bg-navy md:m-3 md:h-[calc(100vh-1.5rem)] md:rounded-3xl md:border md:shadow-[0_8px_24px_-16px_rgba(16,24,40,0.15)];
@@ -262,10 +269,10 @@ h2 {
   }
 
   .brand-mark {
-    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700 font-display text-sm font-bold text-white;
+    @apply flex h-8 w-8 shrink-0 items-center justify-center;
   }
   .sidebar .brand-mark {
-    @apply bg-white text-brand-700;
+    @apply h-9;
   }
   .nav-search {
     @apply mb-3 flex items-center rounded-xl border border-[var(--side-line)] bg-white/[0.06] px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-within:border-brand-400;
@@ -470,7 +477,7 @@ h2 {
     @apply m-auto mt-[12vh] w-[min(36rem,calc(100vw-2rem))] max-w-none overflow-hidden rounded-2xl border border-[var(--line)] bg-surface p-0 text-slate-900 shadow-2xl;
   }
   .palette::backdrop {
-    background: rgb(30 27 58 / 0.45);
+    background: rgb(6 36 42 / 0.5);
   }
   .palette-search {
     @apply flex items-center gap-3 border-b border-[var(--line)] px-4 py-3;
@@ -527,7 +534,7 @@ h2 {
     @apply bg-mint text-ink;
   }
   .mini-cal-dot {
-    @apply absolute bottom-1 h-1 w-1 rounded-full bg-brand-700;
+    @apply absolute bottom-1 h-1 w-1 rounded-full bg-spark;
   }
   .mini-cal-day[data-today] .mini-cal-dot {
     @apply bg-white;
@@ -703,8 +710,8 @@ h2 {
   .crm-summary > .crm-summary-primary {
     @apply border-navy bg-navy text-white;
   }
-  .crm-summary-primary > span,
-  .crm-summary-primary small {
+  .crm-summary > .crm-summary-primary > span,
+  .crm-summary .crm-summary-primary small {
     @apply text-white/75;
   }
   .crm-toolbar {
@@ -986,25 +993,25 @@ main .grid > * {
 @media screen {
   :root {
     --ease-liquid: cubic-bezier(0.22, 1, 0.36, 1);
-    --depth-1: 0 1px 2px rgb(30 27 58 / 0.04), 0 6px 16px -10px rgb(30 27 58 / 0.12);
-    --depth-2: 0 2px 4px rgb(30 27 58 / 0.05), 0 18px 36px -18px rgb(85 70 240 / 0.28);
+    --depth-1: 0 1px 2px rgb(10 61 71 / 0.04), 0 6px 16px -10px rgb(10 61 71 / 0.12);
+    --depth-2: 0 2px 4px rgb(10 61 71 / 0.05), 0 18px 36px -18px rgb(14 116 128 / 0.28);
     --glass: rgb(255 255 255 / 0.86);
     --glass-strong: rgb(255 255 255 / 0.94);
     --glass-line: rgb(255 255 255 / 0.65);
   }
   html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) {
     --depth-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 18px -10px rgb(0 0 0 / 0.5);
-    --depth-2: 0 2px 4px rgb(0 0 0 / 0.3), 0 18px 36px -18px rgb(112 98 245 / 0.35);
-    --glass: rgb(28 24 62 / 0.88);
-    --glass-strong: rgb(28 24 62 / 0.96);
+    --depth-2: 0 2px 4px rgb(0 0 0 / 0.3), 0 18px 36px -18px rgb(20 163 168 / 0.3);
+    --glass: rgb(19 33 38 / 0.88);
+    --glass-strong: rgb(19 33 38 / 0.96);
     --glass-line: rgb(255 255 255 / 0.08);
   }
 
-  /* One faint violet glow behind the page, fixed so it doesn't scroll away. */
+  /* One faint teal glow behind the page, fixed so it doesn't scroll away. */
   body {
     background:
-      radial-gradient(60rem 36rem at 100% -10%, rgb(112 98 245 / 0.1), transparent 70%),
-      radial-gradient(40rem 30rem at -10% 110%, rgb(85 70 240 / 0.06), transparent 70%),
+      radial-gradient(60rem 36rem at 100% -10%, rgb(20 163 168 / 0.08), transparent 70%),
+      radial-gradient(40rem 30rem at -10% 110%, rgb(14 116 128 / 0.05), transparent 70%),
       var(--page-bg);
     background-attachment: fixed;
   }
@@ -1039,13 +1046,13 @@ main .grid > * {
     -webkit-backdrop-filter: blur(12px);
   }
 
-  /* The violet rail: a gentle top-to-bottom sheen and a soft violet shadow so it floats beside the page. */
+  /* The teal-navy rail: a gentle top-to-bottom sheen and a soft teal shadow so it floats beside the page. */
   .sidebar {
     background-image: linear-gradient(180deg, rgb(255 255 255 / 0.1), transparent 45%, rgb(0 0 0 / 0.08));
   }
   @media (min-width: 768px) {
     .sidebar {
-      box-shadow: 0 24px 48px -24px rgb(85 70 240 / 0.55), inset 0 1px rgb(255 255 255 / 0.18);
+      box-shadow: 0 24px 48px -24px rgb(10 61 71 / 0.55), inset 0 1px rgb(255 255 255 / 0.14);
     }
   }
   .nav-group-head,
@@ -1063,12 +1070,12 @@ main .grid > * {
   .sidebar .nav-link[data-active],
   .section-tab[data-active],
   .theme-pill button[aria-pressed="true"] {
-    box-shadow: 0 6px 14px -8px rgb(30 27 58 / 0.45);
+    box-shadow: 0 6px 14px -8px rgb(10 61 71 / 0.45);
   }
 
   /* Things that open over the page (menu panels, the find box) are frosted, with a blurred page behind. */
   .nav-flyout-card {
-    background-color: rgb(69 55 208 / 0.88);
+    background-color: rgb(15 91 102 / 0.9);
     backdrop-filter: blur(16px) saturate(1.3);
     -webkit-backdrop-filter: blur(16px) saturate(1.3);
   }
@@ -1076,7 +1083,7 @@ main .grid > * {
     background: var(--glass-strong);
     backdrop-filter: blur(22px) saturate(1.4);
     -webkit-backdrop-filter: blur(22px) saturate(1.4);
-    box-shadow: 0 30px 80px -30px rgb(30 27 58 / 0.55);
+    box-shadow: 0 30px 80px -30px rgb(10 61 71 / 0.55);
     animation: liquid-pop 240ms var(--ease-liquid);
   }
   .palette::backdrop {
@@ -1086,16 +1093,16 @@ main .grid > * {
     backdrop-filter: blur(4px);
   }
 
-  /* Buttons press in softly and the main one carries a faint violet lift. */
+  /* Buttons press in softly and the main one carries a faint teal lift. */
   .btn-primary {
-    box-shadow: 0 8px 18px -10px rgb(85 70 240 / 0.7), inset 0 1px rgb(255 255 255 / 0.22);
+    box-shadow: 0 8px 18px -10px rgb(14 116 128 / 0.7), inset 0 1px rgb(255 255 255 / 0.22);
   }
   :is(.btn-primary, .btn-secondary, .btn-danger) {
     transition-timing-function: var(--ease-liquid);
     transition-duration: 220ms;
   }
   .input:focus {
-    box-shadow: 0 0 0 4px rgb(112 98 245 / 0.14), 0 8px 18px -14px rgb(85 70 240 / 0.5);
+    box-shadow: 0 0 0 4px rgb(20 163 168 / 0.16), 0 8px 18px -14px rgb(14 116 128 / 0.5);
   }
 
   /* Each page arrives with a short rise, so moving around feels continuous. */

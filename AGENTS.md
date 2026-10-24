@@ -24,7 +24,7 @@ The long developer handover (every module, the data model, business rules, scree
 4. **Money and numbering are tested code.** GST, TDS, payroll, commission and document numbers live in `src/lib/` and have tests in `tests/`. Change them only with a test that shows the new behaviour.
 5. **Schema changes go through migrations.** Edit `prisma/schema.prisma`, run `npm run db:migrate`, commit the new folder under `prisma/migrations/`. Never edit an applied migration. New tables get row-level security switched on (see `prisma/migrations/20261017133000_private_table_rls`).
 6. **Statutory payroll switches stay off** (PF, ESI, professional tax, TDS, gratuity) until the owner's accountant confirms them. Don't change their defaults.
-7. **Keep the look.** One purple accent on a pale lavender page with white cards. No new colours, extra gradients, heavy effects or emoji in the UI. See the design doc.
+7. **Keep the look.** One teal accent (with the logo's orange spark for small marks) on a pale teal-grey page with white cards and a deep teal-navy menu. No new colours, extra gradients, heavy effects or emoji in the UI. See the design doc.
 8. **Write for staff, not developers.** Labels and messages are short plain English ("Leave approved", not "Mutation succeeded").
 9. **Never commit secrets or `.env`.** `npm run security:secrets` runs in CI.
 
@@ -48,7 +48,7 @@ npm run build               # what CI and Docker run
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 

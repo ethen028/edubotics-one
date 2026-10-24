@@ -2,7 +2,7 @@ import "server-only";
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import type { Settings } from "../settings";
 import { amountInWords, formatMoney } from "../invoices";
-import { LINE, PageNumbers, Pairs, s } from "./layout";
+import { LINE, PageNumbers, Pairs, PdfLogo, s } from "./layout";
 
 type Money = { toString(): string };
 type Doc = {
@@ -71,6 +71,9 @@ export function BillingPdf({
         )}
         <View style={[s.between, s.section, { paddingTop: 0 }]}>
           <View style={{ maxWidth: 280 }}>
+            <View style={{ marginBottom: 6 }}>
+              <PdfLogo />
+            </View>
             <Text style={s.h1}>{settings.companyName}</Text>
             <Text style={s.muted}>{settings.companyAddress}</Text>
             {(settings.companyPhone || settings.companyEmail) && (

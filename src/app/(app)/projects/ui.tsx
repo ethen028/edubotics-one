@@ -95,8 +95,8 @@ export const WORK_STATUSES: WorkStatus[] = ["TODO", "IN_PROGRESS", "REVIEW", "DO
 
 const HEALTH: { key: TaskHealth; label: string; color: string }[] = [
   { key: "TODO", label: "To do", color: "#94a3b8" },
-  { key: "IN_PROGRESS", label: "In progress", color: "#7c3aed" },
-  { key: "REVIEW", label: "Review", color: "#8b5cf6" },
+  { key: "IN_PROGRESS", label: "In progress", color: "var(--color-brand-700)" },
+  { key: "REVIEW", label: "Review", color: "var(--color-violet-500)" },
   { key: "DONE", label: "Done", color: "#10b981" },
   { key: "OVERDUE", label: "Overdue", color: "#dc2626" },
 ];
@@ -122,7 +122,7 @@ export function StatusRing({ counts }: { counts: Record<TaskHealth, number> }) {
                 cy="70"
                 r={r}
                 fill="none"
-                stroke={h.color}
+                style={{ stroke: h.color }}
                 strokeWidth="18"
                 strokeDasharray={`${Math.max(len - gap, 1)} ${c}`}
                 strokeDashoffset={-offset}
