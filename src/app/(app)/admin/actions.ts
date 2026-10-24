@@ -77,6 +77,29 @@ export async function updateUser(id: string, formData: FormData) {
   revalidatePath("/admin/users");
 }
 
+/**
+ * Moves a login to another email, e.g. from a personal Gmail to the company address so it can use Teamwork. The old
+ * Google link and email check are cleared (they belonged to the old address) and the person is signed out.
+ */
+export async function changeUserEmail(id: string, _: FormState, formData: FormData): Promise<FormState> {
+  const me = await requireUser(["ADMIN"]);
+  const parsed = z.string().trim().toLowerCase().email("Enter a full email address.").max(200).safeParse(formData.get("email") ?? "");
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const before = await guardOwner(me, id);
+  if (before.email === parsed.data) return { ok: "Email kept." };
+  try {
+    await db.user.update({ where: { id }, data: { email: parsed.data, emailVerifiedAt: null, googleSub: null } });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return { error: "That email already has a login." };
+    throw e;
+  }
+  if (id !== me.id) await endSessions(id);
+  await unlockEmail(before.email);
+  await logActivity(me, "LOGINS", "login.email", `Changed ${before.name}'s login email from ${before.email} to ${parsed.data}`);
+  revalidatePath("/admin/users");
+  return { ok: id === me.id ? "Email changed. Sign in with it next time." : `Email changed. ${before.name} signs in with ${parsed.data} from now on.` };
+}
+
 export async function resetPassword(id: string, _: FormState, formData: FormData): Promise<FormState> {
   const me = await requireUser(["ADMIN"]);
   const password = String(formData.get("password") ?? "");

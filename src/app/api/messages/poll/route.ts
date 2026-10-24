@@ -1,4 +1,4 @@
-import { getApiUser } from "@/lib/auth";
+import { getTeamworkApiUser } from "@/lib/teamwork";
 import { db } from "@/lib/db";
 import { allowRequest } from "@/lib/rate-limit";
 import { conversationVersion, unreadMessageCount } from "@/lib/messages";
@@ -8,7 +8,7 @@ import { conversationVersion, unreadMessageCount } from "@/lib/messages";
  * screen, a marker that changes when a message is sent or removed there. Never returns message text.
  */
 export async function GET(request: Request) {
-  const access = await getApiUser();
+  const access = await getTeamworkApiUser();
   if (access.error) return access.error;
   const userId = access.user.id;
   // Pages ask every 5 seconds; this leaves room for a few open tabs.

@@ -6,7 +6,8 @@ import { formatDateTime, humanize } from "@/lib/format";
 import { PASSWORD_RULES } from "@/lib/passwords";
 import { lockedEmails, minutesUntil } from "@/lib/sign-in";
 import { getSettings } from "@/lib/settings";
-import { createUser, makeOwner, resetPassword, signOutEverywhere, unlockUser, updateUser } from "../actions";
+import { emailInDomain } from "@/lib/teamwork-rules";
+import { changeUserEmail, createUser, makeOwner, resetPassword, signOutEverywhere, unlockUser, updateUser } from "../actions";
 
 export const metadata = { title: "Users" };
 
@@ -45,6 +46,11 @@ export default async function UsersPage() {
                 {locked.has(u.email) && <Badge color="red">Locked for {minutesUntil(locked.get(u.email)!)} min</Badge>}
                 {u.mustChangePassword && <Badge color="amber">Picks a new password at next sign-in</Badge>}
                 {u.googleSub && <Badge color="green">Google linked</Badge>}
+                {settings.workspaceDomain && !emailInDomain(u.email, settings.workspaceDomain) && (
+                  <span title={`Teamwork is for @${settings.workspaceDomain} logins only`}>
+                    <Badge color="amber">No Teamwork</Badge>
+                  </span>
+                )}
               </div>
               <div className="-mt-2 mb-3 text-xs text-slate-500">
                 {u.lastLoginAt ? `Last signed in ${formatDateTime(u.lastLoginAt)}` : "Never signed in"}
@@ -83,6 +89,12 @@ export default async function UsersPage() {
                   </Field>
                   <SubmitButton className="btn-secondary">Reset</SubmitButton>
                 </ActionForm>
+                <ActionForm action={changeUserEmail.bind(null, u.id)} className="flex items-end gap-2">
+                  <Field label="Login email">
+                    <input name="email" type="email" defaultValue={u.email} required className="input w-56" autoComplete="off" />
+                  </Field>
+                  <SubmitButton className="btn-secondary">Change</SubmitButton>
+                </ActionForm>
                 {locked.has(u.email) && (
                   <form action={unlockUser.bind(null, u.id)}>
                     <button className="btn-secondary">Unlock</button>
@@ -114,7 +126,10 @@ export default async function UsersPage() {
             <input name="name" required className="input" />
           </Field>
           <Field label="Email" className="block">
-            <input name="email" type="email" required className="input" />
+            <input name="email" type="email" required className="input" placeholder={settings.workspaceDomain ? `name@${settings.workspaceDomain}` : undefined} />
+            {settings.workspaceDomain && (
+              <span className="mt-1 block text-xs text-slate-500">Only @{settings.workspaceDomain} logins can use Messages, Channels, Files and Meetings.</span>
+            )}
           </Field>
           <Field label="Role" className="block">
             <select name="role" defaultValue="EMPLOYEE" className="input">

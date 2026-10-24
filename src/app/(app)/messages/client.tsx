@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SubmitButton, type FormState } from "@/components/action-form";
 import { Icon } from "@/components/icons";
@@ -56,7 +56,10 @@ export function ReadAndScroll({ conversationId, latest }: { conversationId: stri
   return null;
 }
 
-/** The box at the bottom of a chat. Enter sends on a computer (Shift+Enter for a new line); on a phone, tap Send. */
+/**
+ * The box at the bottom of a chat. Enter sends on a computer (Shift+Enter for a new line); on a phone, tap Send.
+ * The paperclip attaches up to 5 files (10 MB each), sent with the message.
+ */
 export function Composer({
   action,
   disabled,
@@ -68,10 +71,13 @@ export function Composer({
 }) {
   const form = useRef<HTMLFormElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
+  const picker = useRef<HTMLInputElement>(null);
+  const [picked, setPicked] = useState<string[]>([]);
   const [state, formAction] = useActionState(async (prev: FormState, data: FormData) => {
     const result = await action(prev, data);
     if (result?.ok) {
       form.current?.reset();
+      setPicked([]);
       if (box.current) box.current.style.height = "";
     }
     return result;
@@ -85,7 +91,39 @@ export function Composer({
           {state.error}
         </div>
       )}
+      {picked.length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+          {picked.map((name, i) => (
+            <span key={i} className="chat-picked">
+              <Icon name="paperclip" className="h-3 w-3" />
+              {name}
+            </span>
+          ))}
+          <button
+            type="button"
+            className="text-slate-500 underline hover:text-slate-800"
+            onClick={() => {
+              if (picker.current) picker.current.value = "";
+              setPicked([]);
+            }}
+          >
+            Remove
+          </button>
+        </div>
+      )}
       <div className="flex items-end gap-2">
+        <label className="icon-btn h-10 w-10 shrink-0 cursor-pointer" title="Attach files (up to 5, 10 MB each)">
+          <span className="sr-only">Attach files</span>
+          <Icon name="paperclip" className="h-4 w-4" />
+          <input
+            ref={picker}
+            type="file"
+            name="files"
+            multiple
+            className="sr-only"
+            onChange={(e) => setPicked([...(e.currentTarget.files ?? [])].map((f) => f.name))}
+          />
+        </label>
         <label className="sr-only" htmlFor="chat-body">
           Message
         </label>
@@ -107,7 +145,7 @@ export function Composer({
             if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
             if (window.matchMedia("(pointer: coarse)").matches) return;
             e.preventDefault();
-            if (e.currentTarget.value.trim()) form.current?.requestSubmit();
+            if (e.currentTarget.value.trim() || picked.length) form.current?.requestSubmit();
           }}
         />
         <SubmitButton className="btn-primary h-10 shrink-0 px-4" pendingLabel="Sending">

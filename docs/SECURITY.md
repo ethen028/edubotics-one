@@ -7,7 +7,8 @@ Orbit holds salaries, bank details, ID documents and the company's money records
 - Every page and server action calls `requireUser([...roles])` or `requireOwner()` (`src/lib/auth.ts`) before reading or writing. API route handlers use `getApiUser()`.
 - Check the record, not only the role: managers act on their direct reports, employees on their own records. Nobody approves their own leave, attendance fix, timesheet or expense claim.
 - Salary and payslip figures: admins and the employee only. HR never sees pay. Only the owner sees the owner dashboard and changes the owner's login.
-- Staff messages are readable only by members of the conversation. Admins have no way in; don't add one.
+- Staff messages are readable only by members of the conversation. Admins have no way in; don't add one. Chat files go through `/api/chat-files/[id]`, which checks membership and the date the person joined.
+- Teamwork (Messages, Channels, Files, Meetings) uses `requireTeamwork()` / `getTeamworkApiUser()` so the company-domain setting is enforced on the server, not only in the menu. Meetings are visible to the organiser and invitees only.
 - New pages need the right roles in both `requireUser` and `src/lib/nav.ts`, and should be added to `scripts/role-access-test.ts` if a role must be kept out.
 
 ## Data
@@ -20,7 +21,7 @@ Orbit holds salaries, bank details, ID documents and the company's money records
 ## Files
 
 - Uploads are stored in PostgreSQL and served only through permission-checked handlers in `src/app/api/` with `privateFileHeaders` (`src/lib/file-response.ts`).
-- Check the real file type with `sniffMime` (`src/lib/hr-constants.ts`), not the browser's MIME type or extension. Keep the size limits (5 MB per document; project files 10 MB each, 25 MB per update). Public uploads read the body with `limitedFormData` (`src/lib/request-body.ts`).
+- Check the real file type with `sniffMime` (`src/lib/hr-constants.ts`), not the browser's MIME type or extension. Keep the size limits (5 MB per document; project, chat and Files uploads 10 MB each, 25 MB per upload, and the Teamwork storage cap). Public uploads read the body with `limitedFormData` (`src/lib/request-body.ts`).
 - Unknown document types are admin-only by default.
 
 ## Secrets

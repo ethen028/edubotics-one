@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireTeamwork, teammateWhere } from "@/lib/teamwork";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -11,9 +11,9 @@ export const metadata = { title: "New message" };
 
 /** Start a one-to-one chat (tap a person) or a named group (tick two or more). */
 export default async function NewMessagePage() {
-  const user = await requireUser();
+  const user = await requireTeamwork();
   const people = await db.user.findMany({
-    where: { active: true, closedAt: null, id: { not: user.id } },
+    where: { ...(await teammateWhere()), id: { not: user.id } },
     orderBy: { name: "asc" },
     select: { id: true, name: true, role: true },
   });

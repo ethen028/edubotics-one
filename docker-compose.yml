@@ -46,6 +46,7 @@ services:
       TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
       REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-false}
       REQUIRE_CAPTCHA: ${REQUIRE_CAPTCHA:-false}
+      TEAMWORK_STORAGE_MB: ${TEAMWORK_STORAGE_MB:-}
       TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
       # First admin login, created on first start only. Change the password after signing in.

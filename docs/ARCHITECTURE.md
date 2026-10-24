@@ -66,7 +66,8 @@ Four roles in the `Role` enum: `ADMIN`, `HR`, `MANAGER`, `EMPLOYEE`. The company
 
 - **Payment reminders**: on the office copy, the in-process scheduler; on Vercel, a daily cron calling `/api/cron/payment-reminders` (`vercel.json`, needs `CRON_SECRET`). Off until switched on in Admin > Settings > Email.
 - **Backups**: the `backup` Docker service runs `pg_dump` daily at 5 PM (`docker/backup-worker.sh`). See [backups.md](backups.md).
-- **Messages**: the browser polls `/api/messages/poll` every 5 seconds; there are no websockets.
+- **Messages and channels**: the browser polls `/api/messages/poll` every 5 seconds; there are no websockets. A channel is a `Conversation` with `isGroup` and `isChannel` set, so it reuses the group chat code.
+- **Teamwork access**: every Teamwork page, action and file route starts with `requireTeamwork()` / `getTeamworkApiUser()` (`src/lib/teamwork.ts`), which add the company-domain check to `requireUser`. People pickers use `teammateWhere()`. Pure rules (domain, folder access, call links) are in `src/lib/teamwork-rules.ts` with tests.
 
 ## Where it runs
 

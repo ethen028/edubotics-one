@@ -4,10 +4,12 @@ import { db } from "./db";
 
 // Staff messages: private one-to-one chats and small named groups. Everything here is scoped to the person asking:
 // a conversation is only ever loaded through their own membership, so nobody (admins included) can open one they
-// are not in. People added to a group later see the messages from when they joined.
+// are not in. People added to a group later see the messages from when they joined. Channels are groups that every
+// staff member can find under Channels and join; joining a channel shows all of it, from the start.
 
 export const MAX_MESSAGE = 4000;
 export const MAX_GROUP_TITLE = 80;
+export const MAX_CHANNEL_ABOUT = 200;
 
 /** The key that makes two people always share one one-to-one conversation. */
 export const directKey = (a: string, b: string) => [a, b].sort().join(":");
@@ -77,6 +79,7 @@ export async function myConversations(userId: string, q = "") {
       return {
         id: c.id,
         isGroup: c.isGroup,
+        isChannel: c.isChannel,
         name: conversationName(c, others),
         others,
         memberCount: c.members.length,
@@ -133,6 +136,33 @@ export async function loadMyConversation(userId: string, id: string) {
   const me = c.members.find((m) => m.userId === userId)!;
   const others = c.members.filter((m) => m.userId !== userId);
   return { ...c, me, others, name: conversationName(c, others.map((m) => m.user)) };
+}
+
+/** Every channel, with whether this person is in it, for the Channels page. Names and descriptions only, no messages. */
+export async function allChannels(userId: string) {
+  const channels = await db.conversation.findMany({
+    where: { isChannel: true },
+    orderBy: { title: "asc" },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      lastMessageAt: true,
+      createdBy: { select: { name: true } },
+      members: { where: { leftAt: null }, select: { userId: true } },
+    },
+  });
+  return channels.map((c) => ({ ...c, memberCount: c.members.length, joined: c.members.some((m) => m.userId === userId) }));
+}
+
+/** Files sent in a conversation that this person can see (from when they joined), newest first, without their bytes. */
+export function conversationFiles(conversationId: string, joinedAt: Date) {
+  return db.chatAttachment.findMany({
+    where: { conversationId, createdAt: { gte: joinedAt } },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    select: { id: true, fileName: true, mimeType: true, size: true, createdAt: true, messageId: true, uploadedBy: { select: { name: true } } },
+  });
 }
 
 /** Initials for the round avatar. */

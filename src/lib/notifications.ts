@@ -18,6 +18,9 @@ export const NOTIFICATION_KINDS = {
   "commission.ready": "Commission",
   "recognition.received": "Recognition",
   "recognition.featured": "Spotlight",
+  "meeting.invited": "Meeting",
+  "meeting.changed": "Meeting changed",
+  "meeting.cancelled": "Meeting cancelled",
 } as const;
 
 export type NotificationKind = keyof typeof NOTIFICATION_KINDS;

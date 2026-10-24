@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { requireTeamwork } from "@/lib/teamwork";
 import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/ui";
 import { conversationName, myConversations, searchMyMessages, shortWhen, unreadMessageCount } from "@/lib/messages";
@@ -10,7 +10,7 @@ export const metadata = { title: "Messages" };
 
 /** Staff messages: the conversation list, and message search results when searching. */
 export default async function MessagesPage({ searchParams }: PageProps<"/messages">) {
-  const user = await requireUser();
+  const user = await requireTeamwork();
   const sp = (await searchParams) as Record<string, string | undefined>;
   const q = (sp.q ?? "").trim().slice(0, 100);
   const [rows, found, unread] = await Promise.all([myConversations(user.id, q), searchMyMessages(user.id, q), unreadMessageCount(user.id)]);
