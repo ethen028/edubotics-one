@@ -1,11 +1,11 @@
-import { getCurrentUser, isAdmin } from "@/lib/auth";
-import { certificateSignature } from "@/lib/settings";
+import { getApiUser, isAdmin } from "@/lib/auth";
+import { certificateSignature, letterSignature } from "@/lib/settings";
 
-/** The uploaded certificate signature, shown as a preview in Settings. */
-export async function GET() {
-  const user = await getCurrentUser();
+/** An uploaded signature, shown as a preview in Settings: the certificate one, or with ?letters the HR letter one. */
+export async function GET(req: Request) {
+  const user = (await getApiUser()).user;
   if (!user || !isAdmin(user)) return new Response("Not found", { status: 404 });
-  const sig = await certificateSignature();
+  const sig = new URL(req.url).searchParams.has("letters") ? await letterSignature() : await certificateSignature();
   if (!sig) return new Response("Not found", { status: 404 });
   return new Response(new Uint8Array(sig.data), { headers: { "Content-Type": sig.type, "Cache-Control": "private, no-store" } });
 }

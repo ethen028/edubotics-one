@@ -8,7 +8,8 @@ import { getSettings } from "@/lib/settings";
 import { mailSetup, MAIL_NOT_READY, parseAddresses, sendEmail } from "@/lib/mail";
 import { sendSchoolReminder } from "@/lib/payment-reminders";
 import { logActivity } from "@/lib/activity";
-import { certificatePdf, creditNotePdf, exitLetterPdf, invoicePdf, payslipPdf, quotePdf, receiptPdf } from "@/lib/pdf";
+import { certificatePdf, creditNotePdf, invoicePdf, letterPdf, payslipPdf, quotePdf, receiptPdf } from "@/lib/pdf";
+import { canIssueKind } from "@/lib/letter-rules";
 import { markQuoteSent } from "@/lib/quote-send";
 import { calendarInvite } from "@/lib/ics";
 import { canRecruit } from "@/lib/recruitment";
@@ -327,22 +328,23 @@ export async function emailWorkshopCertificates(workshopId: string): Promise<For
   return { ok: `Certificates sent to ${sent} ${sent === 1 ? "person" : "people"}.${missing}` };
 }
 
-// ─── Relieving letters ─────────────────────────────────────────────────────
+// ─── HR letters ────────────────────────────────────────────────────────────
 
-/** Email the relieving and experience letter to someone who has left. */
-export async function emailExitLetter(exitId: string, _: FormState, formData: FormData): Promise<FormState> {
-  const user = await requireUser(["ADMIN"]);
-  const exit = await db.employeeExit.findUnique({ where: { id: exitId }, select: { stage: true, employeeId: true } });
-  if (!exit || exit.stage !== "LEFT") return { error: "Mark them as left before sending the letter." };
-  if (exit.employeeId === user.employee?.id) return { error: "Ask another admin to send your own letter." };
+/** Email an issued HR letter, offer letter or ID card, with the PDF attached. */
+export async function emailLetter(letterId: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser(["ADMIN", "HR"]);
+  const letter = await db.hrLetter.findUnique({ where: { id: letterId }, select: { kind: true, status: true, employeeId: true, sourceId: true } });
+  if (!letter || !canIssueKind(user.role, letter.kind)) return { error: "Letter not found." };
+  if (letter.status !== "ISSUED") return { error: "Only the current copy of a letter can be emailed." };
+  if (letter.employeeId && letter.employeeId === user.employee?.id) return { error: "Ask someone else to send your own letter." };
   const ready = await readySettings();
   if ("error" in ready) return { error: ready.error };
   const form = readComposer(formData);
   if ("error" in form) return { error: form.error };
-  const pdf = (await exitLetterPdf(exitId))!;
-  const result = await sendEmail({ kind: "EXIT_LETTER", ...form, attachments: [pdf], links: { exitId } }, ready.settings, user.id);
-  if (!("error" in result))
-    await db.exitTask.updateMany({ where: { exitId, title: "Relieving and experience letter given", doneAt: null }, data: { doneAt: new Date(), doneById: user.id } });
-  revalidatePath(`/hr/exits/${exitId}`);
+  const pdf = (await letterPdf(letterId))!;
+  const result = await sendEmail({ kind: "HR_LETTER", ...form, attachments: [pdf], links: { letterId } }, ready.settings, user.id);
+  if (!("error" in result) && letter.kind === "RELIEVING" && letter.sourceId)
+    await db.exitTask.updateMany({ where: { exitId: letter.sourceId, title: "Relieving and experience letter given", doneAt: null }, data: { doneAt: new Date(), doneById: user.id } });
+  revalidatePath(`/hr/letters/${letterId}`);
   return "error" in result ? { error: result.error } : { ok: sentTo(form.to) };
 }

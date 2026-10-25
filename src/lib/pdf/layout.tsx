@@ -1,7 +1,8 @@
 import "server-only";
 import path from "node:path";
 import type { ReactNode } from "react";
-import { Font, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Defs, Font, LinearGradient, Path, Stop, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
+import { LOGO_BOTTOM, LOGO_COLOURS, LOGO_SPARK, LOGO_TOP, LOGO_VIEWBOX } from "../logo";
 
 // Inter has the rupee sign, which the built-in PDF fonts lack.
 const fonts = path.join(process.cwd(), "src/lib/pdf/fonts");
@@ -12,7 +13,7 @@ Font.register({
 // Keep long words (school names, descriptions) whole instead of breaking them with hyphens.
 Font.registerHyphenationCallback((word) => [word]);
 
-export const BRAND = "#7c3aed"; // the logo's electric purple
+export const BRAND = "#0a3d47"; // the logo's deep teal-navy
 export const MUTED = "#64748b";
 export const LINE = "#e2e8f0";
 
@@ -44,6 +45,24 @@ export const s = StyleSheet.create({
   },
   footer: { position: "absolute", bottom: 24, left: 40, right: 40, fontSize: 7.5, color: "#94a3b8", flexDirection: "row", justifyContent: "space-between" },
 });
+
+/** The Edubotics mark in full colour, for the top of printed documents. */
+export function PdfLogo({ height = 30 }: { height?: number }) {
+  const c = LOGO_COLOURS.color;
+  return (
+    <Svg viewBox={LOGO_VIEWBOX} style={{ height, width: (height * 150) / 192 }}>
+      <Defs>
+        <LinearGradient id="edubotics-mark" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor={c.bottom[0]} />
+          <Stop offset="1" stopColor={c.bottom[1]} />
+        </LinearGradient>
+      </Defs>
+      <Path d={LOGO_TOP} fill={c.top} />
+      <Path d={LOGO_BOTTOM} fill="url(#edubotics-mark)" />
+      <Path d={LOGO_SPARK} fill={c.spark} />
+    </Svg>
+  );
+}
 
 /** label / value pairs in two columns. */
 export function Pairs({ rows, align = "left" }: { rows: [string, ReactNode][]; align?: "left" | "right" }) {

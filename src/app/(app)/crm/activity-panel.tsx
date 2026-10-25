@@ -2,6 +2,8 @@ import type { Activity, User } from "@prisma/client";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Field, Options } from "@/components/ui";
 import { formatDateTime, humanize } from "@/lib/format";
+import { requireUser } from "@/lib/auth";
+import { canTickActivity } from "@/lib/permissions";
 import { createActivity, toggleActivity } from "./actions";
 import { ACTIVITY_TYPES } from "./constants";
 
@@ -9,7 +11,7 @@ type Link = { leadId?: string; dealId?: string; organizationId?: string; contact
 type Row = Activity & { assignee: Pick<User, "name"> | null; createdBy: Pick<User, "name"> };
 
 /** Timeline of calls/visits/notes for a record, with a form to log or schedule one. */
-export function ActivityPanel({
+export async function ActivityPanel({
   activities,
   link,
   users,
@@ -18,6 +20,7 @@ export function ActivityPanel({
   link: Link;
   users: { id: string; name: string }[];
 }) {
+  const user = await requireUser();
   const now = new Date();
   return (
     <div className="card space-y-4">
@@ -57,12 +60,16 @@ export function ActivityPanel({
             const overdue = !a.done && a.dueAt && a.dueAt < now;
             return (
               <li key={a.id} className="flex gap-3 py-3 text-sm">
-                <form action={toggleActivity.bind(null, a.id)} className="pt-0.5">
-                  <button
-                    title={a.done ? "Mark as not done" : "Mark as done"}
-                    className={`h-4 w-4 rounded border ${a.done ? "border-emerald-500 bg-emerald-500" : "border-slate-400 bg-surface"}`}
-                  />
-                </form>
+                {canTickActivity(user, a) ? (
+                  <form action={toggleActivity.bind(null, a.id)} className="pt-0.5">
+                    <button
+                      title={a.done ? "Mark as not done" : "Mark as done"}
+                      className={`h-4 w-4 rounded border ${a.done ? "border-emerald-500 bg-emerald-500" : "border-slate-400 bg-surface"}`}
+                    />
+                  </form>
+                ) : (
+                  <span aria-hidden="true" className={`mt-0.5 h-4 w-4 shrink-0 rounded border ${a.done ? "border-emerald-500 bg-emerald-500" : "border-slate-200"}`} />
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge>{humanize(a.type)}</Badge>

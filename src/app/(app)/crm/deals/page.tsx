@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { DealStage } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { canEditCrmRecord } from "@/lib/permissions";
 import { daysFromNow, todayIST } from "@/lib/time";
 import { Badge, Empty, PageHeader } from "@/components/ui";
 import { SubmitButton } from "@/components/action-form";
@@ -70,7 +71,7 @@ export default async function DealsPage({ searchParams }: PageProps<"/crm/deals"
     {(q || mine) && <p className="mb-4 text-xs text-slate-500">{q && <>Results for “{q}” · </>}{mine && <>Owned by you · </>}<Link href={href({q:"",mine:false})} className="link">Clear search and owner filter</Link></p>}
     {deals.length === 0 && (q || mine) ? <Empty>No deals match these filters. Try another search or clear the filters.</Empty> : view === "list" ?
       <div className="card overflow-x-auto p-0"><table className="table"><caption className="sr-only">Deals matching the current filters</caption><thead><tr><th>Deal / institution</th><th>Value</th><th>Stage</th><th>Owner</th><th>Expected close</th><th>Move stage</th></tr></thead><tbody>
-        {deals.map(deal => <tr key={deal.id}><td><Link href={`/crm/deals/${deal.id}`} className="link">{deal.title}</Link><p className="mt-1 text-xs text-slate-500">{deal.organization?.name ?? "No institution"}</p></td><td className="whitespace-nowrap font-semibold">{formatINR(deal.value)}</td><td><Badge color={dealStageColor[deal.stage]}>{humanize(deal.stage)}</Badge></td><td>{deal.owner?.name ?? "Unassigned"}</td><td>{deal.expectedClose ? formatDate(deal.expectedClose) : "Not set"}</td><td><StageControl id={deal.id} stage={deal.stage} title={deal.title} /></td></tr>)}
+        {deals.map(deal => <tr key={deal.id}><td><Link href={`/crm/deals/${deal.id}`} className="link">{deal.title}</Link><p className="mt-1 text-xs text-slate-500">{deal.organization?.name ?? "No institution"}</p></td><td className="whitespace-nowrap font-semibold">{formatINR(deal.value)}</td><td><Badge color={dealStageColor[deal.stage]}>{humanize(deal.stage)}</Badge></td><td>{deal.owner?.name ?? "Unassigned"}</td><td>{deal.expectedClose ? formatDate(deal.expectedClose) : "Not set"}</td><td>{canEditCrmRecord(user, deal) && <StageControl id={deal.id} stage={deal.stage} title={deal.title} />}</td></tr>)}
         {deals.length === 0 && <tr><td colSpan={6} className="text-center text-slate-500">No deals yet. Add your first deal to start the pipeline.</td></tr>}
       </tbody></table></div> :
       <div className="deal-board" role="region" aria-label="Deal pipeline board; scroll horizontally to view all stages" tabIndex={0}>
@@ -87,7 +88,7 @@ export default async function DealsPage({ searchParams }: PageProps<"/crm/deals"
                 <p className="mt-1 text-xs text-slate-500">{deal.organization?.name ?? "No institution"}</p>
                 <strong className="deal-card-value">{formatINR(deal.value)}</strong>
                 <div className="deal-card-meta"><span className="member-initials" aria-hidden="true">{deal.owner?.name.split(" ").map(part=>part[0]).slice(0,2).join("") ?? "—"}</span><span>{deal.owner?.name ?? "Unassigned"}<small className={late ? "text-red-700" : "text-slate-500"}>{deal.expectedClose ? `Closes ${formatDate(deal.expectedClose)}` : "Close date not set"}</small></span></div>
-                <StageControl id={deal.id} stage={deal.stage} title={deal.title} />
+                {canEditCrmRecord(user, deal) && <StageControl id={deal.id} stage={deal.stage} title={deal.title} />}
               </article>;
             })}{column.length === 0 && <div className="deal-column-empty"><NavIcon name="document" /><p>No {humanize(stage).toLowerCase()} deals</p><small>Deals in this stage will appear here.</small></div>}</div>
           </section>;

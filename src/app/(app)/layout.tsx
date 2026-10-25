@@ -95,7 +95,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         header={
           <div className="flex items-center">
             <div className="brand-mark" role="img" aria-label="Edubotics">
-              <LogoMark />
+              <LogoMark variant="reverse" />
             </div>
             <div className="rail-hide ml-2 leading-tight">
               <div className="font-display text-sm font-semibold">Orbit</div>

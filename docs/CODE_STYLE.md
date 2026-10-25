@@ -14,7 +14,7 @@ Match the file you are in. These are the patterns the code already follows.
 - `page.tsx` is a server component: `requireUser([...])` first, then queries, then JSX. Mark files `"use client"` only for interactivity (forms with state, menus, polling).
 - Start with `<PageHeader>`; use the shared components and classes in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
 - Pages for one menu group live together under `src/app/(app)/<group>/`. Queries used by several pages go in that folder's `data.ts` or in `src/lib/<area>.ts`.
-- Add new pages to `src/lib/nav.ts` with the roles that may see them.
+- Add new pages to `src/lib/page-access.ts` (who may open them) and `src/lib/nav.ts` (the menu, for those roles only).
 
 ## Server actions
 

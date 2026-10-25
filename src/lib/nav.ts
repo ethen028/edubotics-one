@@ -183,6 +183,7 @@ export function buildNav(user: NavUser, c: NavCounts): NavGroupData[] {
         ...(people ? [{ href: "/hr/onboarding", label: "Onboarding" }, { href: "/hr/training", label: "Training" }] : []),
         ...(managerOrAdmin ? [{ href: "/hr/exits", label: "Exits" }] : []),
         { href: "/hr/reviews", label: "Performance reviews", badge: c.reviewTodos, tone: "amber" },
+        ...(hrOrAdmin ? [{ href: "/hr/letters", label: "Letters" }] : []),
         ...(hrOrAdmin ? [{ href: "/hr/assets", label: "Assets" }] : []),
         { href: "/hr/holidays", label: "Holidays" },
         ...(hrOrAdmin ? [{ href: "/hr/departments", label: "Departments" }, { href: "/hr/leave-types", label: "Leave types" }] : []),

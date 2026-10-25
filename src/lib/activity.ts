@@ -11,7 +11,7 @@ export const ACTIVITY_AREAS = {
   SETTINGS: "Settings",
   PAYROLL: "Payroll",
   MONEY: "Invoices and payments",
-  HR: "Exits and certificates",
+  HR: "Exits, letters and certificates",
   DELETED: "Deleted records",
   BACKUPS: "Backups",
 } as const;

@@ -72,7 +72,7 @@ export type OutgoingEmail = {
   message: string; // plain text the person typed or kept from the template
   attachments?: Attachment[];
   automatic?: boolean; // the daily automatic payment reminder round, with no person sending it
-  links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string; certificateId?: string; receiptId?: string; exitId?: string };
+  links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string; certificateId?: string; receiptId?: string; exitId?: string; letterId?: string };
 };
 
 /**
@@ -121,6 +121,7 @@ export async function sendEmail(email: OutgoingEmail, settings: Settings, userId
       certificateId: email.links?.certificateId,
       receiptId: email.links?.receiptId,
       exitId: email.links?.exitId,
+      letterId: email.links?.letterId,
       invoices: email.links?.invoiceIds?.length ? { connect: email.links.invoiceIds.map((id) => ({ id })) } : undefined,
     },
   });
@@ -146,10 +147,10 @@ function htmlBody(message: string, s: Settings) {
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 14px">${escape(p).replace(/\n/g, "<br>")}</p>`)
     .join("");
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#f1f5f4">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f4;padding:24px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #dbe4e2">
-<tr><td style="background:#0f3d3e;padding:16px 24px;font:600 17px Arial,Helvetica,sans-serif;color:#ffffff">${escape(s.companyName)}</td></tr>
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#f4f8f8">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f8f8;padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #dde8e9">
+<tr><td style="background:#0a3d47;border-bottom:3px solid #ff7a30;padding:16px 24px;font:600 17px Arial,Helvetica,sans-serif;color:#ffffff">${escape(s.companyName)}</td></tr>
 <tr><td style="padding:24px;font:15px/1.55 Arial,Helvetica,sans-serif;color:#1e293b">${paragraphs}</td></tr>
 <tr><td style="padding:14px 24px;border-top:1px solid #e2e8f0;font:12px/1.5 Arial,Helvetica,sans-serif;color:#64748b">${footerLines(s)
     .map(escape)

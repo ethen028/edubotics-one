@@ -130,6 +130,8 @@ model User {
   sharedFiles           SharedFile[]
   meetingsOrganised     Meeting[]
   meetingInvites        MeetingAttendee[]
+  lettersIssued         HrLetter[]             @relation("LetterIssuer")
+  lettersCancelled      HrLetter[]             @relation("LetterCanceller")
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
@@ -213,6 +215,7 @@ model Employee {
   offersToReport   Offer[]                @relation("OfferManager")
   reviews          PerformanceReview[]
   exits            EmployeeExit[]
+  letters          HrLetter[]
 }
 
 model LeaveType {
@@ -345,6 +348,17 @@ model CompanySettings {
   certSignatoryTitle String? @default("Director")
   certSignature      Bytes?
   certSignatureType  String? // image/png or image/jpeg
+
+  // HR letters (src/lib/letter-rules.ts): printed on the letterhead and used as the starting terms.
+  companyWebsite      String? @default("www.eduboticsglobal.com")
+  companyRegNo        String? // CIN or other registration number, printed under the letterhead when filled in
+  probationMonths     Int     @default(3)
+  probationNoticeDays Int     @default(30) // notice from either side while on probation; noticePeriodDays once confirmed
+  // Who signs HR letters: separate from the certificate signatory. Without a name the letters say "Authorised signatory".
+  letterSignatoryName  String?
+  letterSignatoryTitle String?
+  letterSignature      Bytes?
+  letterSignatureType  String? // image/png or image/jpeg
 
   // Careers page (/careers): off until an admin turns it on.
   careersEnabled           Boolean @default(false)
@@ -2063,9 +2077,10 @@ model Offer {
   specialAllowance Decimal        @default(0) @db.Decimal(12, 2)
   joiningDate      DateTime       @db.Date
   respondBy        DateTime?      @db.Date
-  probationMonths  Int            @default(6)
+  probationMonths  Int            @default(3)
   notes            String? // extra terms printed on the letter
   status           OfferStatus    @default(DRAFT)
+  letters          HrLetter[]
   sentAt           DateTime?
   respondedAt      DateTime?
   createdById      String
@@ -2237,6 +2252,7 @@ enum EmailKind {
   CERTIFICATE
   EXIT_LETTER
   RECEIPT
+  HR_LETTER
 }
 
 /// Only SHA-256 digests of random one-use account tokens are persisted.
@@ -2304,6 +2320,8 @@ model EmailLog {
   receipt       WorkshopPayment?     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   exitId        String?
   exit          EmployeeExit?        @relation(fields: [exitId], references: [id], onDelete: Cascade)
+  letterId      String?
+  letter        HrLetter?            @relation(fields: [letterId], references: [id], onDelete: Cascade)
   sentById      String? // empty for an automatic payment reminder
   sentBy        User?                @relation(fields: [sentById], references: [id], onDelete: Restrict)
   automatic     Boolean              @default(false) // sent by the daily automatic reminder round, not by a person
@@ -2317,6 +2335,7 @@ model EmailLog {
   @@index([certificateId])
   @@index([receiptId])
   @@index([exitId])
+  @@index([letterId])
 }
 
 // ─── Workshops and certificates ────────────────────────────────────────────
@@ -2951,4 +2970,68 @@ model CommissionLine {
 
   @@index([statementId])
   @@index([userId])
+}
+
+// ─── HR letters ────────────────────────────────────────────────────────────
+// Every letter and certificate HR or an admin issues to a person, numbered EBG/HR/26-27/0001 by the
+// financial year it was issued in. The wording is worked out when it is issued and kept in `body`,
+// so a copy downloaded years later reads exactly as the one handed over.
+
+enum LetterKind {
+  OFFER
+  APPOINTMENT
+  CONFIRMATION
+  REVISION
+  EXPERIENCE
+  EMPLOYMENT
+  SALARY_CERTIFICATE
+  NOC
+  WARNING
+  SHOW_CAUSE
+  INTERNSHIP
+  TRAINING
+  RELIEVING
+  ID_CARD
+  ANNUAL_STATEMENT
+}
+
+enum LetterStatus {
+  ISSUED
+  REPLACED // a fresh copy was issued in its place
+  CANCELLED
+}
+
+model HrLetter {
+  id            String       @id @default(cuid())
+  kind          LetterKind
+  employeeId    String? // empty for an offer to someone not yet hired
+  employee      Employee?    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  offerId       String?
+  offer         Offer?       @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  sourceId      String? // the exit, training, salary record or year the letter is about
+  // ID cards carry the employee code instead of a number.
+  fy            String?
+  seq           Int?
+  number        String?      @unique
+  issuedOn      DateTime     @db.Date
+  recipient     String // the person's name, for lists
+  inputs        Json // what was typed on the form, to start a fresh copy from
+  body          Json // the finished wording, see LetterBody in src/lib/letter-rules.ts
+  status        LetterStatus @default(ISSUED)
+  replacedById  String?      @unique
+  replacedBy    HrLetter?    @relation("LetterReplaced", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces      HrLetter?    @relation("LetterReplaced")
+  cancelledAt   DateTime?
+  cancelReason  String?
+  cancelledById String?
+  cancelledBy   User?        @relation("LetterCanceller", fields: [cancelledById], references: [id])
+  issuedById    String
+  issuedBy      User         @relation("LetterIssuer", fields: [issuedById], references: [id])
+  emails        EmailLog[]
+  createdAt     DateTime     @default(now())
+
+  @@unique([fy, seq])
+  @@index([employeeId, issuedOn])
+  @@index([offerId])
+  @@index([kind, sourceId])
 }

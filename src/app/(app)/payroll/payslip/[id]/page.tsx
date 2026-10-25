@@ -7,6 +7,7 @@ import { getSettings } from "@/lib/settings";
 import { formatDate, formatINR } from "@/lib/format";
 import { CATEGORY_LABEL, payableOf } from "@/lib/expenses";
 import { PrintButton } from "./print-button";
+import { LogoMark } from "@/components/logo";
 
 export const metadata = { title: "Payslip" };
 
@@ -41,6 +42,7 @@ export default async function PayslipPage({ params }: PageProps<"/payroll/paysli
       <article className="card mx-auto max-w-3xl print:border-0 print:shadow-none">
         <header className="mb-6 flex items-start justify-between border-b border-slate-200 pb-4">
           <div>
+            <LogoMark className="mb-2 h-9 w-auto" />
             <div className="text-lg font-semibold">{settings.companyName}</div>
             <div className="text-sm text-slate-500">{settings.companyAddress}</div>
           </div>

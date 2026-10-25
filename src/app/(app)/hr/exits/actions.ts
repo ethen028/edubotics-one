@@ -15,6 +15,7 @@ import { OPEN_PROJECT_STAGES } from "@/lib/projects";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
 import { flash } from "@/lib/flash";
+import { issueLetter } from "@/lib/letters";
 
 const date = dateOnlyInput;
 const text = (max: number) =>
@@ -189,8 +190,11 @@ export async function markLeft(id: string): Promise<FormState> {
     ...(exit.employee.userId ? [db.user.update({ where: { id: exit.employee.userId }, data: { active: false } })] : []),
   ]);
   await logActivity(user, "HR", "exit.left", `Marked ${exit.employee.firstName} ${exit.employee.lastName} as left; their login is switched off`);
+  // The relieving letter is due on the last day, so it is issued (and numbered) straight away.
+  const issued = await issueLetter("RELIEVING", exit.employeeId, {}, user.id);
   refresh(exit.id, exit.employeeId);
-  return { ok: "Marked as left. Their login is switched off." };
+  revalidatePath("/hr/letters");
+  return { ok: `Marked as left. Their login is switched off${"letter" in issued && issued.letter ? `, and relieving letter ${issued.letter.number} is ready to send` : ""}.` };
 }
 
 export async function setRehire(id: string, formData: FormData) {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
+import { canEditCrmRecord } from "@/lib/permissions";
 import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Field, Options, PageHeader } from "@/components/ui";
 import { humanize } from "@/lib/format";
@@ -23,6 +24,7 @@ export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">)
     },
   });
   if (!lead) notFound();
+  const canEdit = canEditCrmRecord(user, lead);
   const [users, orgs] = await Promise.all([activeUsers(), orgOptions()]);
   const match = lead.organizationName
     ? orgs.find((o) => o.name.toLowerCase() === lead.organizationName!.toLowerCase())
@@ -67,7 +69,7 @@ export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">)
               </Link>
               .
             </div>
-          ) : (
+          ) : canEdit ? (
             <ActionForm action={convertLead.bind(null, lead.id)} className="card space-y-3">
               <h2 className="font-semibold">Convert to deal</h2>
               <p className="text-sm text-slate-500">Creates the institution (or uses an existing one), a contact for {lead.name}, and an open deal.</p>
@@ -111,8 +113,12 @@ export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">)
               </div>
               <SubmitButton>Convert</SubmitButton>
             </ActionForm>
+          ) : null}
+          {canEdit ? (
+            <LeadForm action={updateLead.bind(null, lead.id)} lead={lead} users={users} />
+          ) : (
+            <p className="card text-sm text-slate-500">This lead belongs to someone else. Its owner, a manager or an admin can change it.</p>
           )}
-          <LeadForm action={updateLead.bind(null, lead.id)} lead={lead} users={users} />
         </div>
         <div className="xl:col-span-2">
           <ActivityPanel activities={lead.activities} link={{ leadId: lead.id }} users={users} />

@@ -19,7 +19,7 @@ Browser ──► src/proxy.ts ──► page.tsx (server component) ──► s
 | Database | PostgreSQL 16, Prisma 6 | `prisma/schema.prisma` (about 100 models), migrations in `prisma/migrations/` |
 | Auth | Own email + password | bcryptjs hashes; a `jose`-signed HTTP-only cookie names a `Session` row. Google sign-in is built but off (needs HTTPS) |
 | Validation | zod 4 | Every server action parses its `FormData` |
-| PDFs | `@react-pdf/renderer` | `src/lib/pdf/`: invoices, quotes, credit notes, payslips, receipts, certificates, letters |
+| PDFs | `@react-pdf/renderer` | `src/lib/pdf/`: invoices, quotes, credit notes, payslips, receipts, certificates, HR letters and ID cards (wording in `src/lib/letter-rules.ts`) |
 | Email | nodemailer over the company's SMTP | Configured in Admin > Settings > Email; mail password sealed with `src/lib/secret-box.ts` |
 | Tests | `node:test` via tsx | See [TESTING.md](TESTING.md) |
 
@@ -41,6 +41,7 @@ src/
     *-math.ts, *-rules.ts  Pure calculations, unit tested
     auth.ts, permissions.ts  Who may do what
     nav.ts               The whole role-aware menu as data (sidebar, tabs and search read it)
+    page-access.ts       Who may open each page: one row per route, checked against every page by tests
     pdf/                 PDF documents
 prisma/                  Schema, migrations, seed (reference data, Kerala holidays)
 scripts/                 Demo seed, smoke/acceptance/role/security test scripts, secret and dependency checks
@@ -52,7 +53,7 @@ docs/                    Run, deploy, backup and security guides, and these docs
 ## How a request flows
 
 1. `src/proxy.ts` sets security headers, refuses cross-origin writes, rate-limits every write and API call per client address (sign-in also locks an account after 5 wrong passwords), and, if `PUBLIC_CAREERS_HOST` is set, lets that host reach only the careers pages.
-2. A page in `src/app/(app)/` is a server component. It calls `requireUser([...roles])` (or `requireOwner()`), which redirects to `/login`, `/change-password` or `/?denied=1` as needed, then reads data with Prisma, scoped to what that user may see.
+2. A page in `src/app/(app)/` is a server component. It calls `requireUser([...roles])` (or `requireOwner()`), which redirects to `/login`, `/change-password` or the "Not for your role" page (`/no-access`) as needed, then reads data with Prisma, scoped to what that user may see.
 3. Forms are `<ActionForm action={...}>` from `src/components/action-form.tsx`, bound to a server action. The action checks the user again, parses input with zod, writes, logs important changes with `logActivity`, calls `revalidatePath`, and returns `{ ok }` or `{ error }` (or redirects).
 4. Files (documents, receipts, resumes, photos) are stored in PostgreSQL as `Bytes` and served only by route handlers under `src/app/api/` that check the user and send them with `privateFileHeaders` (`src/lib/file-response.ts`).
 
@@ -78,5 +79,5 @@ Four roles in the `Role` enum: `ADMIN`, `HR`, `MANAGER`, `EMPLOYEE`. The company
 
 - Server-side permission checks on every read and write.
 - Money in `Decimal` columns, calculated in tested functions, shown with `formatINR` / `formatMoney`.
-- Document numbers (invoices, quotes, credit notes, receipts, certificates) per financial year (April to March, written `26-27`), guarded by a unique `(fy, seq)` key so two people never get the same number.
+- Document numbers (invoices, quotes, credit notes, receipts, certificates, HR letters) per financial year (April to March, written `26-27`), guarded by a unique `(fy, seq)` key so two people never get the same number.
 - Everything works on one machine with no outside services; email is the only optional external call.

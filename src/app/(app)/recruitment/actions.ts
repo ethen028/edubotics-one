@@ -15,7 +15,6 @@ import {
   INTERVIEW_MODES,
   INTERVIEW_ROUNDS,
   canOffer,
-  canRecruit,
   parseISTDateTime,
 } from "@/lib/recruitment";
 import type { FormState } from "@/components/action-form";
@@ -41,17 +40,9 @@ function firstError(error: z.ZodError) {
   return `${issue.path.join(".") || "Form"}: ${issue.message}`;
 }
 
-async function requireRecruiter() {
-  const user = await requireUser();
-  if (!canRecruit(user)) redirect("/?denied=1");
-  return user;
-}
-
-async function requireOfferMaker() {
-  const user = await requireUser();
-  if (!canOffer(user)) redirect("/?denied=1");
-  return user;
-}
+// The same roles as canRecruit and canOffer in src/lib/recruitment.ts.
+const requireRecruiter = () => requireUser(["ADMIN", "HR", "MANAGER"]);
+const requireOfferMaker = () => requireUser(["ADMIN"]);
 
 function refresh(candidateId?: string, jobId?: string) {
   revalidatePath("/recruitment", "layout");
@@ -418,6 +409,8 @@ export async function hireCandidate(candidateId: string, _: FormState, formData:
         },
       });
       await tx.onboardingTask.createMany({ data: checklistRows(employee.id, employee.dateOfJoining) });
+      // Their offer letters move onto their HR record, beside the letters issued later.
+      await tx.hrLetter.updateMany({ where: { offer: { candidateId } }, data: { employeeId: employee.id } });
       await tx.salaryStructure.create({
         data: {
           employeeId: employee.id,
