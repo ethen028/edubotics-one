@@ -2,7 +2,7 @@ import "server-only";
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import type { Settings } from "../settings";
 import { formatDate, formatINR } from "../format";
-import { LINE, PageNumbers, s } from "./layout";
+import { LINE, PageNumbers, PdfLogo, s } from "./layout";
 
 type Money = { toString(): string };
 export type PayslipPdfData = {
@@ -67,6 +67,9 @@ export function PayslipPdf({ p, settings }: { p: PayslipPdfData; settings: Setti
       <Page size="A4" style={s.page}>
         <View style={[s.between, s.section, { paddingTop: 0 }]}>
           <View>
+            <View style={{ marginBottom: 6 }}>
+              <PdfLogo />
+            </View>
             <Text style={s.h1}>{settings.companyName}</Text>
             <Text style={s.muted}>{settings.companyAddress}</Text>
           </View>

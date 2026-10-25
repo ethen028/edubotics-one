@@ -2,7 +2,7 @@ import "server-only";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Settings } from "../settings";
 import { formatDate } from "../format";
-import { BRAND, LINE, PageNumbers, s } from "./layout";
+import { BRAND, LINE, PageNumbers, PdfLogo, s } from "./layout";
 
 export type ExitLetterFacts = {
   name: string;
@@ -45,6 +45,9 @@ export function ExitLetterPdf({
           </Text>
         )}
         <View style={{ borderBottomWidth: 2, borderBottomColor: BRAND, paddingBottom: 10 }}>
+          <View style={{ marginBottom: 8 }}>
+            <PdfLogo height={34} />
+          </View>
           <Text style={{ fontSize: 17, fontWeight: 600, color: BRAND }}>{settings.companyName}</Text>
           <Text style={s.muted}>{settings.companyAddress.replace(/\s*\n\s*/g, ", ")}</Text>
           {(settings.companyPhone || settings.companyEmail) && (

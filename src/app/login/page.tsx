@@ -23,7 +23,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <div className="w-full max-w-sm">
             <div className="mb-8">
               <div className="mb-6 flex items-center gap-2.5">
-                <div className="brand-mark h-10 w-10 rounded-xl" role="img" aria-label="Edubotics">
+                <div className="brand-mark h-10 w-10" role="img" aria-label="Edubotics">
                   <LogoMark />
                 </div>
                 <span className="font-semibold">Orbit</span>
@@ -70,7 +70,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           </div>
         </div>
         <div className="auth-panel hidden flex-col justify-between p-10 text-white md:flex">
-          <div className="text-xs font-semibold tracking-[0.2em] text-white/70 uppercase">Edubotics Global</div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- a fixed vector file, nothing to optimise */}
+          <img src="/brand/edubotics-logo-horizontal-reverse.svg" alt="Edubotics. Learn, build, innovate." className="h-16 w-auto self-start" />
           <div>
             <p className="text-4xl leading-tight font-semibold tracking-tight">
               Welcome

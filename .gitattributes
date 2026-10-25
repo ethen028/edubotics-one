@@ -1,2 +1,8 @@
 # Shell scripts run inside Linux containers, even when the folder is on Windows.
 *.sh text eol=lf
+
+# Fonts and images are binary: never let a checkout or an archive tool rewrite their line endings.
+*.otf binary
+*.ttf binary
+*.png binary
+*.ico binary

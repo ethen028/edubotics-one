@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { formatDate, formatINR } from "@/lib/format";
 import { canOffer } from "@/lib/recruitment";
 import { PrintButton } from "../../../payroll/payslip/[id]/print-button";
+import { LogoMark } from "@/components/logo";
 
 export const metadata = { title: "Offer letter" };
 
@@ -47,6 +48,7 @@ export default async function OfferLetterPage({ params }: PageProps<"/recruitmen
       <article className="card mx-auto max-w-3xl space-y-4 text-sm leading-relaxed print:border-0 print:shadow-none">
         <header className="flex items-start justify-between border-b border-slate-200 pb-4">
           <div>
+            <LogoMark className="mb-2 h-9 w-auto" />
             <div className="text-lg font-semibold">Edubotics Global</div>
             <div className="text-slate-500">Edappally, Kochi, Kerala · www.eduboticsglobal.com</div>
           </div>
