@@ -19,7 +19,7 @@ Browser ──► src/proxy.ts ──► page.tsx (server component) ──► s
 | Database | PostgreSQL 16, Prisma 6 | `prisma/schema.prisma` (about 100 models), migrations in `prisma/migrations/` |
 | Auth | Own email + password | bcryptjs hashes; a `jose`-signed HTTP-only cookie names a `Session` row. Google sign-in is built but off (needs HTTPS) |
 | Validation | zod 4 | Every server action parses its `FormData` |
-| PDFs | `@react-pdf/renderer` | `src/lib/pdf/`: invoices, quotes, credit notes, payslips, receipts, certificates, letters |
+| PDFs | `@react-pdf/renderer` | `src/lib/pdf/`: invoices, quotes, credit notes, payslips, receipts, certificates, HR letters and ID cards (wording in `src/lib/letter-rules.ts`) |
 | Email | nodemailer over the company's SMTP | Configured in Admin > Settings > Email; mail password sealed with `src/lib/secret-box.ts` |
 | Tests | `node:test` via tsx | See [TESTING.md](TESTING.md) |
 
@@ -77,5 +77,5 @@ Four roles in the `Role` enum: `ADMIN`, `HR`, `MANAGER`, `EMPLOYEE`. The company
 
 - Server-side permission checks on every read and write.
 - Money in `Decimal` columns, calculated in tested functions, shown with `formatINR` / `formatMoney`.
-- Document numbers (invoices, quotes, credit notes, receipts, certificates) per financial year (April to March, written `26-27`), guarded by a unique `(fy, seq)` key so two people never get the same number.
+- Document numbers (invoices, quotes, credit notes, receipts, certificates, HR letters) per financial year (April to March, written `26-27`), guarded by a unique `(fy, seq)` key so two people never get the same number.
 - Everything works on one machine with no outside services; email is the only optional external call.

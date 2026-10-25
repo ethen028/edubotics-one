@@ -12,6 +12,8 @@ import { updateEmployee } from "../../actions";
 import { LeaveStatusBadge } from "../../leave/status-badge";
 import { AssetsSection, DocumentsSection, OnboardingSection, ReviewsSection, SalarySection, TrainingSection } from "./sections";
 import { ContactValue } from "@/components/copy-button";
+import { canIssueKind, canSeeLetter } from "@/lib/letter-rules";
+import { EmployeeLetters } from "../../letters/ui";
 
 export default async function EmployeePage({ params }: PageProps<"/hr/employees/[id]">) {
   const user = await requireUser();
@@ -45,7 +47,7 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
 
   const canSeeDocuments = peopleAdmin || isSelf;
   const canSeeSalary = admin || isSelf;
-  const [balances, departments, managers, documents, modules] = await Promise.all([
+  const [balances, departments, managers, documents, modules, letters] = await Promise.all([
     canSeePrivate ? getLeaveBalances(employee.id) : Promise.resolve([]),
     canEditRecord ? db.department.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
     canEditRecord ? db.employee.findMany({ where: { status: { not: "EXITED" } }, orderBy: { firstName: "asc" } }) : Promise.resolve([]),
@@ -53,7 +55,17 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
       ? db.employeeDocument.findMany({ where: { employeeId: id, ...(user.role === "HR" && !isSelf ? { type: { in: [...HR_DOCUMENT_TYPES] } } : {}) }, omit: { data: true }, orderBy: { createdAt: "desc" } })
       : Promise.resolve([]),
     peopleAdmin || isManager ? db.trainingModule.findMany({ orderBy: { title: "asc" } }) : Promise.resolve([]),
+    peopleAdmin || isSelf
+      ? db.hrLetter.findMany({
+          where: { employeeId: id },
+          select: { id: true, kind: true, number: true, issuedOn: true, status: true, employeeId: true },
+          orderBy: [{ issuedOn: "desc" }, { createdAt: "desc" }],
+        })
+      : Promise.resolve([]),
   ]);
+  const shownLetters = letters
+    .filter((l) => canSeeLetter(user, l) && (l.status === "ISSUED" || peopleAdmin))
+    .map((l) => ({ ...l, manage: !isSelf && canIssueKind(user.role, l.kind) }));
 
   return (
     <>
@@ -225,6 +237,9 @@ export default async function EmployeePage({ params }: PageProps<"/hr/employees/
             isSelf={isSelf}
           />
           <AssetsSection assets={employee.assets} admin={peopleAdmin} />
+          {(peopleAdmin || isSelf) && (
+            <EmployeeLetters employeeId={employee.id} letters={shownLetters} canIssue={peopleAdmin && !isSelf} payslipsHref={isSelf ? "/payroll/my" : admin ? "/payroll" : null} />
+          )}
           {(admin || isSelf || isManager) && <ReviewsSection reviews={employee.reviews} isSelf={isSelf} />}
           {canSeeSalary && (
             <div className="lg:col-span-2">

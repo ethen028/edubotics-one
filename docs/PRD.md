@@ -35,7 +35,7 @@ Full list with detail: [README.md](../README.md). In short:
 
 - **Selling**: leads, institutions, contacts, deal pipeline, follow-ups, quotes, sales commission (5%).
 - **Delivering**: school programmes with weekly timetables and session logs, workshops and certificates, internships, projects with an eight-step flow, tasks, timesheets, daily checklists, annual and monthly operating plan, calendar.
-- **People**: HR records, attendance (Present, ID, OD, Mis-punch, Absent, Leave), leave (15 casual + 3 sick), onboarding, documents, training, assets, recruitment and careers page, performance reviews, exits, payroll and payslips, expense claims, recognition wall.
+- **People**: HR records, attendance (Present, ID, OD, Mis-punch, Absent, Leave), leave (15 casual + 3 sick), onboarding, documents, training, assets, recruitment and careers page, HR letters and certificates, performance reviews, exits, payroll and payslips, expense claims, recognition wall.
 - **Money**: GST invoices, credit notes, payments with TDS, payment reminders, purchase orders, vendor bills, payables, accounts summary for the accountant.
 - **Running the company**: approvals inbox, inventory, helpdesk, notice board, staff messages, four role dashboards, emails from the company account, backups, activity log, sign-in safety.
 
@@ -48,6 +48,7 @@ These are business decisions, not code choices. Don't change them without the ow
 - Salary: Basic + HRA + special allowance. LOP per day = gross / 30.
 - Statutory deductions (PF, ESI, Kerala professional tax, TDS, gratuity) are built but **switched off** until the accountant confirms them.
 - GST: SAC 999293 at 18% by default; CGST + SGST inside Kerala, IGST otherwise. Document numbers like `EBG/26-27/001`, restarting each April, with no gaps.
+- HR letters: probation 3 months, notice 30 days from either side during and after probation (defaults in Settings, changeable per letter). HR letters have their own signatory, separate from workshop certificates. Letters that show pay are admin-only. The letter wording is a starting point the owner has not had checked by a lawyer yet.
 - Owner is an admin with an owner mark, not a fifth role. Only the owner sees the owner dashboard.
 - Recognition has no points, prizes or anything worth money.
 - Staff messages are readable only by the people in the conversation; admins cannot read them.
@@ -58,6 +59,7 @@ These are business decisions, not code choices. Don't change them without the ow
 
 - Phone app: an Expo Android draft exists (PR #37) but is parked; it needs an HTTPS address.
 - Public internet access: the office copy is Wi-Fi only, so trainers at schools can't reach it. Google sign-in is built but off for the same reason.
+- Form 16 (it comes from the income tax TRACES portal; Orbit gives an annual salary statement instead), termination letters, digital or e-signing of letters.
 - File storage outside the database, encrypted backups, a public API.
 - Message attachments, notifications and typing indicators.
 

@@ -9,13 +9,14 @@ import {
   updateCareersSettings,
   updateCertificateSettings,
   updateGoogleSettings,
+  updateLetterSettings,
   updateMailSettings,
   updateReminderSettings,
   updateSafetySettings,
   updateSettings,
 } from "./actions";
 import { callbackUrl, googleSetup } from "@/lib/google-sign-in";
-import { certificateSignature } from "@/lib/settings";
+import { certificateSignature, letterSignature } from "@/lib/settings";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
 import { db } from "@/lib/db";
 import { mailSetup } from "@/lib/mail";
@@ -32,7 +33,7 @@ export default async function SettingsPage() {
   const user = await requireUser(["ADMIN"]);
   const s = await getSettings();
   const setup = mailSetup(s);
-  const signature = await certificateSignature();
+  const [signature, hrSignature] = await Promise.all([certificateSignature(), letterSignature()]);
   const googleOn = !!googleSetup(s);
   const [recent, automatic] = await Promise.all([
     db.emailLog.findMany({ select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 15 }),
@@ -40,7 +41,7 @@ export default async function SettingsPage() {
   ]);
   return (
     <>
-      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email, certificates, the careers page and sign-in." />
+      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email, certificates, HR letters, the careers page and sign-in." />
       <div className="card max-w-xl">
         <ActionForm action={updateSettings} className="space-y-4">
           <Field label="Working time per day">
@@ -448,6 +449,55 @@ export default async function SettingsPage() {
               </div>
             )}
             <SubmitButton>Save certificate settings</SubmitButton>
+          </ActionForm>
+        </div>
+      </section>
+
+      <section id="letters" className="mt-8 max-w-xl scroll-mt-6">
+        <div className="card space-y-4">
+          <h2 className="font-semibold">HR letters</h2>
+          <p className="text-sm text-slate-600">
+            Appointment letters, certificates, NOCs and the rest under HR → Letters are printed on a letterhead with the company name, address,
+            phone and email from Invoices above, plus these. They are signed by the person below, separate from the certificate signatory.
+          </p>
+          <ActionForm action={updateLetterSettings} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Website">
+                <input name="companyWebsite" defaultValue={s.companyWebsite ?? ""} className="input" placeholder="www.eduboticsglobal.com" />
+              </Field>
+              <Field label="Registration number (optional)">
+                <input name="companyRegNo" defaultValue={s.companyRegNo ?? ""} className="input" placeholder="e.g. CIN U80900KL2020PTC000000" />
+              </Field>
+              <Field label="Probation on appointment letters (months)">
+                <input name="probationMonths" type="number" min={0} max={24} defaultValue={s.probationMonths} className="input w-24" />
+              </Field>
+              <Field label="Notice during probation (days)">
+                <input name="probationNoticeDays" type="number" min={0} max={180} defaultValue={s.probationNoticeDays} className="input w-24" />
+              </Field>
+            </div>
+            <p className="text-xs text-slate-500">Notice once confirmed is the notice period at the top of this page ({s.noticePeriodDays} days). Both can be changed on a single letter.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Letters signed by">
+                <input name="letterSignatoryName" defaultValue={s.letterSignatoryName ?? ""} className="input" placeholder="Full name" />
+              </Field>
+              <Field label="Their title">
+                <input name="letterSignatoryTitle" defaultValue={s.letterSignatoryTitle ?? ""} className="input" placeholder="e.g. HR Manager" />
+              </Field>
+            </div>
+            <Field label="Signature picture (PNG or JPG, under 1 MB)">
+              <input type="file" name="signature" accept="image/png,image/jpeg" className="input" />
+              <span className="mt-1 block text-xs text-slate-500">Without a name, letters say “Authorised signatory” with a blank line to sign by hand.</span>
+            </Field>
+            {hrSignature && (
+              <div className="flex items-center gap-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/admin/settings/signature?letters" alt="Current letter signature" className="h-14 rounded border border-slate-200 bg-surface p-1" />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="removeSignature" /> Remove it
+                </label>
+              </div>
+            )}
+            <SubmitButton>Save letter settings</SubmitButton>
           </ActionForm>
         </div>
       </section>

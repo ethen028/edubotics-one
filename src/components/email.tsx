@@ -107,6 +107,7 @@ const KIND: Record<EmailLog["kind"], string> = {
   CERTIFICATE: "Certificate",
   RECEIPT: "Receipt",
   EXIT_LETTER: "Relieving letter",
+  HR_LETTER: "HR letter",
 };
 
 /** What was emailed, to whom and by whom; failures show the mail server's reason. */

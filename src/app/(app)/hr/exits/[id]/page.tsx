@@ -20,15 +20,12 @@ import { monthLabel } from "@/lib/payroll";
 import { getSettings } from "@/lib/settings";
 import { getLeaveBalances } from "@/lib/leave-balance";
 import { requestNo } from "@/lib/inventory";
-import { mailSetup } from "@/lib/mail";
-import { exitLetterEmail } from "@/lib/email-templates";
 import { todayIST } from "@/lib/time";
 import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Field, PageHeader } from "@/components/ui";
-import { EmailComposer, EmailHistory, emailLogSelect } from "@/components/email";
+import { EmailHistory, emailLogSelect } from "@/components/email";
 import { formatDate, formatINR, toDateInput } from "@/lib/format";
 import { RatingPicker } from "../../reviews/ui";
-import { emailExitLetter } from "../../../emails/actions";
 import {
   acceptResignation,
   addExitTask,
@@ -65,6 +62,7 @@ export default async function ExitPage({ params }: PageProps<"/hr/exits/[id]">) 
   const seeSettlement = admin || isSelf;
   const seeInterview = (admin || isSelf) && exit.stage !== "WITHDRAWN";
 
+  const letter = exit.stage === "LEFT" ? await db.hrLetter.findFirst({ where: { kind: "RELIEVING", sourceId: exit.id, status: "ISSUED" }, orderBy: { createdAt: "desc" } }) : null;
   const [settings, structure, checks, handover, balances, run, emails, people] = await Promise.all([
     getSettings(),
     seeSettlement ? salaryFor(e.id, month) : null,
@@ -77,7 +75,13 @@ export default async function ExitPage({ params }: PageProps<"/hr/exits/[id]">) 
           select: { status: true, payslips: { where: { employeeId: e.id }, select: { id: true, finalSettlement: true } } },
         })
       : null,
-    admin ? db.emailLog.findMany({ where: { exitId: exit.id }, select: emailLogSelect, orderBy: { createdAt: "desc" } }) : [],
+    admin
+      ? db.emailLog.findMany({
+          where: { OR: [{ exitId: exit.id }, { letter: { kind: "RELIEVING", sourceId: exit.id } }] },
+          select: emailLogSelect,
+          orderBy: { createdAt: "desc" },
+        })
+      : [],
     manage
       ? db.user.findMany({
           where: {
@@ -102,8 +106,6 @@ export default async function ExitPage({ params }: PageProps<"/hr/exits/[id]">) 
   const slip = run?.payslips[0];
   const stage = EXIT_STAGE[exit.stage];
   const casual = balances.find((b) => b.code === "CL");
-  const setup = mailSetup(settings);
-  const letterTo = e.personalEmail ?? e.workEmail;
 
   return (
     <>
@@ -581,27 +583,35 @@ export default async function ExitPage({ params }: PageProps<"/hr/exits/[id]">) 
               <div>
                 <h2 className="font-semibold">Relieving and experience letter</h2>
                 <p className="text-xs text-slate-500">
-                  {exit.stage === "LEFT"
-                    ? `Signed by ${settings.certSignatoryName || "the signatory set in Settings → Workshop certificates"}.`
-                    : "Marked draft until they are marked as left."}
+                  {letter
+                    ? `${letter.number}, issued ${formatDate(letter.issuedOn)}. Email it, reprint it or issue a fresh copy from the letter.`
+                    : exit.stage === "LEFT"
+                      ? "Not issued yet. Issue it from Letters."
+                      : "Marked draft until they are marked as left. It is issued and numbered then."}
                 </p>
               </div>
-              <a href={`/hr/exits/${exit.id}/letter`} target="_blank" className="btn-secondary">
-                Download PDF
-              </a>
+              <div className="flex flex-wrap gap-2">
+                {letter ? (
+                  <>
+                    <a href={`/hr/letters/${letter.id}/pdf`} target="_blank" className="btn-secondary">
+                      Download PDF
+                    </a>
+                    <Link href={`/hr/letters/${letter.id}`} className="btn-primary">
+                      Open the letter
+                    </Link>
+                  </>
+                ) : exit.stage === "LEFT" ? (
+                  <Link href={`/hr/letters/new?employee=${e.id}&kind=RELIEVING`} className="btn-primary">
+                    Issue the letter
+                  </Link>
+                ) : (
+                  <a href={`/hr/exits/${exit.id}/letter`} target="_blank" className="btn-secondary">
+                    See the draft
+                  </a>
+                )}
+              </div>
             </div>
           </section>
-          {exit.stage === "LEFT" && (
-            <EmailComposer
-              title="Email the letter"
-              action={emailExitLetter.bind(null, exit.id)}
-              draft={{ to: letterTo, ...exitLetterEmail({ firstName: e.firstName }, user.name, settings) }}
-              attachments={[`Relieving letter ${name}.pdf`]}
-              setup={setup}
-              admin
-              hint={e.personalEmail ? "Goes to their personal email, since their work email may be closed." : "No personal email on their profile, so this goes to their work email."}
-            />
-          )}
           <EmailHistory emails={emails} />
         </div>
       )}
