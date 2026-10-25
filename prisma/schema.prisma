@@ -49,6 +49,12 @@ model Company {
   conversations         Conversation[]
   conversationMembers   ConversationMember[]
   chatMessages          ChatMessage[]
+  chatAttachments       ChatAttachment[]
+  fileFolders           FileFolder[]
+  fileFolderMembers     FileFolderMember[]
+  sharedFiles           SharedFile[]
+  meetings              Meeting[]
+  meetingAttendees      MeetingAttendee[]
   projectUpdates        ProjectUpdate[]
   projectFiles          ProjectFile[]
   timesheets            Timesheet[]
@@ -235,6 +241,12 @@ model User {
   recognitionsGiven     Recognition[]          @relation("RecognitionGiver")
   recognitionsReceived  Recognition[]          @relation("RecognitionReceiver")
   recognitionsFeatured  Recognition[]          @relation("RecognitionFeaturer")
+  chatAttachments       ChatAttachment[]
+  foldersCreated        FileFolder[]
+  folderAccess          FileFolderMember[]
+  sharedFiles           SharedFile[]
+  meetingsOrganised     Meeting[]
+  meetingInvites        MeetingAttendee[]
   lettersIssued         HrLetter[]             @relation("LetterIssuer")
   lettersCancelled      HrLetter[]             @relation("LetterCanceller")
 
@@ -525,6 +537,9 @@ model CompanySettings {
   googleClientSecret String? // encrypted with the session secret, see src/lib/secret-box.ts
   googleDomain       String? // e.g. eduboticsglobal.com: only Google accounts on this domain may sign in
   appAddress         String? // the https address people open the app at; Google sends them back here
+
+  // Teamwork (messages, channels, files, meetings): only logins with an email on this domain may use it. Blank = everyone.
+  workspaceDomain String?
 
   // Backups (Admin → Backups): a copy of the whole database every day, see src/lib/backups.ts
   backupsEnabled   Boolean @default(true)
@@ -1274,6 +1289,10 @@ model Conversation {
   /// Set for groups; a one-to-one chat is named after the other person.
   title         String?
   isGroup       Boolean              @default(false)
+  /// A team channel (always also a group): listed for all staff, anyone can join and read it from the start.
+  isChannel     Boolean              @default(false)
+  /// What the channel is for, shown in the channel list.
+  description   String?
   /// "userA:userB" (ids sorted) for one-to-one chats, so the same two people always share one conversation.
   directKey     String?              @unique
   createdById   String?
@@ -1285,10 +1304,12 @@ model Conversation {
 
   // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
   // The database default fails loudly, so a row can never be saved without a company.
-  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
-  company   Company @relation(fields: [companyId], references: [id])
+  companyId   String           @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company     Company          @relation(fields: [companyId], references: [id])
+  attachments ChatAttachment[]
 
   @@index([companyId])
+  @@index([isChannel])
 }
 
 model ConversationMember {
@@ -1313,16 +1334,42 @@ model ConversationMember {
 }
 
 model ChatMessage {
-  id             String       @id @default(cuid())
+  id             String           @id @default(cuid())
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  sender         User             @relation(fields: [senderId], references: [id], onDelete: Cascade)
   /// Empty once the sender removes it ("Message removed" is shown instead).
   body           String
   /// A line like "Anu added Rahul" rather than something a person wrote.
-  event          Boolean      @default(false)
+  event          Boolean          @default(false)
   removedAt      DateTime?
+  createdAt      DateTime         @default(now())
+  attachments    ChatAttachment[]
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([companyId])
+}
+
+/// A file sent with a chat message. Only the conversation's members can open it; removing the message deletes it.
+model ChatAttachment {
+  id             String       @id @default(cuid())
+  messageId      String
+  message        ChatMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  /// Kept here too so a conversation's Files tab needs no join through messages.
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  uploadedById   String
+  uploadedBy     User         @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  fileName       String
+  mimeType       String
+  size           Int
+  data           Bytes
   createdAt      DateTime     @default(now())
 
   // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
@@ -1331,6 +1378,134 @@ model ChatMessage {
   company   Company @relation(fields: [companyId], references: [id])
 
   @@index([conversationId, createdAt])
+  @@index([messageId])
+  @@index([companyId])
+}
+
+// ─── Shared files ──────────────────────────────────────────────────────────
+
+enum FolderAccess {
+  EVERYONE
+  PEOPLE
+}
+
+/// A folder in Files. Who can open it is set on the top-level folder; folders inside it follow the same rule.
+model FileFolder {
+  id          String             @id @default(cuid())
+  name        String
+  parentId    String?
+  parent      FileFolder?        @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    FileFolder[]       @relation("FolderTree")
+  /// The top-level folder this one sits under (null for a top-level folder itself).
+  topId       String?
+  top         FileFolder?        @relation("FolderTop", fields: [topId], references: [id], onDelete: Cascade)
+  below       FileFolder[]       @relation("FolderTop")
+  /// Top-level folders only: all staff, or only the people listed.
+  access      FolderAccess       @default(EVERYONE)
+  createdById String
+  createdBy   User               @relation(fields: [createdById], references: [id])
+  createdAt   DateTime           @default(now())
+  members     FileFolderMember[]
+  files       SharedFile[]
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([parentId])
+  @@index([topId])
+  @@index([companyId])
+}
+
+model FileFolderMember {
+  folderId String
+  folder   FileFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@id([folderId, userId])
+  @@index([userId])
+  @@index([companyId])
+}
+
+/// A file in Files. Without a folder it sits at the top, where all staff can see it.
+model SharedFile {
+  id           String      @id @default(cuid())
+  folderId     String?
+  folder       FileFolder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String
+  uploadedBy   User        @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime    @default(now())
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([folderId, createdAt])
+  @@index([companyId])
+}
+
+// ─── Meetings ──────────────────────────────────────────────────────────────
+
+enum MeetingResponse {
+  PENDING
+  YES
+  MAYBE
+  NO
+}
+
+/// A meeting Orbit organises: who, when, where or which call link, the agenda and the notes. The call itself runs in
+/// Google Meet, Zoom or similar; Orbit only stores the link.
+model Meeting {
+  id          String            @id @default(cuid())
+  title       String
+  startsAt    DateTime
+  minutes     Int
+  location    String?
+  joinUrl     String?
+  agenda      String?
+  notes       String?
+  organizerId String
+  organizer   User              @relation(fields: [organizerId], references: [id])
+  cancelledAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  attendees   MeetingAttendee[]
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([startsAt])
+  @@index([companyId])
+}
+
+model MeetingAttendee {
+  meetingId String
+  meeting   Meeting         @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  response  MeetingResponse @default(PENDING)
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@id([meetingId, userId])
+  @@index([userId])
   @@index([companyId])
 }
 

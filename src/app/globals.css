@@ -1223,6 +1223,30 @@ main .grid > * {
   .chat-people-panel {
     @apply absolute right-0 z-20 mt-2 w-72 max-w-[calc(100vw-2rem)];
   }
+  .chat-tabs {
+    @apply flex shrink-0 items-center gap-0.5 rounded-full bg-slate-100 p-0.5 text-xs font-medium;
+  }
+  .chat-tabs a {
+    @apply rounded-full px-3 py-1 text-slate-600 hover:text-slate-900;
+  }
+  .chat-tabs a[aria-current="page"] {
+    @apply bg-surface text-slate-900 shadow-sm;
+  }
+  .chat-files {
+    @apply flex flex-col gap-1.5 whitespace-normal;
+  }
+  .chat-file {
+    @apply flex max-w-64 items-center gap-2 rounded-xl bg-surface px-2.5 py-2 text-xs text-slate-800 ring-1 ring-slate-200 hover:ring-brand-300;
+  }
+  .chat-mine .chat-file {
+    @apply bg-white/15 text-white ring-white/30 hover:ring-white/60;
+  }
+  .chat-photo img {
+    @apply max-h-56 max-w-64 rounded-xl object-cover;
+  }
+  .chat-picked {
+    @apply inline-flex max-w-48 items-center gap-1 truncate rounded-full bg-brand-50 px-2 py-0.5 text-brand-800;
+  }
 }
 @media (pointer: coarse) {
   .chat-remove {

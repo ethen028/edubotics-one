@@ -27,6 +27,7 @@ import { newOnlineApplications } from "@/lib/careers";
 import { myChecklistsNow } from "@/lib/checklists";
 import { unreadCount } from "@/lib/notifications";
 import { unreadMessageCount } from "@/lib/messages";
+import { canUseTeamwork } from "@/lib/teamwork";
 import { myPlanTasksToUpdate } from "@/lib/plan";
 import { buildNav } from "@/lib/nav";
 import { logout, setAppearance } from "../actions";
@@ -48,6 +49,7 @@ const badgeTone = {
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
+  const teamwork = await canUseTeamwork(user);
   const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk, reviewTodos, onlineApplications, checklists, inbox, planToUpdate, messages] =
     await Promise.all([
       pendingApprovals(user),
@@ -60,7 +62,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       myChecklistsNow(user.id),
       unreadCount(user.id),
       myPlanTasksToUpdate(user.id),
-      unreadMessageCount(user.id),
+      teamwork ? unreadMessageCount(user.id) : 0,
     ]);
   const [company, companies, backups] = await Promise.all([
     currentCompany(),
@@ -68,6 +70,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     isBackupAdmin(user),
   ]);
   const groups = buildNav(user, {
+    teamwork,
     inbox,
     messages,
     toAcknowledge: toAcknowledge.length,
@@ -178,10 +181,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               <Link href="/calendar" className="icon-btn" title="Calendar" aria-label="Calendar">
                 <Icon name="calendar" className="h-4 w-4" />
               </Link>
+              {teamwork && (
               <Link href="/messages" className="icon-btn" title={messages > 0 ? `Messages · ${messages} unread` : "Messages"} aria-label="Messages">
                 <Icon name="chat" className="h-4 w-4" />
                 {messages > 0 && <span className="icon-btn-dot">{messages}</span>}
               </Link>
+              )}
               <Link href="/inbox" className="icon-btn" title={inbox > 0 ? `Inbox · ${inbox} unread` : "Inbox"} aria-label="Inbox">
                 <Icon name="bell" className="h-4 w-4" />
                 {inbox > 0 && <span className="icon-btn-dot">{inbox}</span>}

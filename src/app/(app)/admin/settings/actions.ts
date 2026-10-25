@@ -13,6 +13,7 @@ import { seal } from "@/lib/secret-box";
 import { sniffMime } from "@/lib/hr-constants";
 import { changedSettings, logActivity } from "@/lib/activity";
 import { appAddressProblem } from "@/lib/google-sign-in";
+import { cleanDomain, emailInDomain, isDomain } from "@/lib/teamwork-rules";
 
 const text = (max: number) =>
   z
@@ -316,6 +317,25 @@ export async function updateCertificateSettings(_: FormState, formData: FormData
   await logActivity(admin, "SETTINGS", "settings.signatory", `Changed the certificate signatory${signature ? " and signature picture" : remove ? " (signature picture removed)" : ""}`);
   revalidatePath("/admin/settings");
   return { ok: "Saved. New and reprinted certificates use this." };
+}
+
+// ─── Teamwork ──────────────────────────────────────────────────────────────
+
+/** Keeps Messages, Channels, Files and Meetings to logins on the company email domain (blank = everyone). */
+export async function updateTeamworkSettings(_: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireUser(["ADMIN"]);
+  const workspaceDomain = cleanDomain(String(formData.get("workspaceDomain") ?? "").slice(0, 100));
+  if (workspaceDomain && !isDomain(workspaceDomain)) return { error: "Enter the company domain like eduboticsglobal.com, without anyone's name." };
+  // Don't let an admin shut themselves out by mistake.
+  if (workspaceDomain && !emailInDomain(admin.email, workspaceDomain)) {
+    return { error: `Your own login (${admin.email}) isn't on @${workspaceDomain}. Change your email under Admin → Users first, so you keep Teamwork.` };
+  }
+  const before = await getSettings();
+  await db.companySettings.update({ where: await thisCompany(), data: { workspaceDomain } });
+  const changed = changedSettings(before, { workspaceDomain });
+  if (changed) await logActivity(admin, "SETTINGS", "settings.teamwork", `Changed Teamwork: ${changed}`);
+  revalidatePath("/", "layout");
+  return { ok: workspaceDomain ? `Saved. Only @${workspaceDomain} logins can use Teamwork now.` : "Saved. Every login can use Teamwork." };
 }
 
 /** Letterhead details, starting terms for appointment letters, and who signs HR letters (with an optional signature scan). */

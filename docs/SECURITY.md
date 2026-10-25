@@ -7,7 +7,8 @@ Orbit holds salaries, bank details, ID documents and the company's money records
 - Every page and server action calls `requireUser([...roles])` or `requireOwner()` (`src/lib/auth.ts`) before reading or writing. API route handlers use `getApiUser()`.
 - Check the record, not only the role: managers act on their direct reports, employees on their own records. Nobody approves their own leave, attendance fix, timesheet or expense claim.
 - Salary and payslip figures: admins and the employee only. HR never sees pay. Only the owner sees the owner dashboard and changes the owner's login.
-- Staff messages are readable only by members of the conversation. Admins have no way in; don't add one.
+- Staff messages are readable only by members of the conversation. Admins have no way in; don't add one. Chat files go through `/api/chat-files/[id]`, which checks membership and the date the person joined.
+- Teamwork (Messages, Channels, Files, Meetings) uses `requireTeamwork()` / `getTeamworkApiUser()` so the company-domain setting is enforced on the server, not only in the menu. Meetings are visible to the organiser and invitees only.
 - Companies: every business table has a `companyId`, and `db` (`src/lib/db.ts`) adds the current company to every query and create through `src/lib/company-scope.ts`, so pages never filter by company themselves. `rawDb` skips that filter: use it only for sign-in, your own login, the superadmin's group pages and background jobs that loop over companies with `forEachCompany`. Raw SQL is not filtered: add `"companyId" = ${await currentCompanyId()}` by hand. A superadmin's login can only be changed by a superadmin. Group pages use `requireSuperadmin()`; backups (the whole database) use `requireBackupAdmin()`.
 - New pages need a row in `src/lib/page-access.ts` with the same roles as their `requireUser` call, and a menu entry in `src/lib/nav.ts` only for roles that can open them. `tests/page-access.test.ts` fails otherwise, and also fails if a server action reads the database before checking the role or a download skips `getApiUser()`.
 
@@ -21,7 +22,7 @@ Orbit holds salaries, bank details, ID documents and the company's money records
 ## Files
 
 - Uploads are stored in PostgreSQL and served only through permission-checked handlers in `src/app/api/` with `privateFileHeaders` (`src/lib/file-response.ts`).
-- Check the real file type with `sniffMime` (`src/lib/hr-constants.ts`), not the browser's MIME type or extension. Keep the size limits (5 MB per document; project files 10 MB each, 25 MB per update). Public uploads read the body with `limitedFormData` (`src/lib/request-body.ts`).
+- Check the real file type with `sniffMime` (`src/lib/hr-constants.ts`), not the browser's MIME type or extension. Keep the size limits (5 MB per document; project, chat and Files uploads 10 MB each, 25 MB per upload, and the Teamwork storage cap). Public uploads read the body with `limitedFormData` (`src/lib/request-body.ts`).
 - Unknown document types are admin-only by default.
 
 ## Secrets

@@ -38,7 +38,7 @@ Full list with detail: [README.md](../README.md). In short:
 - **Delivering**: school programmes with weekly timetables and session logs, workshops and certificates, internships, projects with an eight-step flow, tasks, timesheets, daily checklists, annual and monthly operating plan, calendar.
 - **People**: HR records, attendance (Present, ID, OD, Mis-punch, Absent, Leave), leave (15 casual + 3 sick), onboarding, documents, training, assets, recruitment and careers page, HR letters and certificates, performance reviews, exits, payroll and payslips, expense claims, recognition wall.
 - **Money**: GST invoices, credit notes, payments with TDS, payment reminders, purchase orders, vendor bills, payables, accounts summary for the accountant.
-- **Running the company**: approvals inbox, inventory, helpdesk, notice board, staff messages, four role dashboards, emails from the company account, backups, activity log, sign-in safety.
+- **Running the company**: approvals inbox, inventory, helpdesk, notice board, Teamwork (messages, channels, files, meetings), four role dashboards, emails from the company account, backups, activity log, sign-in safety.
 
 ## Rules the owner has decided
 
@@ -53,7 +53,8 @@ These are business decisions, not code choices. Don't change them without the ow
 - Owner is an admin with an owner mark, not a fifth role. Only the owner sees the owner dashboard.
 - Group of companies (Oct 2026): each company is fully separate (own staff, records, settings, letterhead, signatories, numbering). The superadmin is a mark on a login, not a sixth role; it acts as owner in whichever company it picks.
 - Recognition has no points, prizes or anything worth money.
-- Staff messages are readable only by the people in the conversation; admins cannot read them.
+- Staff messages are readable only by the people in the conversation; admins cannot read them. Channels are open to all staff by design. Files folders can be for chosen people, but admins can open every folder.
+- Teamwork can be limited to logins on the company email domain (Admin > Settings > Teamwork), like a company Teams workspace. Calls run in Google Meet, Zoom or Teams; Orbit stores the link, it does not host video.
 - Automatic payment reminders are off until switched on; at most one per school per 7 days, three per invoice.
 - The look: one purple accent on a pale lavender page ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)).
 

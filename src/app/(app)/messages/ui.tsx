@@ -2,13 +2,36 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icon } from "@/components/icons";
 import { initials, shortWhen, type ConversationRow } from "@/lib/messages";
+import { formatSize } from "@/lib/project-files";
 
-/** A round avatar: initials for a person, a people icon for a group. */
-export function Avatar({ name, group, size = "md" }: { name: string; group?: boolean; size?: "sm" | "md" }) {
+/** A round avatar: initials for a person, a people icon for a group, a # for a channel. */
+export function Avatar({ name, group, channel, size = "md" }: { name: string; group?: boolean; channel?: boolean; size?: "sm" | "md" }) {
   return (
     <span className={`chat-avatar ${size === "sm" ? "h-8 w-8 text-[11px]" : "h-10 w-10 text-xs"}`} aria-hidden="true">
-      {group ? <Icon name="users" className="h-4 w-4" /> : initials(name)}
+      {channel ? <Icon name="hash" className="h-4 w-4" /> : group ? <Icon name="users" className="h-4 w-4" /> : initials(name)}
     </span>
+  );
+}
+
+/** A file in a chat bubble: photos show small, anything else is a tile with its name and size. Opens in a new tab. */
+export function Attachment({ file }: { file: { id: string; fileName: string; mimeType: string; size: number } }) {
+  const href = `/api/chat-files/${file.id}`;
+  if (file.mimeType.startsWith("image/")) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className="chat-photo" title={file.fileName}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- a private file behind sign-in, not a public image */}
+        <img src={href} alt={file.fileName} loading="lazy" />
+      </a>
+    );
+  }
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="chat-file">
+      <Icon name="file" className="h-5 w-5 shrink-0" />
+      <span className="min-w-0">
+        <span className="block truncate font-medium">{file.fileName}</span>
+        <span className="block text-[11px] opacity-75">{formatSize(file.size)}</span>
+      </span>
+    </a>
   );
 }
 
@@ -54,7 +77,7 @@ export function ConversationList({
                 ? "Message removed"
                 : last.event
                   ? last.body
-                  : `${last.senderId === userId ? "You: " : c.isGroup ? `${last.sender.name.split(" ")[0]}: ` : ""}${last.body}`;
+                  : `${last.senderId === userId ? "You: " : c.isGroup ? `${last.sender.name.split(" ")[0]}: ` : ""}${last.body || "Sent a file"}`;
             return (
               <li key={c.id}>
                 <Link
@@ -62,7 +85,7 @@ export function ConversationList({
                   aria-current={c.id === activeId ? "page" : undefined}
                   className={`chat-row ${c.id === activeId ? "chat-row-active" : ""}`}
                 >
-                  <Avatar name={c.name} group={c.isGroup} />
+                  <Avatar name={c.name} group={c.isGroup} channel={c.isChannel} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2">
                       <span className={`truncate text-sm ${c.unread ? "font-semibold text-slate-900" : "font-medium text-slate-800"}`}>

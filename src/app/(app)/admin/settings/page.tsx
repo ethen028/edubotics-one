@@ -14,7 +14,9 @@ import {
   updateReminderSettings,
   updateSafetySettings,
   updateSettings,
+  updateTeamworkSettings,
 } from "./actions";
+import { emailInDomain } from "@/lib/teamwork-rules";
 import { callbackUrl, googleSetup } from "@/lib/google-sign-in";
 import { certificateSignature, letterSignature } from "@/lib/settings";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
@@ -39,9 +41,14 @@ export default async function SettingsPage() {
     db.emailLog.findMany({ select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 15 }),
     db.emailLog.findMany({ where: { automatic: true }, select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 10 }),
   ]);
+  const teamworkOutside = s.workspaceDomain
+    ? (await db.user.findMany({ where: { active: true, closedAt: null }, select: { name: true, email: true }, orderBy: { name: "asc" } })).filter(
+        (u) => !emailInDomain(u.email, s.workspaceDomain),
+      )
+    : [];
   return (
     <>
-      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email, certificates, HR letters, the careers page and sign-in." />
+      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email, certificates, HR letters, the careers page, Teamwork and sign-in." />
       <div className="card max-w-xl">
         <ActionForm action={updateSettings} className="space-y-4">
           <Field label="Working time per day">
@@ -534,6 +541,34 @@ export default async function SettingsPage() {
               people are never deleted. 0 keeps everyone. Holding personal data only as long as needed is what India&apos;s data protection law asks.
             </p>
             <SubmitButton>Save careers page</SubmitButton>
+          </ActionForm>
+        </div>
+      </section>
+
+      <section id="teamwork" className="mt-8 max-w-xl scroll-mt-6">
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Teamwork</h2>
+            {s.workspaceDomain ? <Badge color="green">Company emails only</Badge> : <Badge>Everyone with a login</Badge>}
+          </div>
+          <p className="text-sm text-slate-600">
+            Messages, Channels, Files and Meetings can be kept to logins on the company&apos;s email domain, like a company Teams
+            workspace. Anyone else (a personal Gmail login, for example) can still use the rest of Orbit but can&apos;t open these or be
+            added to them. The careers page and other public pages are not part of Teamwork either way.
+          </p>
+          <ActionForm action={updateTeamworkSettings} className="space-y-3">
+            <Field label="Company email domain" className="block">
+              <input name="workspaceDomain" defaultValue={s.workspaceDomain ?? ""} className="input" placeholder="eduboticsglobal.com" />
+              <span className="mt-1 block text-xs text-slate-500">Leave blank to let every login use Teamwork.</span>
+            </Field>
+            {teamworkOutside.length > 0 && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {teamworkOutside.length === 1 ? "1 login is" : `${teamworkOutside.length} logins are`} not on @{s.workspaceDomain}, so{" "}
+                {teamworkOutside.length === 1 ? "it can't" : "they can't"} use Teamwork: {teamworkOutside.map((u) => u.name).join(", ")}. Change
+                their email under Admin → Users if they should.
+              </p>
+            )}
+            <SubmitButton>Save Teamwork</SubmitButton>
           </ActionForm>
         </div>
       </section>

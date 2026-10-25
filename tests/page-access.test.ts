@@ -22,7 +22,7 @@ const routeOf = (f: string) => `/${f.replace(/^\(app\)\/?/, "").replace(/\/?page
 
 /** The access a page's own code enforces, read from its first guard call. */
 function guardOf(source: string): PageAccess | "none" {
-  const m = source.match(/requireOwner\(\)|requireSuperadmin\(\)|requireBackupAdmin\(\)|requireUser\(\s*(\[[^\]]*\])?\s*\)|getCurrentSession\(\)/);
+  const m = source.match(/requireOwner\(\)|requireSuperadmin\(\)|requireBackupAdmin\(\)|requireTeamwork\(\)|requireUser\(\s*(\[[^\]]*\])?\s*\)|getCurrentSession\(\)/);
   if (!m) return "none";
   if (m[0] === "requireOwner()") return "owner";
   if (m[0] === "requireSuperadmin()") return "superadmin";
@@ -44,7 +44,7 @@ test("every signed-in page has a row in the access list and enforces exactly tha
 
 // Server actions that run before anyone is signed in (sign-in, password reset, email links).
 const PUBLIC_ACTIONS = new Set(["actions.ts#login", "actions.ts#logout", "account-actions.ts#requestPasswordReset", "account-actions.ts#resetPassword", "account-actions.ts#verifyEmail"]);
-const GUARD = /\b(requireUser|requireOwner|requireSuperadmin|requireBackupAdmin|getCurrentSession|getApiUser)\s*\(/;
+const GUARD = /\b(requireUser|requireOwner|requireSuperadmin|requireBackupAdmin|requireTeamwork|getCurrentSession|getApiUser|getTeamworkApiUser)\s*\(/;
 
 test("every server action checks who is signed in before it touches the database", () => {
   const actionFiles = all.filter((f) => /^\s*["']use server["']/m.test(read(f)));
@@ -83,7 +83,7 @@ test("every download and export checks sign-in, including a finished password se
     // getCurrentUser skips the "replace your temporary password" step that pages enforce.
     assert.doesNotMatch(src, /getCurrentUser\(/, `${f} should use getApiUser() or requireUser()`);
     if (PUBLIC_ROUTES.has(f)) continue;
-    assert.match(src, /\b(getApiUser|requireUser|requireOwner)\(/, `${f} has no sign-in check`);
+    assert.match(src, /\b(getApiUser|getTeamworkApiUser|requireUser|requireOwner)\(/, `${f} has no sign-in check`);
   }
 });
 
@@ -96,7 +96,7 @@ const PEOPLE = {
   employee: { role: "EMPLOYEE" },
 } as const;
 const BUSY: NavCounts = {
-  inbox: 1, messages: 1, toAcknowledge: 1, checklists: 1, overdueChecklists: true, helpdesk: 1, approvals: 1,
+  teamwork: true, inbox: 1, messages: 1, toAcknowledge: 1, checklists: 1, overdueChecklists: true, helpdesk: 1, approvals: 1,
   lowStock: 1, onlineApplications: 1, myInterviews: 1, reviewTodos: 1, planToUpdate: 1,
 };
 

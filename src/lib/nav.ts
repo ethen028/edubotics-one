@@ -23,6 +23,8 @@ export type NavGroupData = {
 };
 
 export type NavCounts = {
+  /** Whether this login can use Teamwork (Messages, Channels, Files, Meetings): see Admin > Settings > Teamwork. */
+  teamwork: boolean;
   inbox: number;
   messages: number;
   toAcknowledge: number;
@@ -52,17 +54,27 @@ export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean 
     {
       title: "Overview",
       icon: "grid",
-      paths: ["/", "/inbox", "/messages", "/calendar", "/dashboard", "/notices", "/recognition", "/guide"],
+      paths: ["/", "/inbox", "/calendar", "/dashboard", "/notices", "/recognition", "/guide"],
       items: [
         { href: "/", label: "Home" },
         // Each role's dashboards: its own first (owner, admin, HR or "My dashboard"), then the others its job needs.
         ...dashboardsFor(user).map((d) => ({ href: d.href, label: d.label, exact: true })),
         { href: "/calendar", label: "Calendar" },
         { href: "/inbox", label: "Inbox", badge: c.inbox, tone: "brand", title: "Unread notifications" },
-        { href: "/messages", label: "Messages", badge: c.messages, tone: "brand", title: "Unread messages from colleagues" },
         { href: "/notices", label: "Notice board", badge: c.toAcknowledge, tone: "amber" as const },
         { href: "/recognition", label: "Recognition" },
         { href: "/guide", label: "Getting started" },
+      ],
+    },
+    c.teamwork && {
+      title: "Teamwork",
+      icon: "chat",
+      paths: ["/messages", "/channels", "/files", "/meetings"],
+      items: [
+        { href: "/messages", label: "Messages", badge: c.messages, tone: "brand", title: "Unread messages and channel posts" },
+        { href: "/channels", label: "Channels" },
+        { href: "/files", label: "Files" },
+        { href: "/meetings", label: "Meetings" },
       ],
     },
     {

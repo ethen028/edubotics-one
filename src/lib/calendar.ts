@@ -4,7 +4,7 @@ import type { CurrentUser } from "@/lib/auth";
 import { isHrOrAdmin } from "@/lib/permissions";
 import { addMonths, monthRhythm, monthStart } from "@/lib/plan-rules";
 
-export type CalendarKind = "holiday" | "rhythm" | "plan" | "session" | "workshop" | "leave" | "due";
+export type CalendarKind = "holiday" | "rhythm" | "plan" | "meeting" | "session" | "workshop" | "leave" | "due";
 
 export type CalendarEvent = { date: Date; kind: CalendarKind; title: string; href?: string; time?: string };
 
@@ -12,6 +12,7 @@ export const CALENDAR_KINDS: { kind: CalendarKind; label: string; color: string 
   { kind: "holiday", label: "Holidays", color: "var(--color-emerald-600)" },
   { kind: "rhythm", label: "Planning and reviews", color: "var(--color-navy)" },
   { kind: "plan", label: "Plan deadlines", color: "var(--color-amber-500)" },
+  { kind: "meeting", label: "Meetings", color: "#06b6d4" }, // the brand cyan
   { kind: "session", label: "School sessions", color: "var(--color-brand-700)" },
   { kind: "workshop", label: "Workshops and internships", color: "var(--color-violet-500)" },
   { kind: "leave", label: "Leave", color: "var(--color-slate-400)" },
@@ -29,13 +30,13 @@ function ist(d: Date) {
 /**
  * Everything on the company calendar between two dates (inclusive) that this person should see: holidays,
  * the planning rhythm from the operating plan, plan deadlines, school sessions, workshops, approved leave,
- * project milestones and tasks, and interviews. Managers and admins see the whole team's; others see their own.
+ * project milestones and tasks, interviews, and the meetings they organise or are invited to (never anyone else's). Managers and admins see the whole team's; others see their own.
  */
 export async function calendarEvents(user: CurrentUser, from: Date, to: Date): Promise<CalendarEvent[]> {
   const manager = user.role === "ADMIN" || user.role === "MANAGER";
   const people = manager || isHrOrAdmin(user);
   const span = { gte: from, lte: to };
-  const [holidays, months, planTasks, sessions, workshops, leave, milestones, tasks, interviews] = await Promise.all([
+  const [holidays, months, planTasks, sessions, workshops, leave, milestones, tasks, interviews, meetings] = await Promise.all([
     db.holiday.findMany({ where: { date: span }, orderBy: { date: "asc" } }),
     db.planMonth.findMany({ where: { month: { gte: monthStart(from), lte: to } } }),
     db.planTask.findMany({
@@ -68,6 +69,14 @@ export async function calendarEvents(user: CurrentUser, from: Date, to: Date): P
     db.interview.findMany({
       where: { scheduledAt: { gte: from, lt: new Date(to.getTime() + DAY) }, status: "SCHEDULED", ...(people ? {} : { interviewerId: user.id }) },
       include: { candidate: { select: { id: true, name: true } } },
+    }),
+    db.meeting.findMany({
+      where: {
+        startsAt: { gte: new Date(from.getTime() - 5.5 * 3600000), lt: new Date(to.getTime() + DAY - 5.5 * 3600000) },
+        cancelledAt: null,
+        OR: [{ organizerId: user.id }, { attendees: { some: { userId: user.id, response: { not: "NO" } } } }],
+      },
+      select: { id: true, title: true, startsAt: true },
     }),
   ]);
 
@@ -132,6 +141,10 @@ export async function calendarEvents(user: CurrentUser, from: Date, to: Date): P
     const at = ist(i.scheduledAt);
     events.push({ date: at.date, time: at.time, kind: "due", title: `Interview: ${i.candidate.name} (${i.round})`, href: `/recruitment/candidates/${i.candidate.id}` });
   }
-  const order: CalendarKind[] = ["holiday", "rhythm", "due", "plan", "workshop", "session", "leave"];
+  for (const m of meetings) {
+    const at = ist(m.startsAt);
+    events.push({ date: at.date, time: at.time, kind: "meeting", title: m.title, href: `/meetings/${m.id}` });
+  }
+  const order: CalendarKind[] = ["holiday", "rhythm", "due", "meeting", "plan", "workshop", "session", "leave"];
   return events.sort((a, b) => a.date.getTime() - b.date.getTime() || order.indexOf(a.kind) - order.indexOf(b.kind) || (a.time ?? "").localeCompare(b.time ?? ""));
 }
