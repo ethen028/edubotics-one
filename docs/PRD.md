@@ -50,13 +50,13 @@ These are business decisions, not code choices. Don't change them without the ow
 - Statutory deductions (PF, ESI, Kerala professional tax, TDS, gratuity) are built but **switched off** until the accountant confirms them.
 - GST: SAC 999293 at 18% by default; CGST + SGST inside Kerala, IGST otherwise. Document numbers like `EBG/26-27/001`, restarting each April, with no gaps.
 - HR letters: probation 3 months, notice 30 days from either side during and after probation (defaults in Settings, changeable per letter). HR letters have their own signatory, separate from workshop certificates. Letters that show pay are admin-only. The letter wording is a starting point the owner has not had checked by a lawyer yet.
-- Owner is an admin with an owner mark, not a fifth role. Only the owner sees the owner dashboard.
+- Owner is an admin with an owner mark, not a fifth role, one per company. Only the owner sees the owner dashboard.
 - Group of companies (Oct 2026): each company is fully separate (own staff, records, settings, letterhead, signatories, numbering). The superadmin is a mark on a login, not a sixth role; it acts as owner in whichever company it picks.
 - Recognition has no points, prizes or anything worth money.
 - Staff messages are readable only by the people in the conversation; admins cannot read them. Channels are open to all staff by design. Files folders can be for chosen people, but admins can open every folder.
 - Teamwork can be limited to logins on the company email domain (Admin > Settings > Teamwork), like a company Teams workspace. Calls run in Google Meet, Zoom or Teams; Orbit stores the link, it does not host video.
 - Automatic payment reminders are off until switched on; at most one per school per 7 days, three per invoice.
-- The look: one purple accent on a pale lavender page ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)).
+- The look: one teal accent on a pale teal-grey page with a deep teal-navy menu, and only the main Edubotics logo ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)).
 
 ## Not built, on purpose or not yet
 
@@ -64,7 +64,8 @@ These are business decisions, not code choices. Don't change them without the ow
 - Public internet access: the office copy is Wi-Fi only, so trainers at schools can't reach it. Google sign-in is built but off for the same reason.
 - Form 16 (it comes from the income tax TRACES portal; Orbit gives an annual salary statement instead), termination letters, digital or e-signing of letters.
 - File storage outside the database, encrypted backups, a public API.
-- Message attachments, notifications and typing indicators.
+- Message push notifications and typing indicators (messages poll every 5 seconds). Built-in video calls: meetings hold a Meet, Zoom or Teams link; how calls should work is still an open decision with the owner.
+- The CRM edit rule (only a record's owner, a manager or an admin changes a lead or deal) was built while the owner's decision is still open.
 
 ## How we know it works
 
