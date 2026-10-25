@@ -119,14 +119,19 @@ export async function requireUser(roles?: Role[]): Promise<CurrentUser> {
   const problem = sessionAccessProblem({ user, session }, process.env.REQUIRE_VERIFIED_EMAIL === "true");
   if (problem === "password") redirect("/change-password");
   if (problem === "email") redirect("/verify-email");
-  if (roles && !roles.includes(user.role)) redirect("/?denied=1");
+  if (roles && !roles.includes(user.role)) deny(roles);
   return user;
+}
+
+/** Sends someone to the "Not for your role" page, which names who the page or action is for. */
+export function deny(allowed: readonly Role[] | "owner"): never {
+  redirect(`/no-access?for=${allowed === "owner" ? "owner" : allowed.join(".")}`);
 }
 
 /** The owner dashboard and its records: the company owner (an admin with the owner mark) only. */
 export async function requireOwner(): Promise<CurrentUser> {
   const user = await requireUser(["ADMIN"]);
-  if (!user.isOwner) redirect("/?denied=1");
+  if (!user.isOwner) deny("owner");
   return user;
 }
 

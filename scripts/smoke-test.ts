@@ -77,8 +77,8 @@ try {
     const body = await response.text();
     // A redirect after the loading boundary starts streaming is carried in the response body.
     const denied = response.status === 307
-      ? response.headers.get("location")?.includes("denied")
-      : response.status === 200 && body.includes("NEXT_REDIRECT") && body.includes("/?denied=1");
+      ? response.headers.get("location")?.includes("/no-access")
+      : response.status === 200 && body.includes("NEXT_REDIRECT") && body.includes("/no-access");
     assert.ok(denied, `Employee must be denied ${route}`);
   }
   const fileRoutes = ["/api/documents/missing", "/api/project-files/missing", "/api/checklists/photos/missing", "/api/expenses/missing/receipt", "/api/helpdesk/files/missing", "/api/notices/missing/file", "/api/purchases/bills/missing/file", "/api/recruitment/files/missing"];

@@ -1,10 +1,10 @@
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getApiUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { payslipPdf, pdfResponse } from "@/lib/pdf";
 
 /** A payslip as a PDF, for admins and for the employee once payroll is finalised (as on the payslip page). */
 export async function GET(req: Request, { params }: RouteContext<"/payroll/payslip/[id]/pdf">) {
-  const user = await getCurrentUser();
+  const user = (await getApiUser()).user;
   if (!user) return new Response("Sign in first", { status: 401 });
   const { id } = await params;
   const slip = await db.payslip.findUnique({ where: { id }, select: { employeeId: true, run: { select: { status: true } } } });

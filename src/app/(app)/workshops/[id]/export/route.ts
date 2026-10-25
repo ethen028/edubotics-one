@@ -1,4 +1,4 @@
-import { getCurrentUser, isManagerOrAdmin } from "@/lib/auth";
+import { getApiUser, isManagerOrAdmin } from "@/lib/auth";
 import { methodLabel } from "@/lib/invoices";
 import { todayIST } from "@/lib/time";
 import { canMarkAttendance, standing, workshopDays } from "@/lib/workshops";
@@ -10,7 +10,7 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Participants with contact details, attendance by day, fees and certificate numbers, for a spreadsheet. */
 export async function GET(_: Request, { params }: RouteContext<"/workshops/[id]/export">) {
-  const user = await getCurrentUser();
+  const user = (await getApiUser()).user;
   const w = await loadWorkshop((await params).id);
   if (!user || !w || !canMarkAttendance(user, w)) return new Response("Not found", { status: 404 });
   const money = isManagerOrAdmin(user) && w.feeType === "PER_PERSON";

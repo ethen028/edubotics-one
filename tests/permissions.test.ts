@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PERMISSION_ROWS, ROLES, ROLE_COLUMNS, canAccessEmployeeDocument, canManagePeople, dashboardsFor, homeDashboard, isHrOrAdmin, isOwner } from "../src/lib/permissions";
+import { PERMISSION_ROWS, ROLES, ROLE_COLUMNS, canAccessEmployeeDocument, canEditCrmRecord, canTickActivity, canManagePeople, dashboardsFor, homeDashboard, isHrOrAdmin, isOwner } from "../src/lib/permissions";
 
 test("HR has people privileges independently of managers and administrators", () => {
   for (const role of ROLES) {
@@ -32,4 +32,17 @@ test("each role opens only the dashboards its job needs, its own first", () => {
 });
 test("the permissions table has a column for the owner and each role", () => {
   for (const row of PERMISSION_ROWS) assert.equal(row.access.length, ROLE_COLUMNS.length, row.label);
+});
+test("only a lead or deal's owner, a manager or an admin changes it; unowned records stay open", () => {
+  const owned = { ownerId: "sales-1" };
+  assert.equal(canEditCrmRecord({ id: "sales-1", role: "EMPLOYEE" }, owned), true);
+  assert.equal(canEditCrmRecord({ id: "trainer-1", role: "EMPLOYEE" }, owned), false);
+  assert.equal(canEditCrmRecord({ id: "hr-1", role: "HR" }, owned), false);
+  assert.equal(canEditCrmRecord({ id: "m-1", role: "MANAGER" }, owned), true);
+  assert.equal(canEditCrmRecord({ id: "a-1", role: "ADMIN" }, owned), true);
+  assert.equal(canEditCrmRecord({ id: "hr-1", role: "HR" }, { ownerId: null }), true);
+  const followUp = { assigneeId: "sales-1", createdById: "sales-2" };
+  assert.equal(canTickActivity({ id: "sales-1", role: "EMPLOYEE" }, followUp), true);
+  assert.equal(canTickActivity({ id: "sales-2", role: "EMPLOYEE" }, followUp), true);
+  assert.equal(canTickActivity({ id: "trainer-1", role: "EMPLOYEE" }, followUp), false);
 });

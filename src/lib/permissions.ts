@@ -3,6 +3,16 @@ import type { Role } from "@prisma/client";
 export const ROLES = ["ADMIN", "HR", "MANAGER", "EMPLOYEE"] as const;
 export const isHrOrAdmin = (user: { role: Role }) => user.role === "ADMIN" || user.role === "HR";
 export const canManagePeople = (user: { role: Role }) => isHrOrAdmin(user) || user.role === "MANAGER";
+/**
+ * Who may change a lead or deal: the person who owns it, a manager or an admin. Records nobody owns stay
+ * open to all, so nothing gets stuck. Everyone can still see the pipeline; only admins delete.
+ */
+export const canEditCrmRecord = (user: { id: string; role: Role }, record: { ownerId: string | null }) =>
+  user.role === "ADMIN" || user.role === "MANAGER" || !record.ownerId || record.ownerId === user.id;
+/** A follow-up is ticked off by the person it is for, whoever set it, a manager or an admin. */
+export const canTickActivity = (user: { id: string; role: Role }, activity: { assigneeId: string | null; createdById: string }) =>
+  canEditCrmRecord(user, { ownerId: activity.assigneeId }) || activity.createdById === user.id;
+
 /** The company owner: an admin with the owner mark (there is one), who also sees the money picture. */
 export const isOwner = (user: { role: Role; isOwner?: boolean }) => user.role === "ADMIN" && user.isOwner === true;
 
@@ -56,6 +66,7 @@ export const PERMISSION_ROWS = [
   { label: "Departments, leave policies, holidays, assets", access: ["Manage", "Manage", "Manage", "View where available", "View where available"] },
   { label: "Recruitment jobs, candidates, interviews", access: ["Manage", "Manage", "Manage", "Manage", "Assigned interviews"] },
   { label: "Offers, final hiring, salary structures, payroll", access: ["Manage", "Manage", "Own payslips only", "Own payslips only", "Own payslips only"] },
+  { label: "CRM leads and deals", access: ["See all, change all, delete", "See all, change all, delete", "See all, change own", "See all, change all", "See all, change own"] },
   { label: "Quotes, invoices, credit notes, payments due", access: ["Manage", "Manage", "None", "Manage", "None"] },
   { label: "Purchases, vendor bills, payables", access: ["Manage", "Manage", "Raise requests", "Approve team requests", "Raise requests"] },
   { label: "Stock", access: ["Manage", "Manage", "Request", "Request, approve team", "Request"] },
