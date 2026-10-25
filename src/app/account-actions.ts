@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { rawDb as db } from "@/lib/db"; // account links work before sign-in, for every company
 import { getCurrentSession, hashPassword } from "@/lib/auth";
 import { trustedAppOrigin, tokenHash } from "@/lib/account-security";
 import { issueAccountToken, consumeAccountToken } from "@/lib/account-tokens";
@@ -46,7 +46,7 @@ export async function resetPassword(_: FormState, form: FormData): Promise<FormS
   if (problem) return { error: problem };
   const userId = await consumeAccountToken(raw, "RESET_PASSWORD", await hashPassword(password));
   if (!userId) return { error: BAD_LINK };
-  await logActivity({ id: userId }, "LOGINS", "password.reset", "Password reset through a one-use email link; all sessions ended");
+  await logActivity({ id: userId, companyId: token.user.companyId }, "LOGINS", "password.reset", "Password reset through a one-use email link; all sessions ended");
   redirect("/login?reset=1");
 }
 
@@ -74,6 +74,7 @@ export async function verifyEmail(_: FormState, form: FormData): Promise<FormSta
   if (!(await allowRequest("verify-submit", await requestIp() ?? "unknown", 20, 900000))) return { error: "Too many attempts. Try again in 15 minutes." };
   const userId = await consumeAccountToken(String(form.get("token") ?? ""), "VERIFY_EMAIL");
   if (!userId) return { error: BAD_LINK };
-  await logActivity({ id: userId }, "LOGINS", "email.verified", "Work email verified through a one-use link");
+  const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, companyId: true } });
+  await logActivity(user, "LOGINS", "email.verified", "Work email verified through a one-use link");
   return { ok: "Email verified. You can return to your workspace." };
 }

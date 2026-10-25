@@ -7,6 +7,122 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Companies ─────────────────────────────────────────────────────────────
+
+// A company in the group. Every business record belongs to one; staff see only their own company and a
+// superadmin (User.isSuperadmin) switches between them. Each has its own settings row (CompanySettings).
+model Company {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  sessions  Session[] @relation("SessionCompany")
+
+  users                 User[]
+  departments           Department[]
+  employees             Employee[]
+  leaveTypes            LeaveType[]
+  leaveRequests         LeaveRequest[]
+  holidays              Holiday[]
+  settings              CompanySettings?
+  attendanceSessions    AttendanceSession[]
+  attendanceMarks       AttendanceMark[]
+  attendanceCorrections AttendanceCorrection[]
+  onboardingTasks       OnboardingTask[]
+  employeeDocuments     EmployeeDocument[]
+  assets                Asset[]
+  trainingModules       TrainingModule[]
+  trainingAssignments   TrainingAssignment[]
+  salaryStructures      SalaryStructure[]
+  payrollRuns           PayrollRun[]
+  payslips              Payslip[]
+  organizations         Organization[]
+  contacts              Contact[]
+  leads                 Lead[]
+  deals                 Deal[]
+  activities            Activity[]
+  projects              Project[]
+  projectMembers        ProjectMember[]
+  milestones            Milestone[]
+  projectTasks          ProjectTask[]
+  taskChecklistItems    TaskChecklistItem[]
+  notifications         Notification[]
+  conversations         Conversation[]
+  conversationMembers   ConversationMember[]
+  chatMessages          ChatMessage[]
+  chatAttachments       ChatAttachment[]
+  fileFolders           FileFolder[]
+  fileFolderMembers     FileFolderMember[]
+  sharedFiles           SharedFile[]
+  meetings              Meeting[]
+  meetingAttendees      MeetingAttendee[]
+  projectUpdates        ProjectUpdate[]
+  projectFiles          ProjectFile[]
+  timesheets            Timesheet[]
+  timeEntries           TimeEntry[]
+  stockItems            StockItem[]
+  stockMovements        StockMovement[]
+  stockRequests         StockRequest[]
+  stockRequestLines     StockRequestLine[]
+  programmes            Programme[]
+  programmeTrainers     ProgrammeTrainer[]
+  programmeSessions     ProgrammeSession[]
+  expenseClaims         ExpenseClaim[]
+  expenseReceipts       ExpenseReceipt[]
+  invoices              Invoice[]
+  invoiceLines          InvoiceLine[]
+  invoicePayments       InvoicePayment[]
+  creditNotes           CreditNote[]
+  creditNoteLines       CreditNoteLine[]
+  quotes                Quote[]
+  quoteLines            QuoteLine[]
+  vendors               Vendor[]
+  purchaseOrders        PurchaseOrder[]
+  purchaseOrderLines    PurchaseOrderLine[]
+  purchaseReceipts      PurchaseReceipt[]
+  purchaseReceiptLines  PurchaseReceiptLine[]
+  vendorBills           VendorBill[]
+  vendorBillFiles       VendorBillFile[]
+  vendorPayments        VendorPayment[]
+  jobOpenings           JobOpening[]
+  candidates            Candidate[]
+  candidateFiles        CandidateFile[]
+  interviews            Interview[]
+  offers                Offer[]
+  notices               Notice[]
+  noticeFiles           NoticeFile[]
+  noticeAcks            NoticeAck[]
+  recognitions          Recognition[]
+  helpdeskTickets       HelpdeskTicket[]
+  helpdeskComments      HelpdeskComment[]
+  helpdeskAttachments   HelpdeskAttachment[]
+  emailLogs             EmailLog[]
+  workshops             Workshop[]
+  workshopTrainers      WorkshopTrainer[]
+  workshopRegistrations WorkshopRegistration[]
+  workshopPayments      WorkshopPayment[]
+  workshopAttendances   WorkshopAttendance[]
+  workshopCertificates  WorkshopCertificate[]
+  reviewCycles          ReviewCycle[]
+  performanceReviews    PerformanceReview[]
+  reviewGoals           ReviewGoal[]
+  employeeExits         EmployeeExit[]
+  exitTasks             ExitTask[]
+  activityLogs          ActivityLog[]
+  checklistTemplates    ChecklistTemplate[]
+  checklistItems        ChecklistItem[]
+  checklistAssignees    ChecklistAssignee[]
+  checklistRuns         ChecklistRun[]
+  checklistTicks        ChecklistTick[]
+  checklistPhotos       ChecklistPhoto[]
+  planMonths            PlanMonth[]
+  planMetrics           PlanMetric[]
+  planTasks             PlanTask[]
+  planTaskUpdates       PlanTaskUpdate[]
+  commissionStatements  CommissionStatement[]
+  commissionLines       CommissionLine[]
+  hrLetters             HrLetter[]
+}
+
 // ─── Access ────────────────────────────────────────────────────────────────
 
 enum Role {
@@ -28,6 +144,7 @@ model User {
   name         String
   passwordHash String
   role         Role      @default(EMPLOYEE)
+  isSuperadmin Boolean   @default(false) // sees every company in the group and switches between them (top bar, My account)
   isOwner      Boolean   @default(false) // the company owner: an admin who also sees the owner dashboard; only one, handed over in Users
   active       Boolean   @default(true)
   employee     Employee?
@@ -132,18 +249,32 @@ model User {
   meetingInvites        MeetingAttendee[]
   lettersIssued         HrLetter[]             @relation("LetterIssuer")
   lettersCancelled      HrLetter[]             @relation("LetterCanceller")
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 // ─── HRM ───────────────────────────────────────────────────────────────────
 
 model Department {
   id        String       @id @default(cuid())
-  name      String       @unique
+  name      String
   employees Employee[]
   projects  Project[]
   createdAt DateTime     @default(now())
   jobs      JobOpening[]
   offers    Offer[]
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, name])
 }
 
 enum EmploymentType {
@@ -162,7 +293,7 @@ enum EmployeeStatus {
 
 model Employee {
   id               String                 @id @default(cuid())
-  code             String                 @unique // e.g. EBG-001
+  code             String // e.g. EBG-001
   firstName        String
   lastName         String
   workEmail        String                 @unique
@@ -216,16 +347,30 @@ model Employee {
   reviews          PerformanceReview[]
   exits            EmployeeExit[]
   letters          HrLetter[]
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
 }
 
 model LeaveType {
   id          String         @id @default(cuid())
-  code        String         @unique // CL, SL, EL, LOP
+  code        String // CL, SL, EL, LOP
   name        String
   annualQuota Float          @default(0) // days per calendar year; 0 = unlimited (e.g. LOP)
   paid        Boolean        @default(true)
   active      Boolean        @default(true)
   requests    LeaveRequest[]
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
 }
 
 enum LeaveStatus {
@@ -253,24 +398,39 @@ model LeaveRequest {
   decidedAt    DateTime?
   createdAt    DateTime    @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([employeeId, startDate])
+  @@index([companyId])
 }
 
 model Holiday {
   id        String   @id @default(cuid())
-  date      DateTime @unique @db.Date
+  date      DateTime @db.Date
   name      String
   optional  Boolean  @default(false) // restricted holiday
   tentative Boolean  @default(false) // date depends on the moon or isn't notified yet
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, date])
 }
 
 // ─── Company settings (single row, id = 1) ─────────────────────────────────
 
 model CompanySettings {
-  id                Int   @id @default(1)
-  workMinutesPerDay Int   @default(540) // 9 hours, as in Edubotics HR V1.2
-  overtimeAfterMins Int   @default(30) // OD once a day runs this far past the target
-  weeklyOffDays     Int[] @default([0, 6]) // 0 = Sunday … 6 = Saturday
+  id                Int     @id @default(autoincrement())
+  companyId         String  @unique
+  company           Company @relation(fields: [companyId], references: [id])
+  workMinutesPerDay Int     @default(540) // 9 hours, as in Edubotics HR V1.2
+  overtimeAfterMins Int     @default(30) // OD once a day runs this far past the target
+  weeklyOffDays     Int[]   @default([0, 6]) // 0 = Sunday … 6 = Saturday
 
   // Payroll. Deductions start switched off (Edubotics deducts none today).
   lopDivisor        Int     @default(30) // LOP per day = monthly gross ÷ this, as in HR V1.2
@@ -350,10 +510,10 @@ model CompanySettings {
   certSignatureType  String? // image/png or image/jpeg
 
   // HR letters (src/lib/letter-rules.ts): printed on the letterhead and used as the starting terms.
-  companyWebsite      String? @default("www.eduboticsglobal.com")
-  companyRegNo        String? // CIN or other registration number, printed under the letterhead when filled in
-  probationMonths     Int     @default(3)
-  probationNoticeDays Int     @default(30) // notice from either side while on probation; noticePeriodDays once confirmed
+  companyWebsite       String? @default("www.eduboticsglobal.com")
+  companyRegNo         String? // CIN or other registration number, printed under the letterhead when filled in
+  probationMonths      Int     @default(3)
+  probationNoticeDays  Int     @default(30) // notice from either side while on probation; noticePeriodDays once confirmed
   // Who signs HR letters: separate from the certificate signatory. Without a name the letters say "Authorised signatory".
   letterSignatoryName  String?
   letterSignatoryTitle String?
@@ -379,7 +539,7 @@ model CompanySettings {
   appAddress         String? // the https address people open the app at; Google sends them back here
 
   // Teamwork (messages, channels, files, meetings): only logins with an email on this domain may use it. Blank = everyone.
-  workspaceDomain    String?
+  workspaceDomain String?
 
   // Backups (Admin → Backups): a copy of the whole database every day, see src/lib/backups.ts
   backupsEnabled   Boolean @default(true)
@@ -402,7 +562,13 @@ model AttendanceSession {
 
   corrections AttendanceCorrection[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([employeeId, workDate])
+  @@index([companyId])
 }
 
 enum AttendanceStatus {
@@ -427,7 +593,13 @@ model AttendanceMark {
   markedById String
   createdAt  DateTime         @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([employeeId, workDate])
+  @@index([companyId])
 }
 
 enum RequestStatus {
@@ -449,6 +621,13 @@ model AttendanceCorrection {
   decidedById       String?
   decidedAt         DateTime?
   createdAt         DateTime          @default(now())
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 // ─── Onboarding ────────────────────────────────────────────────────────────
@@ -471,7 +650,13 @@ model OnboardingTask {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([employeeId])
+  @@index([companyId])
 }
 
 // ─── Documents ─────────────────────────────────────────────────────────────
@@ -502,7 +687,13 @@ model EmployeeDocument {
   reviewedAt   DateTime?
   createdAt    DateTime       @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([employeeId])
+  @@index([companyId])
 }
 
 // ─── Assets ────────────────────────────────────────────────────────────────
@@ -516,7 +707,7 @@ enum AssetStatus {
 
 model Asset {
   id           String           @id @default(cuid())
-  code         String           @unique // EDU-LAP-021
+  code         String // EDU-LAP-021
   name         String
   category     String // Laptop, Access card, Lab kit, Phone…
   serialNo     String?
@@ -529,17 +720,31 @@ model Asset {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   tickets      HelpdeskTicket[]
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
 }
 
 // ─── Training ──────────────────────────────────────────────────────────────
 
 model TrainingModule {
   id          String               @id @default(cuid())
-  title       String               @unique
+  title       String
   description String?
   active      Boolean              @default(true)
   assignments TrainingAssignment[]
   createdAt   DateTime             @default(now())
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, title])
 }
 
 enum TrainingStatus {
@@ -558,7 +763,13 @@ model TrainingAssignment {
   completedAt DateTime?
   createdAt   DateTime       @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([employeeId, moduleId])
+  @@index([companyId])
 }
 
 // ─── Payroll ───────────────────────────────────────────────────────────────
@@ -575,7 +786,13 @@ model SalaryStructure {
   note             String?
   createdAt        DateTime @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([employeeId, effectiveFrom])
+  @@index([companyId])
 }
 
 enum PayrollStatus {
@@ -586,7 +803,7 @@ enum PayrollStatus {
 
 model PayrollRun {
   id          String        @id @default(cuid())
-  month       String        @unique // "2026-10"
+  month       String // "2026-10"
   status      PayrollStatus @default(DRAFT)
   createdById String
   createdBy   User          @relation(fields: [createdById], references: [id])
@@ -594,6 +811,13 @@ model PayrollRun {
   paidOn      DateTime?     @db.Date
   payslips    Payslip[]
   createdAt   DateTime      @default(now())
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, month])
 }
 
 model Payslip {
@@ -632,7 +856,13 @@ model Payslip {
   expenseClaims     ExpenseClaim[]
   emails            EmailLog[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([runId, employeeId])
+  @@index([companyId])
 }
 
 // ─── CRM ───────────────────────────────────────────────────────────────────
@@ -677,7 +907,13 @@ model Organization {
   quotes                Quote[]
   workshops             Workshop[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([name])
+  @@index([companyId])
 }
 
 model Contact {
@@ -698,6 +934,13 @@ model Contact {
   updatedAt      DateTime      @updatedAt
   invoices       Invoice[]
   quotes         Quote[]
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 enum LeadStatus {
@@ -738,6 +981,13 @@ model Lead {
   activities       Activity[]
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 enum DealStage {
@@ -774,7 +1024,13 @@ model Deal {
   invoices       Invoice[]
   quotes         Quote[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([stage])
+  @@index([companyId])
 }
 
 enum ActivityType {
@@ -807,7 +1063,13 @@ model Activity {
   contact        Contact?      @relation(fields: [contactId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([assigneeId, done, dueAt])
+  @@index([companyId])
 }
 
 // ─── Projects (from the Edubotics One Floot prototype) ─────────────────────
@@ -870,7 +1132,13 @@ model Project {
   invoices       Invoice[]
   purchaseOrders PurchaseOrder[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([stage])
+  @@index([companyId])
 }
 
 model ProjectMember {
@@ -882,7 +1150,13 @@ model ProjectMember {
   role      String? // Trainer, Developer, Coordinator…
   createdAt DateTime @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([projectId, userId])
+  @@index([companyId])
 }
 
 model Milestone {
@@ -895,7 +1169,13 @@ model Milestone {
   tasks     ProjectTask[]
   createdAt DateTime      @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([projectId])
+  @@index([companyId])
 }
 
 enum WorkStatus {
@@ -948,10 +1228,16 @@ model ProjectTask {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([assigneeId, status])
   @@index([projectId])
   @@index([parentId])
   @@index([dependsOnId])
+  @@index([companyId])
 }
 
 /// A step on a task's checklist (Task Flow v5), ticked by the assignee or the project owner.
@@ -964,7 +1250,13 @@ model TaskChecklistItem {
   doneAt    DateTime?
   createdAt DateTime    @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([taskId, position])
+  @@index([companyId])
 }
 
 /// A message in someone's Inbox (Task Flow v5): a task given to them, an update asked for, a week approved…
@@ -979,7 +1271,13 @@ model Notification {
   readAt    DateTime?
   createdAt DateTime  @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([userId, readAt, createdAt])
+  @@index([companyId])
 }
 
 // ─── Staff messages ────────────────────────────────────────────────────────
@@ -1003,8 +1301,14 @@ model Conversation {
   createdAt     DateTime             @default(now())
   members       ConversationMember[]
   messages      ChatMessage[]
-  attachments   ChatAttachment[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId   String           @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company     Company          @relation(fields: [companyId], references: [id])
+  attachments ChatAttachment[]
+
+  @@index([companyId])
   @@index([isChannel])
 }
 
@@ -1019,8 +1323,14 @@ model ConversationMember {
   /// Set when someone leaves a group: they stop seeing it and getting its messages.
   leftAt         DateTime?
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@id([conversationId, userId])
   @@index([userId, leftAt])
+  @@index([companyId])
 }
 
 model ChatMessage {
@@ -1037,7 +1347,13 @@ model ChatMessage {
   createdAt      DateTime         @default(now())
   attachments    ChatAttachment[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([conversationId, createdAt])
+  @@index([companyId])
 }
 
 /// A file sent with a chat message. Only the conversation's members can open it; removing the message deletes it.
@@ -1056,8 +1372,14 @@ model ChatAttachment {
   data           Bytes
   createdAt      DateTime     @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([conversationId, createdAt])
   @@index([messageId])
+  @@index([companyId])
 }
 
 // ─── Shared files ──────────────────────────────────────────────────────────
@@ -1086,8 +1408,14 @@ model FileFolder {
   members     FileFolderMember[]
   files       SharedFile[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([parentId])
   @@index([topId])
+  @@index([companyId])
 }
 
 model FileFolderMember {
@@ -1096,8 +1424,14 @@ model FileFolderMember {
   userId   String
   user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@id([folderId, userId])
   @@index([userId])
+  @@index([companyId])
 }
 
 /// A file in Files. Without a folder it sits at the top, where all staff can see it.
@@ -1113,7 +1447,13 @@ model SharedFile {
   uploadedBy   User        @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime    @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([folderId, createdAt])
+  @@index([companyId])
 }
 
 // ─── Meetings ──────────────────────────────────────────────────────────────
@@ -1143,7 +1483,13 @@ model Meeting {
   updatedAt   DateTime          @updatedAt
   attendees   MeetingAttendee[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([startsAt])
+  @@index([companyId])
 }
 
 model MeetingAttendee {
@@ -1153,8 +1499,14 @@ model MeetingAttendee {
   user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   response  MeetingResponse @default(PENDING)
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@id([meetingId, userId])
   @@index([userId])
+  @@index([companyId])
 }
 
 /// A progress report on a project or one of its tasks: a note, a progress change and/or files (from Task Flow).
@@ -1175,8 +1527,14 @@ model ProjectUpdate {
   files        ProjectFile[]
   createdAt    DateTime      @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([projectId, createdAt])
   @@index([taskId])
+  @@index([companyId])
 }
 
 /// A file attached to a project, kept in the database like employee documents.
@@ -1196,8 +1554,14 @@ model ProjectFile {
   uploadedBy   User           @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime       @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([projectId])
   @@index([taskId])
+  @@index([companyId])
 }
 
 // ─── Timesheets ────────────────────────────────────────────────────────────
@@ -1224,7 +1588,13 @@ model Timesheet {
   entries      TimeEntry[]
   createdAt    DateTime        @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([employeeId, weekStart])
+  @@index([companyId])
 }
 
 enum DailyWorkStatus {
@@ -1256,7 +1626,13 @@ model TimeEntry {
   editCount   Int              @default(0)
   editedAt    DateTime?
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([timesheetId, date])
+  @@index([companyId])
 }
 
 // ─── Inventory ─────────────────────────────────────────────────────────────
@@ -1266,7 +1642,7 @@ model TimeEntry {
 /// One stocked thing: a robotics kit, a sensor, a pack of jumper wires.
 model StockItem {
   id           String              @id @default(cuid())
-  sku          String              @unique // EB-KIT-ARD-01
+  sku          String // EB-KIT-ARD-01
   name         String
   category     String // see INVENTORY_CATEGORIES
   unit         String              @default("pcs") // pcs, kit, set, pack, m
@@ -1283,6 +1659,12 @@ model StockItem {
   updatedAt    DateTime            @updatedAt
   poLines      PurchaseOrderLine[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, sku])
   @@index([category])
 }
 
@@ -1312,7 +1694,13 @@ model StockMovement {
   receiptId String? // received against a purchase order
   receipt   PurchaseReceipt?  @relation(fields: [receiptId], references: [id], onDelete: SetNull)
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([itemId, createdAt])
+  @@index([companyId])
 }
 
 enum StockRequestStatus {
@@ -1347,8 +1735,14 @@ model StockRequest {
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([status])
   @@index([requesterId])
+  @@index([companyId])
 }
 
 model StockRequestLine {
@@ -1362,7 +1756,13 @@ model StockRequestLine {
   returned   Int          @default(0)
   writtenOff Int          @default(0) // lost, damaged or used up
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([requestId, itemId])
+  @@index([companyId])
 }
 
 // ─── Operations: school programme delivery ─────────────────────────────────
@@ -1399,7 +1799,13 @@ model Programme {
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([organizationId])
+  @@index([companyId])
 }
 
 /// A trainer assigned to a school, and which classes they take there.
@@ -1412,7 +1818,13 @@ model ProgrammeTrainer {
   classes     String? // "Grades 3 to 5"
   createdAt   DateTime  @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([programmeId, userId])
+  @@index([companyId])
 }
 
 enum SessionStatus {
@@ -1447,9 +1859,15 @@ model ProgrammeSession {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([programmeId, date])
   @@index([trainerId, date])
   @@index([date])
+  @@index([companyId])
 }
 
 // ─── Expense claims ────────────────────────────────────────────────────────
@@ -1500,8 +1918,14 @@ model ExpenseClaim {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([employeeId, date])
   @@index([status])
+  @@index([companyId])
 }
 
 /// The bill or photo of it, kept apart so lists don't load file bytes (5 MB cap).
@@ -1513,6 +1937,13 @@ model ExpenseReceipt {
   mimeType String
   size     Int
   data     Bytes
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 // ─── Invoicing ─────────────────────────────────────────────────────────────
@@ -1536,7 +1967,7 @@ model Invoice {
   id             String           @id @default(cuid())
   fy             String? // financial year of the issue date, "26-27"
   seq            Int? // running number within the financial year
-  number         String?          @unique // EBG/26-27/001, given when issued
+  number         String? // EBG/26-27/001, given when issued
   status         InvoiceStatus    @default(DRAFT)
   organizationId String
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -1574,7 +2005,13 @@ model Invoice {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  @@unique([fy, seq])
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, fy, seq])
+  @@unique([companyId, number])
   @@index([organizationId])
   @@index([status, dueDate])
 }
@@ -1592,7 +2029,13 @@ model InvoiceLine {
   amount      Decimal          @db.Decimal(14, 2) // quantity × unit price, before tax
   credited    CreditNoteLine[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([invoiceId])
+  @@index([companyId])
 }
 
 /// Money received against an invoice. TDS the school withheld also settles the invoice.
@@ -1610,7 +2053,13 @@ model InvoicePayment {
   recordedBy   User          @relation(fields: [recordedById], references: [id])
   createdAt    DateTime      @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([invoiceId])
+  @@index([companyId])
 }
 
 // ─── Credit notes ──────────────────────────────────────────────────────────
@@ -1635,7 +2084,7 @@ model CreditNote {
   id              String           @id @default(cuid())
   fy              String // financial year of the credit note date, "26-27"
   seq             Int
-  number          String           @unique // EBG/CN/26-27/001
+  number          String // EBG/CN/26-27/001
   status          CreditNoteStatus @default(ISSUED)
   invoiceId       String
   invoice         Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
@@ -1660,7 +2109,13 @@ model CreditNote {
   emails          EmailLog[]
   createdAt       DateTime         @default(now())
 
-  @@unique([fy, seq])
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, fy, seq])
+  @@unique([companyId, number])
   @@index([invoiceId])
 }
 
@@ -1678,8 +2133,14 @@ model CreditNoteLine {
   gstRate       Decimal      @default(0) @db.Decimal(5, 2)
   amount        Decimal      @db.Decimal(14, 2) // before tax
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([creditNoteId])
   @@index([invoiceLineId])
+  @@index([companyId])
 }
 
 // ─── Quotations ────────────────────────────────────────────────────────────
@@ -1698,7 +2159,7 @@ model Quote {
   id             String       @id @default(cuid())
   fy             String? // financial year of the quote date, "26-27"
   seq            Int?
-  number         String?      @unique // EBG/Q/26-27/001, given when sent
+  number         String? // EBG/Q/26-27/001, given when sent
   status         QuoteStatus  @default(DRAFT)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -1733,7 +2194,13 @@ model Quote {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  @@unique([fy, seq])
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, fy, seq])
+  @@unique([companyId, number])
   @@index([organizationId])
   @@index([dealId])
   @@index([status, validUntil])
@@ -1751,7 +2218,13 @@ model QuoteLine {
   gstRate     Decimal @default(0) @db.Decimal(5, 2)
   amount      Decimal @db.Decimal(14, 2) // quantity × unit price, before tax
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([quoteId])
+  @@index([companyId])
 }
 
 // ─── Purchases ─────────────────────────────────────────────────────────────
@@ -1760,7 +2233,7 @@ model QuoteLine {
 
 model Vendor {
   id          String          @id @default(cuid())
-  name        String          @unique
+  name        String
   contactName String?
   phone       String?
   email       String?
@@ -1776,6 +2249,13 @@ model Vendor {
   bills       VendorBill[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, name])
 }
 
 enum PurchaseOrderStatus {
@@ -1817,8 +2297,14 @@ model PurchaseOrder {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([status])
   @@index([vendorId])
+  @@index([companyId])
 }
 
 /// One thing bought. Linked to a stock item when it goes into inventory; free text for anything else.
@@ -1835,6 +2321,13 @@ model PurchaseOrderLine {
   gstRate     Int                   @default(18)
   received    Int                   @default(0)
   receipts    PurchaseReceiptLine[]
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 /// A delivery from the vendor (goods received note). Stock items go into inventory.
@@ -1849,6 +2342,13 @@ model PurchaseReceipt {
   lines      PurchaseReceiptLine[]
   movements  StockMovement[]
   createdAt  DateTime              @default(now())
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 model PurchaseReceiptLine {
@@ -1858,6 +2358,13 @@ model PurchaseReceiptLine {
   lineId    String
   line      PurchaseOrderLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
   quantity  Int
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 enum VendorBillStatus {
@@ -1887,8 +2394,14 @@ model VendorBill {
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([vendorId, billNo])
   @@index([dueDate])
+  @@index([companyId])
 }
 
 /// Photo or PDF of the vendor's bill, kept apart so lists don't load the bytes.
@@ -1900,6 +2413,13 @@ model VendorBillFile {
   mimeType String
   size     Int
   data     Bytes
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 model VendorPayment {
@@ -1916,7 +2436,13 @@ model VendorPayment {
   by        User       @relation(fields: [byId], references: [id])
   createdAt DateTime   @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([billId])
+  @@index([companyId])
 }
 
 // ─── Recruitment ───────────────────────────────────────────────────────────
@@ -1952,7 +2478,13 @@ model JobOpening {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([status])
+  @@index([companyId])
 }
 
 enum CandidateStage {
@@ -1993,9 +2525,15 @@ model Candidate {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([jobId, stage])
   @@index([email])
   @@index([phone])
+  @@index([companyId])
 }
 
 /// Resumes and other files, kept in Postgres like employee documents (5 MB cap each).
@@ -2012,7 +2550,13 @@ model CandidateFile {
   uploadedBy   User?     @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime  @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([candidateId])
+  @@index([companyId])
 }
 
 enum InterviewStatus {
@@ -2049,8 +2593,14 @@ model Interview {
   emails         EmailLog[]
   createdAt      DateTime        @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([interviewerId, scheduledAt])
   @@index([candidateId])
+  @@index([companyId])
 }
 
 enum OfferStatus {
@@ -2088,7 +2638,13 @@ model Offer {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([candidateId])
+  @@index([companyId])
 }
 
 // ─── Notice board ──────────────────────────────────────────────────────────
@@ -2119,7 +2675,13 @@ model Notice {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([kind, archivedAt])
+  @@index([companyId])
 }
 
 /// The policy document or poster attached to a notice (PDF or image, up to 5 MB).
@@ -2131,6 +2693,13 @@ model NoticeFile {
   mimeType String
   size     Int
   data     Bytes
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 model NoticeAck {
@@ -2142,7 +2711,13 @@ model NoticeAck {
   version  Int // the notice version that was acknowledged
   ackedAt  DateTime @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([noticeId, userId])
+  @@index([companyId])
 }
 
 // ─── Recognition ───────────────────────────────────────────────────────────
@@ -2162,9 +2737,15 @@ model Recognition {
   featuredBy   User?     @relation("RecognitionFeaturer", fields: [featuredById], references: [id], onDelete: SetNull)
   createdAt    DateTime  @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([toId, createdAt])
   @@index([createdAt])
   @@index([featuredAt])
+  @@index([companyId])
 }
 
 // ─── Helpdesk ──────────────────────────────────────────────────────────────
@@ -2199,8 +2780,14 @@ model HelpdeskTicket {
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([requesterId, status])
   @@index([status, assigneeId])
+  @@index([companyId])
 }
 
 /// A reply on a request, or a line in its history ("Moved to In progress").
@@ -2216,7 +2803,13 @@ model HelpdeskComment {
 
   attachments HelpdeskAttachment[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([ticketId, createdAt])
+  @@index([companyId])
 }
 
 /// Photos and PDFs on a request, stored in Postgres like employee documents (5 MB each).
@@ -2234,7 +2827,13 @@ model HelpdeskAttachment {
   uploadedBy   User             @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime         @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([ticketId])
+  @@index([companyId])
 }
 
 // ─── Emails ────────────────────────────────────────────────────────────────
@@ -2327,6 +2926,11 @@ model EmailLog {
   automatic     Boolean              @default(false) // sent by the daily automatic reminder round, not by a person
   createdAt     DateTime             @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([kind, createdAt])
   @@index([quoteId])
   @@index([payslipId])
@@ -2336,6 +2940,7 @@ model EmailLog {
   @@index([receiptId])
   @@index([exitId])
   @@index([letterId])
+  @@index([companyId])
 }
 
 // ─── Workshops and certificates ────────────────────────────────────────────
@@ -2404,8 +3009,14 @@ model Workshop {
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([startDate])
   @@index([organizationId])
+  @@index([companyId])
 }
 
 model WorkshopTrainer {
@@ -2416,7 +3027,13 @@ model WorkshopTrainer {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([workshopId, userId])
+  @@index([companyId])
 }
 
 enum RegistrationStatus {
@@ -2444,7 +3061,13 @@ model WorkshopRegistration {
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([workshopId])
+  @@index([companyId])
 }
 
 model WorkshopPayment {
@@ -2458,7 +3081,7 @@ model WorkshopPayment {
   // Every payment gets a receipt, numbered EBG/R/26-27/0001 by the financial year it was paid in.
   fy             String
   seq            Int
-  number         String               @unique
+  number         String
   // GST inside the amount, fixed when the payment is recorded: 0 when GST is off in Settings.
   gstRate        Decimal              @default(0) @db.Decimal(5, 2)
   placeOfSupply  String // the host college's state for an in-person workshop, else the company's
@@ -2470,7 +3093,13 @@ model WorkshopPayment {
   recordedBy     User                 @relation(fields: [recordedById], references: [id])
   createdAt      DateTime             @default(now())
 
-  @@unique([fy, seq])
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, fy, seq])
+  @@unique([companyId, number])
   @@index([paidOn])
 }
 
@@ -2485,7 +3114,13 @@ model WorkshopAttendance {
   present        Boolean
   updatedAt      DateTime             @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([registrationId, date])
+  @@index([companyId])
 }
 
 enum CertificateStatus {
@@ -2499,7 +3134,7 @@ model WorkshopCertificate {
   registration   WorkshopRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   fy             String // financial year of the issue date, "26-27"
   seq            Int
-  number         String               @unique // EBG/CERT/26-27/0001
+  number         String // EBG/CERT/26-27/0001
   issuedOn       DateTime             @db.Date
   status         CertificateStatus    @default(ISSUED)
   cancelledAt    DateTime?
@@ -2509,7 +3144,13 @@ model WorkshopCertificate {
   emails         EmailLog[]
   createdAt      DateTime             @default(now())
 
-  @@unique([fy, seq])
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, fy, seq])
+  @@unique([companyId, number])
 }
 
 // ─── Performance reviews ───────────────────────────────────────────────────
@@ -2528,7 +3169,7 @@ enum ReviewCycleStage {
 
 model ReviewCycle {
   id          String              @id @default(cuid())
-  name        String              @unique // "2026-27 annual review"
+  name        String // "2026-27 annual review"
   kind        ReviewCycleKind     @default(ANNUAL)
   periodStart DateTime            @db.Date
   periodEnd   DateTime            @db.Date
@@ -2541,6 +3182,13 @@ model ReviewCycle {
   createdBy   User                @relation("ReviewCycleCreator", fields: [createdById], references: [id])
   reviews     PerformanceReview[]
   createdAt   DateTime            @default(now())
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, name])
 }
 
 /// One person in one cycle. Status is worked out from the timestamps (see lib/reviews.ts).
@@ -2569,7 +3217,13 @@ model PerformanceReview {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([cycleId, employeeId])
+  @@index([companyId])
 }
 
 model ReviewGoal {
@@ -2585,6 +3239,13 @@ model ReviewGoal {
   managerRating  Int?
   managerComment String?
   createdAt      DateTime          @default(now())
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 // ─── Exit and offboarding ──────────────────────────────────────────────────
@@ -2650,7 +3311,13 @@ model EmployeeExit {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([employeeId, stage])
+  @@index([companyId])
 }
 
 model ExitTask {
@@ -2665,7 +3332,13 @@ model ExitTask {
   doneBy    User?        @relation(fields: [doneById], references: [id], onDelete: SetNull)
   createdAt DateTime     @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([exitId])
+  @@index([companyId])
 }
 
 // ─── Sign-in and safety ────────────────────────────────────────────────────
@@ -2677,15 +3350,17 @@ enum SignInMethod {
 
 /// One signed-in browser. The cookie only names the session; ending the row signs that browser out.
 model Session {
-  id         String       @id @default(cuid())
-  userId     String
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  method     SignInMethod @default(PASSWORD)
-  createdAt  DateTime     @default(now())
-  lastSeenAt DateTime     @default(now())
-  endedAt    DateTime?
-  ip         String?
-  userAgent  String?
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  method          SignInMethod @default(PASSWORD)
+  createdAt       DateTime     @default(now())
+  lastSeenAt      DateTime     @default(now())
+  endedAt         DateTime?
+  activeCompanyId String? // a superadmin's picked company for this browser; empty = their own company
+  activeCompany   Company?     @relation("SessionCompany", fields: [activeCompanyId], references: [id], onDelete: SetNull)
+  ip              String?
+  userAgent       String?
 
   @@index([userId, endedAt])
 }
@@ -2714,9 +3389,15 @@ model ActivityLog {
   summary String
   ip      String?
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([at])
   @@index([userId, at])
   @@index([area, at])
+  @@index([companyId])
 }
 
 // ---------- Daily checklists ----------
@@ -2753,6 +3434,13 @@ model ChecklistTemplate {
   runs        ChecklistRun[]
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 model ChecklistItem {
@@ -2765,7 +3453,13 @@ model ChecklistItem {
   archivedAt DateTime? // removed from the list but kept for past ticks
   ticks      ChecklistTick[]
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([templateId])
+  @@index([companyId])
 }
 
 model ChecklistAssignee {
@@ -2774,7 +3468,13 @@ model ChecklistAssignee {
   userId     String
   user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@id([templateId, userId])
+  @@index([companyId])
 }
 
 /// One person's copy of a checklist for one day, week, month or school session. Created on the first tick.
@@ -2792,9 +3492,15 @@ model ChecklistRun {
   ticks       ChecklistTick[]
   createdAt   DateTime          @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([templateId, userId, periodKey])
   @@index([userId, dueDate])
   @@index([dueDate])
+  @@index([companyId])
 }
 
 model ChecklistTick {
@@ -2809,7 +3515,13 @@ model ChecklistTick {
   tickedAt   DateTime        @default(now())
   photo      ChecklistPhoto?
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@unique([runId, itemId])
+  @@index([companyId])
 }
 
 model ChecklistPhoto {
@@ -2820,6 +3532,13 @@ model ChecklistPhoto {
   mimeType String
   size     Int
   data     Bytes
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 // ─── Operating plan (from the company's operational calendar, June–May) ──────
@@ -2829,7 +3548,7 @@ model ChecklistPhoto {
 
 model PlanMonth {
   id              String       @id @default(cuid())
-  month           DateTime     @unique @db.Date // first day of the month
+  month           DateTime     @db.Date // first day of the month
   focus           String
   activities      String // one activity per line
   targets         String? // as written in the plan, e.g. "25 leads · 20 meetings · 2 conversions"
@@ -2841,6 +3560,13 @@ model PlanMonth {
   metrics         PlanMetric[]
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, month])
 }
 
 enum PlanMetricKind {
@@ -2867,7 +3593,13 @@ model PlanMetric {
   sort         Int            @default(0)
   createdAt    DateTime       @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([monthId])
+  @@index([companyId])
 }
 
 enum PlanTaskStatus {
@@ -2908,8 +3640,14 @@ model PlanTask {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([monthId])
   @@index([ownerId])
+  @@index([companyId])
 }
 
 model PlanTaskUpdate {
@@ -2925,7 +3663,13 @@ model PlanTaskUpdate {
   note      String?
   createdAt DateTime        @default(now())
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([taskId])
+  @@index([companyId])
 }
 
 // ─── Sales commission ────────────────────────────────────────────────────────
@@ -2939,7 +3683,7 @@ enum CommissionStatus {
 
 model CommissionStatement {
   id           String           @id @default(cuid())
-  month        DateTime         @unique @db.Date // first day of the month the money came in
+  month        DateTime         @db.Date // first day of the month the money came in
   rate         Decimal          @db.Decimal(5, 2) // percent
   status       CommissionStatus @default(PREPARED)
   total        Decimal          @db.Decimal(14, 2)
@@ -2952,6 +3696,13 @@ model CommissionStatement {
   lines        CommissionLine[]
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
+
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, month])
 }
 
 model CommissionLine {
@@ -2968,8 +3719,14 @@ model CommissionLine {
   base        Decimal             @db.Decimal(14, 2) // received without GST
   commission  Decimal             @db.Decimal(14, 2)
 
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
   @@index([statementId])
   @@index([userId])
+  @@index([companyId])
 }
 
 // ─── HR letters ────────────────────────────────────────────────────────────
@@ -3012,7 +3769,7 @@ model HrLetter {
   // ID cards carry the employee code instead of a number.
   fy            String?
   seq           Int?
-  number        String?      @unique
+  number        String?
   issuedOn      DateTime     @db.Date
   recipient     String // the person's name, for lists
   inputs        Json // what was typed on the form, to start a fresh copy from
@@ -3030,7 +3787,13 @@ model HrLetter {
   emails        EmailLog[]
   createdAt     DateTime     @default(now())
 
-  @@unique([fy, seq])
+  // Which company in the group this belongs to; filled in and filtered on by src/lib/company-scope.ts.
+  // The database default fails loudly, so a row can never be saved without a company.
+  companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, fy, seq])
+  @@unique([companyId, number])
   @@index([employeeId, issuedOn])
   @@index([offerId])
   @@index([kind, sourceId])

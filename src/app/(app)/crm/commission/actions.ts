@@ -21,7 +21,7 @@ export async function prepareStatement(_: FormState, formData: FormData): Promis
   if (!month) return { error: "Pick a month." };
   const rate = Number(String(formData.get("rate") ?? "").replace("%", ""));
   if (!Number.isFinite(rate) || rate < 0 || rate > 50) return { error: "The rate is a percent between 0 and 50." };
-  const existing = await db.commissionStatement.findUnique({ where: { month } });
+  const existing = await db.commissionStatement.findFirst({ where: { month } });
   if (existing?.status === "APPROVED") return { error: "This month's statement is already approved." };
   const { rows } = await commissionRows(month, rate);
   const total = Math.round(rows.reduce((s, r) => s + r.commission, 0) * 100) / 100;

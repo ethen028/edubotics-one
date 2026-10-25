@@ -3,15 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBackupAdmin } from "@/lib/auth";
 import type { FormState } from "@/components/action-form";
-import { getSettings } from "@/lib/settings";
+import { getSettings, thisCompany } from "@/lib/settings";
 import { changedSettings, logActivity } from "@/lib/activity";
 import { backupDir, runBackup } from "@/lib/backups";
 import { formatSize } from "@/lib/project-files";
 
 export async function backUpNow(): Promise<FormState> {
-  const admin = await requireUser(["ADMIN"]);
+  const admin = await requireBackupAdmin();
   if (!backupDir()) return { error: "Backups only run on the office computer, in the Docker setup." };
   const result = await runBackup("manual");
   revalidatePath("/admin/backups");
@@ -25,7 +25,7 @@ export async function backUpNow(): Promise<FormState> {
 }
 
 export async function updateBackupSettings(_: FormState, formData: FormData): Promise<FormState> {
-  const admin = await requireUser(["ADMIN"]);
+  const admin = await requireBackupAdmin();
   const parsed = z
     .object({
       backupsEnabled: z.boolean(),
@@ -36,7 +36,7 @@ export async function updateBackupSettings(_: FormState, formData: FormData): Pr
     .safeParse({ ...Object.fromEntries(formData), backupsEnabled: formData.get("backupsEnabled") === "on" });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const before = await getSettings();
-  await db.companySettings.update({ where: { id: 1 }, data: parsed.data });
+  await db.companySettings.update({ where: await thisCompany(), data: parsed.data });
   const changed = changedSettings(before, parsed.data);
   if (changed) await logActivity(admin, "BACKUPS", "settings.backups", `Changed backup settings: ${changed}`);
   revalidatePath("/admin/backups");

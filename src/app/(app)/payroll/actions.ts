@@ -85,7 +85,7 @@ export async function startRun(_: FormState, formData: FormData): Promise<FormSt
   } catch {
     return { error: "Pick a month." };
   }
-  if (await db.payrollRun.findUnique({ where: { month } })) redirect(`/payroll/${month}`);
+  if (await db.payrollRun.findFirst({ where: { month } })) redirect(`/payroll/${month}`);
   const run = await db.payrollRun.create({ data: { month, createdById: user.id } });
   for (const e of await employeesFor(month)) await createSlip(run.id, month, e);
   revalidatePath("/payroll");

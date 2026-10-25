@@ -408,7 +408,7 @@ export async function reopenSettlement(exitId: string) {
   const user = await requireUser(["ADMIN"]);
   const exit = await runnable(user, exitId);
   if (exit.lastWorkingDay) {
-    const run = await db.payrollRun.findUnique({ where: { month: exit.lastWorkingDay.toISOString().slice(0, 7) }, select: { status: true } });
+    const run = await db.payrollRun.findFirst({ where: { month: exit.lastWorkingDay.toISOString().slice(0, 7) }, select: { status: true } });
     if (run?.status === "PAID") throw new Error("That month's payroll is already paid");
   }
   await db.employeeExit.update({ where: { id: exitId }, data: { settlementAgreedAt: null } });

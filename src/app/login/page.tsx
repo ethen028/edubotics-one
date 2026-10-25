@@ -13,7 +13,7 @@ export const metadata = { title: "Sign in" };
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (await getCurrentUser()) redirect("/");
   const { google, reset } = (await searchParams) as Record<string, string | undefined>;
-  const settings = await db.companySettings.findUnique({ where: { id: 1 } });
+  const settings = await db.companySettings.findFirst();
   const withGoogle = !!settings && !!googleSetup(settings);
   const googleError = google && google in GOOGLE_ERRORS ? GOOGLE_ERRORS[google as keyof typeof GOOGLE_ERRORS] : null;
   return (

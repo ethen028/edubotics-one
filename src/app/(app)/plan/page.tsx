@@ -53,7 +53,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
   const manager = isManagerOrAdmin(user);
   const mine = sp.mine === "1";
   const [plan, users, holidays, anyMonth] = await Promise.all([
-    db.planMonth.findUnique({
+    db.planMonth.findFirst({
       where: { month },
       include: {
         metrics: { orderBy: { sort: "asc" } },

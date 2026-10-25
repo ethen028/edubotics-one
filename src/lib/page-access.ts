@@ -8,8 +8,9 @@ import type { Role } from "@prisma/client";
  *
  * "everyone" means any signed-in role; those pages still narrow the records to what the person may see.
  * "owner" means the company owner (an admin with the owner mark). The owner has every admin right too.
+ * "superadmin" means the group's superadmin, who sees every company (src/lib/company.ts).
  */
-export type PageAccess = "everyone" | "owner" | readonly Role[];
+export type PageAccess = "everyone" | "owner" | "superadmin" | readonly Role[];
 
 export const PAGE_ACCESS = {
   "/": "everyone",
@@ -26,6 +27,7 @@ export const PAGE_ACCESS = {
   "/calendar": "everyone",
   "/channels": "everyone",
   "/checklists": "everyone",
+  "/companies": "superadmin",
   "/checklists/history": "everyone",
   "/checklists/run/[templateId]/[key]": "everyone",
   "/checklists/team": ["ADMIN", "MANAGER"],
@@ -190,14 +192,17 @@ export function routeFor(pathname: string): PageRoute | undefined {
   return best;
 }
 
-export function accessAllows(access: PageAccess, user: { role: Role; isOwner?: boolean }) {
+type Person = { role: Role; isOwner?: boolean; isSuperadmin?: boolean };
+
+export function accessAllows(access: PageAccess, user: Person) {
   if (access === "everyone") return true;
+  if (access === "superadmin") return user.isSuperadmin === true;
   if (access === "owner") return user.role === "ADMIN" && user.isOwner === true;
   return access.includes(user.role);
 }
 
 /** Whether this person may open the page at this address. Unknown addresses are refused. */
-export function canOpenPage(user: { role: Role; isOwner?: boolean }, pathname: string) {
+export function canOpenPage(user: Person, pathname: string) {
   const route = routeFor(pathname);
   return !!route && accessAllows(PAGE_ACCESS[route], user);
 }
@@ -208,6 +213,7 @@ export const ROLE_LABEL: Record<Role, string> = { ADMIN: "Admin", HR: "HR", MANA
 export function whoCanOpen(access: PageAccess) {
   if (access === "everyone") return "everyone";
   if (access === "owner") return "the owner";
+  if (access === "superadmin") return "the group's superadmin";
   const names = access.map((r) => ROLE_LABEL[r]);
   return names.length < 2 ? (names[0] ?? "nobody") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }

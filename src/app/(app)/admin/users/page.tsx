@@ -40,6 +40,7 @@ export default async function UsersPage() {
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className="font-medium">{u.name}</span>
                 <span className="text-sm text-slate-500">{u.email}</span>
+                {u.isSuperadmin && <Badge color="blue">Superadmin</Badge>}
                 {u.isOwner && <Badge color="purple">Owner</Badge>}
                 {!u.active && <Badge color="red">Disabled</Badge>}
                 {u.id === me.id && <Badge color="blue">You</Badge>}

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { PlanMetricKind } from "@prisma/client";
 import { db } from "@/lib/db";
+import { currentCompanyId } from "@/lib/company";
 import { isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { notify } from "@/lib/notifications";
 import { loadOperatingCalendar } from "@/lib/plan-load";
@@ -44,7 +45,7 @@ async function monthFor(value: FormDataEntryValue | null) {
   const month = parseMonth(typeof value === "string" ? value : null);
   if (!month) throw new Error("Pick a month");
   return (
-    (await db.planMonth.findUnique({ where: { month } })) ??
+    (await db.planMonth.findFirst({ where: { month } })) ??
     db.planMonth.create({ data: { month, focus: "Not set yet", activities: "" } })
   );
 }
@@ -176,7 +177,7 @@ export async function saveMonth(_: FormState, formData: FormData): Promise<FormS
   if (!month) return { error: "Pick a month" };
   const { planningMeeting, ...rest } = parsed.data;
   const data = { ...rest, planningMeeting: planningMeeting ? new Date(planningMeeting.getTime() + 4.5 * 3600000) : null };
-  await db.planMonth.upsert({ where: { month }, create: { month, ...data }, update: data });
+  await db.planMonth.upsert({ where: { companyId_month: { companyId: await currentCompanyId(), month } }, create: { month, ...data }, update: data });
   refresh();
   return { ok: `${monthLabel(month)} saved.` };
 }

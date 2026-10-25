@@ -16,7 +16,7 @@ export default async function CommissionPage({ searchParams }: PageProps<"/crm/c
   const sp = (await searchParams) as Record<string, string | undefined>;
   // The statement is made by the 5th for the month before, so that month opens first.
   const month = parseMonth(sp.month) ?? addMonths(monthStart(todayIST()), -1);
-  const statement = await db.commissionStatement.findUnique({
+  const statement = await db.commissionStatement.findFirst({
     where: { month },
     include: {
       lines: { include: { user: { select: { name: true } } }, orderBy: { receivedOn: "asc" } },

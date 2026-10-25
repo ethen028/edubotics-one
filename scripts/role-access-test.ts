@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { readdir } from "node:fs/promises";
 import { PrismaClient, type Role } from "@prisma/client";
+import { companyScope, mainCompanyId } from "../src/lib/company-scope";
 import { canOpenPage } from "../src/lib/page-access";
 import { SignJWT } from "jose";
 
 /**
- * Role access check: signs in as the owner, an admin, HR, a manager and an employee, opens every page by
+ * Role access check: signs in as the owner (the group's superadmin), an admin, HR, a manager and an employee, opens every page by
  * typing its address, and checks each role reaches only what its job needs. Prints the whole table.
  * Opt-in, like the smoke test: a local _test database with the demo data (`npm run demo:seed`) and a running app.
  */
@@ -14,7 +15,8 @@ assert.ok(["localhost", "127.0.0.1"].includes(database.hostname) && database.pat
 const base = new URL(process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3001");
 assert.ok(["localhost", "127.0.0.1"].includes(base.hostname), "Only targets localhost");
 assert.ok(process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 32, "Set SESSION_SECRET");
-const db = new PrismaClient();
+const rawDb = new PrismaClient();
+const db = rawDb.$extends(companyScope(() => mainCompanyId(rawDb))); // the first company, like the app before sign-in
 const sessions: string[] = [];
 
 const ROLES = ["owner", "admin", "hr", "manager", "employee"] as const;
@@ -23,8 +25,8 @@ type Outcome = "open" | "denied" | "not found" | "elsewhere" | "error";
 
 // Who may open each page comes from the app's own access list (src/lib/page-access.ts); this script checks
 // the running app really behaves that way. Someone else's payslip and a letter that shows pay are extra.
-const PEOPLE: Record<Who, { role: Role; isOwner?: boolean }> = {
-  owner: { role: "ADMIN", isOwner: true }, admin: { role: "ADMIN" }, hr: { role: "HR" }, manager: { role: "MANAGER" }, employee: { role: "EMPLOYEE" },
+const PEOPLE: Record<Who, { role: Role; isOwner?: boolean; isSuperadmin?: boolean }> = {
+  owner: { role: "ADMIN", isOwner: true, isSuperadmin: true }, admin: { role: "ADMIN" }, hr: { role: "HR" }, manager: { role: "MANAGER" }, employee: { role: "EMPLOYEE" },
 };
 const EXTRA: Record<string, Who[]> = { "/payslip:other": ["owner", "admin"], "/letter:pay": ["owner", "admin"] };
 const allowedFor = (route: string) => EXTRA[route] ?? ROLES.filter((r) => canOpenPage(PEOPLE[r], route));
@@ -54,8 +56,8 @@ async function main() {
   try {
     const find = (where: object) => db.user.findFirstOrThrow({ where: { active: true, ...where }, include: { employee: true } });
     const users: Record<Who, Awaited<ReturnType<typeof find>>> = {
-      owner: await find({ isOwner: true }),
-      admin: await find({ role: "ADMIN", isOwner: false }),
+      owner: await find({ isSuperadmin: true }),
+      admin: await find({ role: "ADMIN", isOwner: false, isSuperadmin: false }),
       hr: await find({ role: "HR" }),
       manager: await find({ role: "MANAGER" }),
       employee: await find({ role: "EMPLOYEE", employee: { isNot: null } }),
