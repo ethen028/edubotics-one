@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { rawDb } from "@/lib/db"; // sign-in and your own login work across the whole group
+import { firstCompanyId } from "@/lib/company";
 import {
   createSession,
   destroySession,
@@ -32,7 +33,8 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
   const { email, password } = parsed.data;
   const ip = await requestIp();
   if (!(await allowRequest("login", ip ?? "unknown", 30, 900000))) return { error: "Too many sign-in attempts. Try again in 15 minutes." };
-  const rules = (await db.companySettings.findUnique({ where: { id: 1 } })) ?? { loginMaxAttempts: 5, loginLockMinutes: 15 };
+  const user = await rawDb.user.findUnique({ where: { email } });
+  const rules = (await rawDb.companySettings.findUnique({ where: { companyId: user?.companyId ?? (await firstCompanyId()) } })) ?? { loginMaxAttempts: 5, loginLockMinutes: 15 };
 
   if (await ipBlocked(ip)) return { error: "Too many wrong sign-ins from this device. Wait 15 minutes and try again." };
   const lock = await emailLock(email, rules);
@@ -42,7 +44,6 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
     };
   }
 
-  const user = await db.user.findUnique({ where: { email } });
   dummyHash ??= hashPassword("not-a-real-password-1");
   const matches = await verifyPassword(password, user?.passwordHash ?? (await dummyHash));
   if (!user || !user.active || user.closedAt || !matches) {
@@ -60,7 +61,7 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
 
   // Passwords set before the rules existed (or the starting admin password) are replaced now.
   if (!user.mustChangePassword && passwordProblem(password, user)) {
-    await db.user.updateMany({ where: { id: user.id, passwordHash: user.passwordHash }, data: { mustChangePassword: true } });
+    await rawDb.user.updateMany({ where: { id: user.id, passwordHash: user.passwordHash }, data: { mustChangePassword: true } });
   }
   if (!(await createSession(user.id, "PASSWORD", user.passwordHash))) {
     await recordAttempt(email, ip, false);
@@ -90,7 +91,7 @@ export async function changePassword(_: FormState, formData: FormData): Promise<
   const problem = passwordProblem(next, user);
   if (problem) return { error: problem };
   const passwordHash = await hashPassword(next);
-  const ended = await db.$transaction(async (tx) => {
+  const ended = await rawDb.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user.id} FOR UPDATE`;
     const activeSession = await tx.session.findFirst({ where: { id: session.id, userId: user.id, endedAt: null } });
     if (!activeSession) return null;
@@ -116,7 +117,7 @@ export async function setAppearance(formData: FormData) {
   if (!current) redirect("/login");
   const theme = z.enum(["LIGHT", "DARK", "SYSTEM"]).safeParse(formData.get("theme"));
   if (!theme.success) return;
-  await db.user.update({ where: { id: current.user.id }, data: { theme: theme.data } });
+  await rawDb.user.update({ where: { id: current.user.id }, data: { theme: theme.data } });
   revalidatePath("/", "layout");
 }
 
@@ -124,7 +125,7 @@ export async function setAppearance(formData: FormData) {
 export async function setMenuCollapsed(collapsed: boolean) {
   const current = await getCurrentSession();
   if (!current) return;
-  await db.user.update({ where: { id: current.user.id }, data: { menuCollapsed: collapsed === true } });
+  await rawDb.user.update({ where: { id: current.user.id }, data: { menuCollapsed: collapsed === true } });
 }
 
 /** Signs out every other browser this person is signed in on. */

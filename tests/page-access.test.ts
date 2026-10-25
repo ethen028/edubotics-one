@@ -22,9 +22,11 @@ const routeOf = (f: string) => `/${f.replace(/^\(app\)\/?/, "").replace(/\/?page
 
 /** The access a page's own code enforces, read from its first guard call. */
 function guardOf(source: string): PageAccess | "none" {
-  const m = source.match(/requireOwner\(\)|requireUser\(\s*(\[[^\]]*\])?\s*\)|getCurrentSession\(\)/);
+  const m = source.match(/requireOwner\(\)|requireSuperadmin\(\)|requireBackupAdmin\(\)|requireUser\(\s*(\[[^\]]*\])?\s*\)|getCurrentSession\(\)/);
   if (!m) return "none";
   if (m[0] === "requireOwner()") return "owner";
+  if (m[0] === "requireSuperadmin()") return "superadmin";
+  if (m[0] === "requireBackupAdmin()") return ["ADMIN"]; // admins, and only in the first company (checked in auth.ts)
   if (!m[1]) return "everyone";
   return JSON.parse(m[1].replace(/,\s*\]$/, "]"));
 }
@@ -42,7 +44,7 @@ test("every signed-in page has a row in the access list and enforces exactly tha
 
 // Server actions that run before anyone is signed in (sign-in, password reset, email links).
 const PUBLIC_ACTIONS = new Set(["actions.ts#login", "actions.ts#logout", "account-actions.ts#requestPasswordReset", "account-actions.ts#resetPassword", "account-actions.ts#verifyEmail"]);
-const GUARD = /\b(requireUser|requireOwner|getCurrentSession|getApiUser)\s*\(/;
+const GUARD = /\b(requireUser|requireOwner|requireSuperadmin|requireBackupAdmin|getCurrentSession|getApiUser)\s*\(/;
 
 test("every server action checks who is signed in before it touches the database", () => {
   const actionFiles = all.filter((f) => /^\s*["']use server["']/m.test(read(f)));
@@ -86,6 +88,7 @@ test("every download and export checks sign-in, including a finished password se
 });
 
 const PEOPLE = {
+  superadmin: { role: "ADMIN", isOwner: true, isSuperadmin: true },
   owner: { role: "ADMIN", isOwner: true },
   admin: { role: "ADMIN" },
   hr: { role: "HR" },
@@ -112,6 +115,9 @@ test("roles reach only the pages their job needs", () => {
   // Owner only
   assert.equal(opens("owner", "/dashboard"), true);
   assert.equal(opens("admin", "/dashboard"), false);
+  // Superadmin only: the companies of the group
+  assert.equal(opens("superadmin", "/companies"), true);
+  for (const who of ["owner", "admin", "hr", "manager", "employee"] as const) assert.equal(opens(who, "/companies"), false, who);
   // Admin only: logins, settings, payroll, offers, payables, review cycles, starting an exit
   for (const path of ["/admin/users", "/admin/settings", "/payroll", "/payroll/2026-10", "/recruitment/offers/x", "/purchases/payables", "/hr/reviews/cycles/new", "/hr/exits/new"]) {
     assert.equal(opens("admin", path), true, path);
@@ -144,6 +150,7 @@ test("the refusal page names who a page is for in plain words", () => {
   assert.equal(whoCanOpen(["ADMIN", "MANAGER"]), "Admin and Manager");
   assert.equal(whoCanOpen(["ADMIN", "HR", "MANAGER"]), "Admin, HR and Manager");
   assert.equal(whoCanOpen("owner"), "the owner");
+  assert.equal(whoCanOpen("superadmin"), "the group's superadmin");
   for (const role of ROLES) {
     assert.equal(accessAllows("owner", { role, isOwner: true }), role === "ADMIN");
     assert.equal(accessAllows("everyone", { role }), true);

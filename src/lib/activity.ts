@@ -24,9 +24,12 @@ export async function requestIp() {
 }
 
 /** Adds a line to the activity log. Never throws: a failed log line must not undo the action itself. */
-export async function logActivity(user: { id: string } | null, area: ActivityArea, action: string, summary: string) {
+export async function logActivity(user: { id: string; companyId?: string; isSuperadmin?: boolean } | null, area: ActivityArea, action: string, summary: string) {
   try {
-    await db.activityLog.create({ data: { userId: user?.id ?? null, area, action, summary: summary.slice(0, 500), ip: await requestIp() } });
+    // Staff are always logged in their own company, also before they are signed in (sign-in lines);
+    // a superadmin's lines go to the company they are working in.
+    const companyId = user?.companyId && !user.isSuperadmin ? user.companyId : undefined;
+    await db.activityLog.create({ data: { userId: user?.id ?? null, area, action, summary: summary.slice(0, 500), ip: await requestIp(), companyId } });
   } catch (e) {
     reportServerError(e);
   }

@@ -13,9 +13,13 @@ import type { FormState } from "@/components/action-form";
 
 const roleSchema = z.enum(["ADMIN", "HR", "MANAGER", "EMPLOYEE"]);
 
-/** The owner's own login (role, switch-off, password) can only be changed by the owner, so no other admin can take it over. */
-async function guardOwner(me: { id: string; isOwner: boolean }, id: string) {
+/**
+ * The owner's own login (role, switch-off, password) can only be changed by the owner, so no other admin can take
+ * it over; a superadmin's login only by a superadmin, as it opens every company in the group.
+ */
+async function guardOwner(me: { id: string; isOwner: boolean; isSuperadmin: boolean }, id: string) {
   const target = await db.user.findUniqueOrThrow({ where: { id } });
+  if (target.isSuperadmin && !me.isSuperadmin) throw new Error("Only a superadmin can change a superadmin's login");
   if (target.isOwner && !me.isOwner) throw new Error("Only the company owner can change the owner's login");
   return target;
 }
@@ -80,8 +84,9 @@ export async function updateUser(id: string, formData: FormData) {
 export async function resetPassword(id: string, _: FormState, formData: FormData): Promise<FormState> {
   const me = await requireUser(["ADMIN"]);
   const password = String(formData.get("password") ?? "");
-  if (id !== me.id && (await db.user.findUniqueOrThrow({ where: { id } })).isOwner && !me.isOwner) return { error: "Only the company owner can reset the owner's password." };
   const user = await db.user.findUniqueOrThrow({ where: { id } });
+  if (id !== me.id && user.isSuperadmin && !me.isSuperadmin) return { error: "Only a superadmin can reset a superadmin's password." };
+  if (id !== me.id && user.isOwner && !me.isOwner) return { error: "Only the company owner can reset the owner's password." };
   const weak = passwordProblem(password, user);
   if (weak) return { error: weak };
   const passwordHash = await hashPassword(password);

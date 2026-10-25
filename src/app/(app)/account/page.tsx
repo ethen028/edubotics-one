@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
+import { rawDb as db } from "@/lib/db"; // your own sessions, across the group
+import { allCompanies, companyOfSession, firstCompanyId } from "@/lib/company";
+import { switchCompany } from "../companies/actions";
 import { getCurrentSession } from "@/lib/auth";
 import { PASSWORD_RULES } from "@/lib/passwords";
 import { googleSetup } from "@/lib/google-sign-in";
@@ -25,8 +27,10 @@ export default async function AccountPage() {
   const { user, session } = current;
   const [sessions, settings] = await Promise.all([
     db.session.findMany({ where: { userId: user.id, endedAt: null }, orderBy: { lastSeenAt: "desc" } }),
-    db.companySettings.findUnique({ where: { id: 1 } }),
+    db.companySettings.findUnique({ where: { companyId: await firstCompanyId() } }), // Google sign-in is set up in the first company
   ]);
+  const companies = user.isSuperadmin ? await allCompanies() : [];
+  const here = companyOfSession(current);
   const googleOn = !!settings && !!googleSetup(settings);
   const others = sessions.filter((s) => s.id !== session.id).length;
 
@@ -51,6 +55,29 @@ export default async function AccountPage() {
         </ActionForm>
 
         <div className="space-y-6">
+          {companies.length > 0 && (
+            <div className="card space-y-3">
+              <div>
+                <h2 className="font-semibold">Your companies</h2>
+                <p className="mt-1 text-xs text-slate-500">You are the group&apos;s superadmin. Pick the company to work in; this browser stays in it until you switch.</p>
+              </div>
+              <ul className="divide-y divide-slate-100">
+                {companies.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-3 py-2">
+                    <span className="min-w-0 truncate text-sm font-medium">{c.name}</span>
+                    {c.id === here ? (
+                      <Badge color="green">Open now</Badge>
+                    ) : (
+                      <form action={switchCompany}>
+                        <input type="hidden" name="companyId" value={c.id} />
+                        <button className="btn-secondary">Switch</button>
+                      </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <form action={setAppearance} className="card space-y-4">
             <div>
               <h2 className="font-semibold">Appearance</h2>

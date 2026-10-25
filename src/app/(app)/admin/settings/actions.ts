@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { currentCompanyId, prefixTaken } from "@/lib/company";
 import { requireUser } from "@/lib/auth";
 import type { FormState } from "@/components/action-form";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
-import { getSettings } from "@/lib/settings";
+import { getSettings, thisCompany } from "@/lib/settings";
 import { mailSetup, parseAddresses, sendEmail } from "@/lib/mail";
 import { seal } from "@/lib/secret-box";
 import { sniffMime } from "@/lib/hr-constants";
@@ -109,6 +110,10 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
   const on = (k: string) => formData.get(k) === "on";
   const invoicing = invoiceSettings.safeParse(Object.fromEntries(formData));
   if (!invoicing.success) return { error: invoicing.error.issues[0].message };
+  const companyId = await currentCompanyId();
+  if (await prefixTaken(invoicing.data.invoicePrefix, companyId)) {
+    return { error: `Another company in the group numbers its invoices ${invoicing.data.invoicePrefix}/…; pick a different prefix.` };
+  }
   const data = {
     workMinutesPerDay: hours * 60 + minutes,
     overtimeAfterMins,
@@ -128,7 +133,7 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
     gstEnabled: on("gstEnabled"),
   };
   const before = await getSettings();
-  await db.companySettings.upsert({ where: { id: 1 }, update: data, create: { id: 1, ...data } });
+  await db.companySettings.upsert({ where: { companyId }, update: data, create: { companyId, ...data } });
   const changed = changedSettings(before, data);
   if (changed) await logActivity(admin, "SETTINGS", "settings.company", `Changed settings: ${changed}`);
   revalidatePath("/", "layout");
@@ -175,7 +180,7 @@ export async function updateMailSettings(_: FormState, formData: FormData): Prom
     d.mailFromAddress !== before.mailFromAddress ||
     smtpPassword !== before.smtpPassword;
   await db.companySettings.update({
-    where: { id: 1 },
+    where: await thisCompany(),
     data: {
       ...d,
       smtpSecure,
@@ -209,11 +214,11 @@ export async function sendTestEmail(_: FormState, formData: FormData): Promise<F
     user.id,
   );
   if ("error" in result) {
-    await db.companySettings.update({ where: { id: 1 }, data: { mailVerifiedAt: null } });
+    await db.companySettings.update({ where: await thisCompany(), data: { mailVerifiedAt: null } });
     revalidatePath("/", "layout");
     return { error: result.error };
   }
-  await db.companySettings.update({ where: { id: 1 }, data: { mailVerifiedAt: new Date() } });
+  await db.companySettings.update({ where: await thisCompany(), data: { mailVerifiedAt: new Date() } });
   revalidatePath("/", "layout");
   return { ok: `Test email sent to ${to.list.join(", ")}. Check that it arrived (and isn't in spam). Sending is now switched on.` };
 }
@@ -231,7 +236,7 @@ export async function updateReminderSettings(_: FormState, formData: FormData): 
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const autoRemindersEnabled = formData.get("autoRemindersEnabled") === "on";
   const before = await getSettings();
-  await db.companySettings.update({ where: { id: 1 }, data: { ...parsed.data, autoRemindersEnabled } });
+  await db.companySettings.update({ where: await thisCompany(), data: { ...parsed.data, autoRemindersEnabled } });
   const d = parsed.data;
   if (before.autoRemindersEnabled !== autoRemindersEnabled) {
     await logActivity(admin, "SETTINGS", "settings.auto-reminders", `Switched automatic payment reminders ${autoRemindersEnabled ? "on" : "off"}`);
@@ -262,7 +267,7 @@ export async function updateCareersSettings(_: FormState, formData: FormData): P
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const careersEnabled = formData.get("careersEnabled") === "on";
   const before = await getSettings();
-  await db.companySettings.update({ where: { id: 1 }, data: { ...parsed.data, careersEnabled } });
+  await db.companySettings.update({ where: await thisCompany(), data: { ...parsed.data, careersEnabled } });
   if (before.applicantRetentionMonths !== parsed.data.applicantRetentionMonths) {
     await logActivity(
       admin,
@@ -305,7 +310,7 @@ export async function updateCertificateSettings(_: FormState, formData: FormData
   }
   const remove = formData.get("removeSignature") === "on";
   await db.companySettings.update({
-    where: { id: 1 },
+    where: await thisCompany(),
     data: { ...parsed.data, ...(signature ?? {}), ...(remove && !signature ? { certSignature: null, certSignatureType: null } : {}) },
   });
   await logActivity(admin, "SETTINGS", "settings.signatory", `Changed the certificate signatory${signature ? " and signature picture" : remove ? " (signature picture removed)" : ""}`);
@@ -346,7 +351,7 @@ export async function updateLetterSettings(_: FormState, formData: FormData): Pr
   const remove = formData.get("removeSignature") === "on";
   const before = await getSettings();
   await db.companySettings.update({
-    where: { id: 1 },
+    where: await thisCompany(),
     data: { ...parsed.data, ...(signature ?? {}), ...(remove && !signature ? { letterSignature: null, letterSignatureType: null } : {}) },
   });
   const changed = changedSettings(before, parsed.data);
@@ -370,7 +375,7 @@ export async function updateSafetySettings(_: FormState, formData: FormData): Pr
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const before = await getSettings();
-  await db.companySettings.update({ where: { id: 1 }, data: parsed.data });
+  await db.companySettings.update({ where: await thisCompany(), data: parsed.data });
   const changed = changedSettings(before, parsed.data);
   if (changed) await logActivity(admin, "SETTINGS", "settings.safety", `Changed sign-in safety: ${changed}`);
   revalidatePath("/admin/settings");
@@ -405,7 +410,7 @@ export async function updateGoogleSettings(_: FormState, formData: FormData): Pr
   if (googleEnabled && (!d.googleClientId || !googleClientSecret || !d.appAddress)) {
     return { error: "Fill in the client ID, client secret and app address before switching Google sign-in on." };
   }
-  await db.companySettings.update({ where: { id: 1 }, data: { ...d, googleClientSecret, googleEnabled } });
+  await db.companySettings.update({ where: await thisCompany(), data: { ...d, googleClientSecret, googleEnabled } });
   const changed = changedSettings(before, { ...d, googleClientSecret, googleEnabled });
   if (changed) await logActivity(admin, "SETTINGS", "settings.google", `Changed Google sign-in: ${changed}`);
   revalidatePath("/admin/settings");

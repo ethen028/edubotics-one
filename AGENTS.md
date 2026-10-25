@@ -27,6 +27,7 @@ The long developer handover (every module, the data model, business rules, scree
 7. **Keep the look.** One teal accent (with the logo's orange spark for small marks) on a pale teal-grey page with white cards and a deep teal-navy menu. No new colours, extra gradients, heavy effects or emoji in the UI. See the design doc.
 8. **Write for staff, not developers.** Labels and messages are short plain English ("Leave approved", not "Mutation succeeded").
 9. **Never commit secrets or `.env`.** `npm run security:secrets` runs in CI.
+10. **Every query stays in one company.** Orbit holds a group of companies; `db` filters every query to the current company by itself (`src/lib/company-scope.ts`). Use `rawDb` only where docs/ARCHITECTURE.md says, and add `"companyId"` by hand to raw SQL. New tables get a `companyId` like the others.
 
 ## Commands
 

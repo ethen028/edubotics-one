@@ -57,9 +57,15 @@ docs/                    Run, deploy, backup and security guides, and these docs
 3. Forms are `<ActionForm action={...}>` from `src/components/action-form.tsx`, bound to a server action. The action checks the user again, parses input with zod, writes, logs important changes with `logActivity`, calls `revalidatePath`, and returns `{ ok }` or `{ error }` (or redirects).
 4. Files (documents, receipts, resumes, photos) are stored in PostgreSQL as `Bytes` and served only by route handlers under `src/app/api/` that check the user and send them with `privateFileHeaders` (`src/lib/file-response.ts`).
 
+## Companies
+
+Orbit holds a group of companies (`Company`). Every business table has a `companyId`; `CompanySettings` is one row per company. `db` from `src/lib/db.ts` is Prisma with the `company-scope` extension (`src/lib/company-scope.ts`): it adds the current company to every read, update and delete and fills it in on every create, nested creates included, so pages and actions are written as if there were one company. The database default on `companyId` fails loudly if a row ever arrives without one.
+
+The current company (`currentCompanyId()` in `src/lib/company.ts`): staff are always in their own; a superadmin (`User.isSuperadmin`) is in the company picked in the top bar, kept on their browser's `Session.activeCompanyId`; before sign-in and in scripts it is the first company. Background jobs loop with `forEachCompany`; `inCompany(id, fn)` pins one. `rawDb` is the unfiltered client for sign-in and group pages. Sign-in tables (`Session`, `LoginAttempt`, `AccountToken`, `RateLimitBucket`, `AccountMailJob`) are shared by the group, and so are emails: a login's email is unique across all companies. Backups and Google sign-in are set up in the first company; the public careers page shows the first company's jobs.
+
 ## Roles
 
-Four roles in the `Role` enum: `ADMIN`, `HR`, `MANAGER`, `EMPLOYEE`. The company owner is an admin with `User.isOwner` (only one; the first admin; handed over with "Make owner" in Admin > Users). Managers act on their direct reports (the employee's "reports to"). Four dashboards: Owner `/dashboard`, Admin `/dashboard/admin`, HR `/dashboard/hr`, My dashboard `/dashboard/me`. Helpers: `src/lib/auth.ts`, `src/lib/permissions.ts`. The full table of who can do what is shown in the app at Admin > Roles and permissions (`PERMISSION_ROWS` in `permissions.ts`).
+Four roles in the `Role` enum: `ADMIN`, `HR`, `MANAGER`, `EMPLOYEE`. The company owner is an admin with `User.isOwner` (one per company; the first admin; handed over with "Make owner" in Admin > Users). The superadmin is a login with `User.isSuperadmin` above the companies (the owner at first); `getCurrentSession` gives it the admin role and the owner mark in whichever company it has open, and `requireSuperadmin()` guards Group > Companies. Managers act on their direct reports (the employee's "reports to"). Four dashboards: Owner `/dashboard`, Admin `/dashboard/admin`, HR `/dashboard/hr`, My dashboard `/dashboard/me`. Helpers: `src/lib/auth.ts`, `src/lib/permissions.ts`. The full table of who can do what is shown in the app at Admin > Roles and permissions (`PERMISSION_ROWS` in `permissions.ts`).
 
 ## Background work
 
@@ -78,5 +84,5 @@ Four roles in the `Role` enum: `ADMIN`, `HR`, `MANAGER`, `EMPLOYEE`. The company
 
 - Server-side permission checks on every read and write.
 - Money in `Decimal` columns, calculated in tested functions, shown with `formatINR` / `formatMoney`.
-- Document numbers (invoices, quotes, credit notes, receipts, certificates, HR letters) per financial year (April to March, written `26-27`), guarded by a unique `(fy, seq)` key so two people never get the same number.
+- Document numbers (invoices, quotes, credit notes, receipts, certificates, HR letters) per company and financial year (April to March, written `26-27`), guarded by a unique `(companyId, fy, seq)` key so two people never get the same number. Each company has its own prefix.
 - Everything works on one machine with no outside services; email is the only optional external call.

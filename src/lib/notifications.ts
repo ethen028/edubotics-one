@@ -1,6 +1,5 @@
 import "server-only";
-import type { Prisma } from "@prisma/client";
-import { db } from "./db";
+import { db, type Tx } from "./db";
 
 /** What can land in someone's Inbox (from Task Flow v5). Shown as a small label next to each message. */
 export const NOTIFICATION_KINDS = {
@@ -32,7 +31,7 @@ export async function notify(
   userIds: (string | null | undefined)[],
   actorId: string | null,
   message: Message,
-  tx: Prisma.TransactionClient = db,
+  tx: Tx = db,
 ) {
   const to = [...new Set(userIds.filter((id): id is string => !!id && id !== actorId))];
   if (to.length === 0) return;

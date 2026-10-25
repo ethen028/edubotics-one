@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { runReminderRound } from "@/lib/payment-reminders";
+import { runReminderRounds } from "@/lib/payment-reminders";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -16,10 +16,10 @@ function fromCron(request: Request) {
 /**
  * Vercel's daily cron (vercel.json) calls this to send the automatic payment reminders, since a
  * hosted copy has no timer of its own. The office computer doesn't need it. Sending twice is
- * impossible: runReminderRound claims the day first.
+ * impossible: each company's round claims the day first.
  */
 export async function GET(request: Request) {
   if (!fromCron(request)) return new Response("Not found", { status: 404 });
-  const result = await runReminderRound();
+  const result = await runReminderRounds();
   return Response.json(result, { headers: { "Cache-Control": "no-store" } });
 }

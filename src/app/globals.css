@@ -362,6 +362,13 @@ h2 {
   .theme-pill button[aria-pressed="true"] {
     @apply bg-brand-700 text-white hover:text-white;
   }
+  /* The superadmin's company picker in the top bar (src/components/company-switcher.tsx). */
+  .company-switch {
+    @apply flex h-9 min-w-0 items-center gap-1.5 rounded-full border border-slate-200 pr-1 pl-3 sm:max-w-[14rem];
+  }
+  .company-switch select {
+    @apply h-8 min-w-0 flex-1 cursor-pointer truncate rounded-full bg-transparent pr-1 text-sm font-medium text-slate-800 focus:outline-none;
+  }
   .icon-btn {
     @apply relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900;
   }

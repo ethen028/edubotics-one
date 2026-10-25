@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "./db";
+import { rawDb as db } from "./db"; // account links work before sign-in, for every company
 import { newAccountToken, tokenHash, tokenIsUsable, type TokenKind } from "./account-security";
 
 export async function issueAccountToken(userId: string, kind: TokenKind, expectedEmail?: string) {

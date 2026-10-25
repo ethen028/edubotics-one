@@ -9,7 +9,8 @@ import "server-only";
  * database first, so two copies of the app can't both send it.
  */
 import { db } from "./db";
-import { getSettings, type Settings } from "./settings";
+import { getSettings, thisCompany, type Settings } from "./settings";
+import { currentCompanyId, forEachCompany } from "./company";
 import { mailSetup, sendEmail, type Attachment } from "./mail";
 import { invoicePdf } from "./pdf";
 import { settledAmount } from "./invoices";
@@ -117,7 +118,7 @@ async function dayOffChecker(s: Settings) {
 export type RoundResult = { ran: false; why: string } | { ran: true; sent: number; failed: number; stopped: string | null };
 
 const RETRY_AFTER_FAILURE = 60 * 60 * 1000;
-let lastAccountFailure = 0;
+const lastAccountFailure = new Map<string, number>(); // per company, as each has its own mail account
 
 /** Sends today's automatic reminders if they are due and haven't gone out yet. Safe to call as often as you like. */
 export async function runReminderRound(now = new Date()): Promise<RoundResult> {
@@ -125,12 +126,13 @@ export async function runReminderRound(now = new Date()): Promise<RoundResult> {
   if (!s.autoRemindersEnabled) return { ran: false, why: "Automatic reminders are off." };
   if (mailSetup(s) !== "READY") return { ran: false, why: "The mail account hasn't passed a test email." };
   if (!roundDue(now, s.autoReminderLastRunOn, await dayOffChecker(s))) return { ran: false, why: "Not due now." };
-  if (Date.now() - lastAccountFailure < RETRY_AFTER_FAILURE) return { ran: false, why: "Waiting after a mail account failure." };
+  const companyId = await currentCompanyId();
+  if (Date.now() - (lastAccountFailure.get(companyId) ?? 0) < RETRY_AFTER_FAILURE) return { ran: false, why: "Waiting after a mail account failure." };
 
   const day = indiaClock(now).day;
   // Claim the day before sending anything, so a second copy of the app (or a second cron call) finds it taken.
   const claimed = await db.companySettings.updateMany({
-    where: { id: 1, OR: [{ autoReminderLastRunOn: null }, { autoReminderLastRunOn: { lt: day } }] },
+    where: { OR: [{ autoReminderLastRunOn: null }, { autoReminderLastRunOn: { lt: day } }] },
     data: { autoReminderLastRunOn: day },
   });
   if (claimed.count === 0) return { ran: false, why: "Already sent today." };
@@ -156,8 +158,8 @@ export async function runReminderRound(now = new Date()): Promise<RoundResult> {
     }
   }
   if (stopped && sent === 0) {
-    lastAccountFailure = Date.now();
-    await db.companySettings.update({ where: { id: 1 }, data: { autoReminderLastRunOn: s.autoReminderLastRunOn } });
+    lastAccountFailure.set(companyId, Date.now());
+    await db.companySettings.update({ where: await thisCompany(), data: { autoReminderLastRunOn: s.autoReminderLastRunOn } });
   }
 
   if (plans.length > 0) {
@@ -174,11 +176,16 @@ export async function runReminderRound(now = new Date()): Promise<RoundResult> {
   return { ran: true, sent, failed: failed.length, stopped };
 }
 
+/** The daily round for every company in the group, each with its own settings and mail account. */
+export function runReminderRounds(now = new Date()) {
+  return forEachCompany(() => runReminderRound(now));
+}
+
 /** Checks every 15 minutes whether today's reminders are due. Started once, from src/instrumentation.ts. */
 export function startReminderScheduler() {
   const g = globalThis as unknown as { reminderScheduler?: NodeJS.Timeout };
   if (g.reminderScheduler) return;
-  const safeTick = () => runReminderRound().catch((e) => console.error("Payment reminder round failed", e));
+  const safeTick = () => runReminderRounds().catch((e) => console.error("Payment reminder round failed", e));
   setTimeout(safeTick, 2 * 60 * 1000).unref();
   g.reminderScheduler = setInterval(safeTick, 15 * 60 * 1000);
   g.reminderScheduler.unref();

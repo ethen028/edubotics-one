@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { PrismaClient, type Role } from "@prisma/client";
+import { companyScope, mainCompanyId } from "../src/lib/company-scope";
 import { SignJWT } from "jose";
 
 // Real HTTP/server-action checks, restricted to disposable fixtures in a local test database.
@@ -9,7 +10,8 @@ const base = new URL(process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3001");
 assert.ok(["127.0.0.1", "localhost"].includes(database.hostname) && database.pathname.endsWith("_test"));
 assert.ok(["127.0.0.1", "localhost"].includes(base.hostname));
 assert.ok(process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 32);
-const db = new PrismaClient();
+const rawDb = new PrismaClient();
+const db = rawDb.$extends(companyScope(() => mainCompanyId(rawDb))); // the first company, like the app before sign-in
 const tag = `WF${randomUUID().replaceAll("-", "").slice(0, 12)}`;
 const users: string[] = [], employees: string[] = [], sessions: string[] = [];
 const decode = (text: string) => text.replaceAll("&quot;", '"').replaceAll("&#x27;", "'").replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&amp;", "&");
@@ -102,7 +104,7 @@ async function main() {
   await submit(await form(`/hr/employees/${employee.id}`, staff, training.id, 'name="status"'), { status: "COMPLETED" });
   assert.ok((await db.trainingAssignment.findUniqueOrThrow({ where: { id: training.id } })).completedAt);
   await submit(await form("/hr/assets", admin, "Add asset"), { code: `${tag}-A`, name: `${tag} Laptop`, category: "Laptop", serialNo: "", purchaseDate: "2026-01-01", notes: "Workflow fixture" });
-  const asset = await db.asset.findUniqueOrThrow({ where: { code: `${tag}-A`.toUpperCase() } });
+  const asset = await db.asset.findFirstOrThrow({ where: { code: `${tag}-A`.toUpperCase() } });
   await submit(await form("/hr/assets", admin, asset.id, 'name="employeeId"'), { employeeId: employee.id });
   assert.equal((await db.asset.findUniqueOrThrow({ where: { id: asset.id } })).employeeId, employee.id);
   await submit(await form("/hr/assets", admin, asset.id, 'value="AVAILABLE"'), { status: "AVAILABLE" });
@@ -116,7 +118,7 @@ async function main() {
   await submit(await form(profile, admin, "Save changes"), { code: employee.code, firstName: tag, lastName: "Employee", workEmail: email, designation: "Trainer", employmentType: "FULL_TIME", status: "ACTIVE", dateOfJoining: "2026-01-05", managerId: managerEmployee.id });
   assert.equal((await db.employee.findUniqueOrThrow({ where: { id: employee.id } })).status, "ACTIVE");
   await submit(await form("/hr/reviews/cycles/new", admin, "Start review cycle"), { name: `${tag} Review`, kind: "ANNUAL", periodStart: "2026-01-01", periodEnd: "2026-12-31", employeeIds: employee.id });
-  const cycle = await db.reviewCycle.findUniqueOrThrow({ where: { name: `${tag} Review` } });
+  const cycle = await db.reviewCycle.findFirstOrThrow({ where: { name: `${tag} Review` } });
   const review = await db.performanceReview.findFirstOrThrow({ where: { employeeId: employee.id, cycleId: cycle.id } });
   const reviewPath = `/hr/reviews/${review.id}`;
   await submit(await form(reviewPath, staff, "Save goals"), { title_new0: "Deliver workshops", measure_new0: "Session reports", weight_new0: "100" });
@@ -137,7 +139,7 @@ async function main() {
   console.log("HR document/review checks passed: upload/verification, manager download denial, goal agreement, private drafts, self/manager submission and employee acknowledgment.");
 
   await submit(await form("/inventory", admin, "Add item"), { sku: tag, name: `${tag} Robotics kit`, category: "Robotics kit", unit: "kit", returnable: "on", opening: "20", reorderLevel: "5", unitCost: "", location: "Test shelf", notes: "Workflow fixture" });
-  const item = await db.stockItem.findUniqueOrThrow({ where: { sku: tag.toUpperCase() } });
+  const item = await db.stockItem.findFirstOrThrow({ where: { sku: tag.toUpperCase() } });
   await submit(await form(`/inventory/${item.id}`, admin, 'name="sku"'), { sku: item.sku, name: item.name, category: item.category, unit: item.unit, reorderLevel: "5", unitCost: "", location: "Test shelf", notes: "Workflow fixture" });
   assert.equal((await db.stockItem.findUniqueOrThrow({ where: { id: item.id } })).returnable, true, "Historical item return rules must not change");
   await submit(await form("/inventory/requests/new", staff, "Send request"), { itemId: item.id, quantity: "8", purpose: `${tag} Teaching`, projectId: "", neededBy: "2027-03-01", returnBy: "2027-03-05" });

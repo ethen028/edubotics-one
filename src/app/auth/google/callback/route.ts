@@ -3,7 +3,7 @@ import { reportServerError } from "@/lib/telemetry";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
-import { db } from "@/lib/db";
+import { db, rawDb } from "@/lib/db";
 import { createSession, sessionSecret } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 }
 
 async function signIn(flowToken: string | undefined, params: URLSearchParams): Promise<{ userId: string } | GoogleErrorCode> {
-  const settings = await db.companySettings.findUnique({ where: { id: 1 } });
+  const settings = await db.companySettings.findFirst();
   const setup = settings && googleSetup(settings);
   if (!setup) return "off";
   if (params.get("error")) return params.get("error") === "access_denied" ? "cancelled" : "failed";
@@ -54,7 +54,8 @@ async function signIn(flowToken: string | undefined, params: URLSearchParams): P
   const idToken = await exchangeCode(setup, code, flow.verifier);
   const google = await verifyIdToken(idToken, setup, flow.nonce);
 
-  const user = (await db.user.findUnique({ where: { googleSub: google.sub } })) ?? (await db.user.findUnique({ where: { email: google.email } }));
+  // Logins of every company in the group can use Google sign-in, set up in the first company.
+  const user = (await rawDb.user.findUnique({ where: { googleSub: google.sub } })) ?? (await rawDb.user.findUnique({ where: { email: google.email } }));
   if (!user) {
     await logActivity(null, "SIGN_IN", "sign-in.google-unknown", `Google account ${google.email} tried to sign in but has no login`);
     return "no-login";
@@ -64,7 +65,7 @@ async function signIn(flowToken: string | undefined, params: URLSearchParams): P
     await logActivity(user, "SIGN_IN", "sign-in.failed", `${user.email} tried to sign in with Google but the login is switched off`);
     return "disabled";
   }
-  const linked = await db.user.updateMany({ where: { id: user.id, active: true, closedAt: null, email: user.email, googleSub: user.googleSub }, data: {
+  const linked = await rawDb.user.updateMany({ where: { id: user.id, active: true, closedAt: null, email: user.email, googleSub: user.googleSub }, data: {
     googleSub: google.sub,
     ...(user.email === google.email ? { emailVerifiedAt: new Date() } : {}),
   } });

@@ -46,7 +46,7 @@ export default async function AdminDashboard() {
       backupProblem(),
       invoicesWithBalance({ status: "ISSUED", dueDate: { lt: today } }),
       db.vendorBill.findMany({ where: { status: "OPEN", dueDate: { lte: weekAhead } }, select: { id: true, total: true, dueDate: true, vendor: { select: { name: true } } }, orderBy: { dueDate: "asc" } }),
-      db.payrollRun.findUnique({ where: { month }, select: { status: true, _count: { select: { payslips: true } } } }),
+      db.payrollRun.findFirst({ where: { month }, select: { status: true, _count: { select: { payslips: true } } } }),
       lowStockItems(),
       db.stockRequest.count({ where: { status: "ISSUED", returnBy: { lt: today } } }),
       db.helpdeskTicket.findMany({ where: { status: { in: [...OPEN_TICKET_STATUSES] } }, select: { assigneeId: true } }),

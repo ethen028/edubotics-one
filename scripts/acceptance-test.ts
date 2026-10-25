@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { PrismaClient, type Role } from "@prisma/client";
+import { companyScope, mainCompanyId } from "../src/lib/company-scope";
 import { SignJWT } from "jose";
 
 const database = new URL(process.env.DATABASE_URL ?? "");
@@ -8,7 +9,8 @@ const base = new URL(process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3001");
 assert.ok(["localhost", "127.0.0.1"].includes(database.hostname) && database.pathname.endsWith("_test"), "Use a local _test database");
 assert.ok(["localhost", "127.0.0.1"].includes(base.hostname), "Acceptance tests only target localhost");
 assert.ok(process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 32);
-const db = new PrismaClient();
+const rawDb = new PrismaClient();
+const db = rawDb.$extends(companyScope(() => mainCompanyId(rawDb))); // the first company, like the app before sign-in
 const tag = `UAT${randomUUID().replaceAll("-", "").slice(0, 10)}`;
 const users: string[] = [], employees: string[] = [], sessions: string[] = [];
 let runId: string | undefined;
@@ -81,7 +83,7 @@ async function main() {
   const person = await db.employee.create({ data: { code: tag, firstName: tag, lastName: "Payroll", workEmail: `${tag}@example.invalid`.toLowerCase(), designation: "Acceptance fixture", dateOfJoining: new Date("2000-01-01"), dateOfExit: new Date("2000-01-31"), userId: employee.id, salaries: { create: { effectiveFrom: new Date("2000-01-01"), basic: 30000, hra: 12000, specialAllowance: 3000 } } } });
   employees.push(person.id);
   await submit(await form("/payroll", admin, "Prepare payroll"), { month });
-  const run = await db.payrollRun.findUniqueOrThrow({ where: { month }, include: { payslips: true } });
+  const run = await db.payrollRun.findFirstOrThrow({ where: { month }, include: { payslips: true } });
   runId = run.id;
   assert.equal(run.status, "DRAFT"); assert.equal(run.payslips.length, 1); assert.equal(Number(run.payslips[0].gross), 45000);
   const slipPath = `/payroll/payslip/${run.payslips[0].id}`;
@@ -105,7 +107,7 @@ async function main() {
   assert.equal(await db.employee.count({ where: { code: baseFields.code } }), 0, "Forged HR login request must not create employee or user");
   assert.equal(await db.user.count({ where: { email: baseFields.workEmail } }), 0);
   await submit(create, baseFields);
-  const created = await db.employee.findUniqueOrThrow({ where: { code: baseFields.code } }); employees.push(created.id);
+  const created = await db.employee.findFirstOrThrow({ where: { code: baseFields.code } }); employees.push(created.id);
   assert.equal(created.userId, null);
   assert.equal(await db.onboardingTask.count({ where: { employeeId: created.id } }), 10);
   const adminPerson = await db.employee.create({ data: { code: `${tag}-ADMIN`, firstName: tag, lastName: "Administrator", designation: "Admin", workEmail: `${tag}-admin-record@example.invalid`.toLowerCase(), dateOfJoining: new Date("2026-01-01"), userId: admin.id } }); employees.push(adminPerson.id);

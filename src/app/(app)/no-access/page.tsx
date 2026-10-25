@@ -11,8 +11,8 @@ export default async function NoAccessPage({ searchParams }: PageProps<"/no-acce
   const user = await requireUser();
   const { for: raw = "" } = (await searchParams) as Record<string, string | undefined>;
   const roles = raw.split(".").filter((r): r is Role => (ROLES as readonly string[]).includes(r));
-  const access: PageAccess | null = raw === "owner" ? "owner" : roles.length ? roles : null;
-  const mine = user.isOwner && user.role === "ADMIN" ? "Owner" : ROLE_LABEL[user.role];
+  const access: PageAccess | null = raw === "owner" || raw === "superadmin" ? raw : roles.length ? roles : null;
+  const mine = user.isSuperadmin ? "Superadmin" : user.isOwner && user.role === "ADMIN" ? "Owner" : ROLE_LABEL[user.role];
 
   return (
     <div className="mx-auto max-w-lg py-10">

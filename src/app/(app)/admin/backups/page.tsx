@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/auth";
+import { requireBackupAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
@@ -16,7 +16,7 @@ function hourLabel(h: number) {
 }
 
 export default async function BackupsPage() {
-  await requireUser(["ADMIN"]);
+  await requireBackupAdmin();
   const s = await getSettings();
   const dir = backupDir();
   const copy = copyDir();
