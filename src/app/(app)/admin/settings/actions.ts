@@ -308,9 +308,52 @@ export async function updateCertificateSettings(_: FormState, formData: FormData
     where: { id: 1 },
     data: { ...parsed.data, ...(signature ?? {}), ...(remove && !signature ? { certSignature: null, certSignatureType: null } : {}) },
   });
-  await logActivity(admin, "SETTINGS", "settings.signatory", `Changed the certificate and letter signatory${signature ? " and signature picture" : remove ? " (signature picture removed)" : ""}`);
+  await logActivity(admin, "SETTINGS", "settings.signatory", `Changed the certificate signatory${signature ? " and signature picture" : remove ? " (signature picture removed)" : ""}`);
   revalidatePath("/admin/settings");
   return { ok: "Saved. New and reprinted certificates use this." };
+}
+
+/** Letterhead details, starting terms for appointment letters, and who signs HR letters (with an optional signature scan). */
+export async function updateLetterSettings(_: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireUser(["ADMIN"]);
+  const parsed = z
+    .object({
+      companyWebsite: text(120),
+      companyRegNo: text(120),
+      probationMonths: z.coerce.number().int().min(0).max(24),
+      probationNoticeDays: z.coerce.number().int().min(0).max(180),
+      letterSignatoryName: text(100),
+      letterSignatoryTitle: text(100),
+    })
+    .safeParse({
+      companyWebsite: formData.get("companyWebsite") ?? "",
+      companyRegNo: formData.get("companyRegNo") ?? "",
+      probationMonths: formData.get("probationMonths"),
+      probationNoticeDays: formData.get("probationNoticeDays"),
+      letterSignatoryName: formData.get("letterSignatoryName") ?? "",
+      letterSignatoryTitle: formData.get("letterSignatoryTitle") ?? "",
+    });
+  if (!parsed.success) return { error: "Probation is 0 to 24 months and notice 0 to 180 days." };
+  const file = formData.get("signature");
+  let signature: { letterSignature: Uint8Array<ArrayBuffer>; letterSignatureType: string } | null = null;
+  if (file instanceof File && file.size > 0) {
+    if (file.size > MAX_SIGNATURE_BYTES) return { error: "The signature image must be under 1 MB." };
+    const data = new Uint8Array(await file.arrayBuffer());
+    const type = sniffMime(data);
+    if (type !== "image/png" && type !== "image/jpeg") return { error: "Upload the signature as a PNG or JPG picture." };
+    signature = { letterSignature: data, letterSignatureType: type };
+  }
+  const remove = formData.get("removeSignature") === "on";
+  const before = await getSettings();
+  await db.companySettings.update({
+    where: { id: 1 },
+    data: { ...parsed.data, ...(signature ?? {}), ...(remove && !signature ? { letterSignature: null, letterSignatureType: null } : {}) },
+  });
+  const changed = changedSettings(before, parsed.data);
+  if (changed || signature || remove)
+    await logActivity(admin, "SETTINGS", "settings.letters", `Changed HR letter settings${changed ? `: ${changed}` : ""}${signature ? ", new signature picture" : remove ? ", signature picture removed" : ""}`);
+  revalidatePath("/admin/settings");
+  return { ok: "Saved. Letters issued from now on use this; ones already issued keep their signatory." };
 }
 
 // ─── Sign-in and safety ────────────────────────────────────────────────────

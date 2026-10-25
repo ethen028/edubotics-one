@@ -72,7 +72,7 @@ export type OutgoingEmail = {
   message: string; // plain text the person typed or kept from the template
   attachments?: Attachment[];
   automatic?: boolean; // the daily automatic payment reminder round, with no person sending it
-  links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string; certificateId?: string; receiptId?: string; exitId?: string };
+  links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string; certificateId?: string; receiptId?: string; exitId?: string; letterId?: string };
 };
 
 /**
@@ -121,6 +121,7 @@ export async function sendEmail(email: OutgoingEmail, settings: Settings, userId
       certificateId: email.links?.certificateId,
       receiptId: email.links?.receiptId,
       exitId: email.links?.exitId,
+      letterId: email.links?.letterId,
       invoices: email.links?.invoiceIds?.length ? { connect: email.links.invoiceIds.map((id) => ({ id })) } : undefined,
     },
   });

@@ -175,6 +175,23 @@ export function exitLetterEmail(p: { firstName: string }, sender: string, s: Set
   };
 }
 
+/** Any HR letter, sent to the person it was issued to. The relieving letter keeps its own wording. */
+export function letterEmail(l: { kind: string; label: string; number: string | null; firstName: string }, sender: string, s: Settings): Draft {
+  if (l.kind === "RELIEVING") return exitLetterEmail(l, sender, s);
+  const label = l.label.charAt(0).toLowerCase() + l.label.slice(1);
+  const extra: Record<string, string> = {
+    OFFER: "Please read it, and reply to this email to accept or if you have any questions.",
+    APPOINTMENT: "Please read it, sign a printed copy and hand it to HR.",
+    WARNING: "Please read it carefully. If you would like to talk about it, speak to HR.",
+    SHOW_CAUSE: "Please read it carefully and send your reply in writing by the date in the notice.",
+    ID_CARD: "Print it at actual size, cut it out and laminate it, or ask HR to do it for you.",
+  };
+  return {
+    subject: `Your ${label} from ${s.companyName}`,
+    message: paragraphs(`Dear ${l.firstName},`, `Your ${label}${l.number ? ` (${l.number})` : ""} is attached.`, extra[l.kind], signOff(sender, s)),
+  };
+}
+
 /** "Thu, 15 Oct 2026, 10:30 am" in India time. */
 export function interviewTime(d: Date) {
   const part = (o: Intl.DateTimeFormatOptions) => d.toLocaleString("en-IN", { ...o, timeZone: "Asia/Kolkata" });

@@ -38,6 +38,8 @@ const EXPECT: [RegExp, Who[]][] = [
   [/^\/recruitment(\/(jobs|candidates|offers)|$)/, ["owner", "admin", "hr", "manager"]],
   [/^\/hr\/employees\/new$/, ["owner", "admin", "hr"]],
   [/^\/hr\/exits\/new$/, ["owner", "admin"]],
+  [/^\/hr\/letters(\/|$)/, ["owner", "admin", "hr"]],
+  [/^\/letter:pay$/, ["owner", "admin"]],
   [/^\/hr\/exits$/, ["owner", "admin", "manager"]],
   [/^\/hr\/reviews\/cycles/, ["owner", "admin"]],
   [/^\/purchases\/bills/, ["owner", "admin"]],
@@ -84,7 +86,12 @@ async function main() {
       .sort();
     // Someone else's records, typed in by address.
     const otherPayslip = await db.payslip.findFirst({ where: { employee: { userId: { not: users.employee.id } } } });
-    const extra: [string, string][] = otherPayslip ? [["/payslip:other", `/payroll/payslip/${otherPayslip.id}`]] : [];
+    // A letter that shows someone else's pay: admins only, never HR.
+    const payLetter = await db.hrLetter.findFirst({ where: { kind: { in: ["SALARY_CERTIFICATE", "APPOINTMENT", "REVISION", "ANNUAL_STATEMENT", "OFFER"] }, employeeId: { notIn: [users.employee.employee?.id ?? "", users.hr.employee?.id ?? "", users.manager.employee?.id ?? ""] } } });
+    const extra: [string, string][] = [
+      ...(otherPayslip ? [["/payslip:other", `/payroll/payslip/${otherPayslip.id}`] as [string, string]] : []),
+      ...(payLetter ? [["/letter:pay", `/hr/letters/${payLetter.id}`] as [string, string]] : []),
+    ];
 
     const cookies = Object.fromEntries(await Promise.all(ROLES.map(async (r) => [r, await cookieFor(users[r].id)] as const))) as Record<Who, string>;
     const table: { route: string; outcomes: Record<Who, Outcome> }[] = [];

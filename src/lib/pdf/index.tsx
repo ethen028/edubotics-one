@@ -1,7 +1,7 @@
 import "server-only";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { db } from "../db";
-import { certificateSignature, getSettings } from "../settings";
+import { certificateSignature, getSettings, letterSignature } from "../settings";
 import { formatDate } from "../format";
 import { monthLabel, payslipParts } from "../payroll";
 import { CATEGORY_LABEL, payableOf } from "../expenses";
@@ -13,9 +13,11 @@ import { CertificatePdf, type CertificateFacts } from "./certificate";
 import { certificateWording, dateSpan, receiptTax } from "../workshops";
 import { formatMoney, methodLabel } from "../invoices";
 import { fileSafe } from "./layout";
-import { ExitLetterPdf } from "./exit-letter";
+import { IdCardPdf, LetterPdf } from "./letter";
+import { draftRelievingBody, idPhoto } from "../letters";
+import { LETTER_KINDS, type LetterBody } from "../letter-rules";
 
-// PDF copies of invoices, quotes, payslips and certificates: attached to emails and offered as downloads.
+// PDF copies of invoices, quotes, payslips, certificates and HR letters: attached to emails and offered as downloads.
 
 const QUOTE_WATERMARK: Record<string, string> = { DRAFT: "draft", DECLINED: "declined", REVISED: "replaced" };
 
@@ -254,35 +256,35 @@ export async function receiptPdf(id: string): Promise<Attachment | null> {
   return { filename: `Receipt ${fileSafe(p.number)}.pdf`, content, contentType: "application/pdf" };
 }
 
-/** Relieving and experience letter for someone leaving. Marked draft until they are marked as left. */
-export async function exitLetterPdf(exitId: string): Promise<Attachment | null> {
-  const [exit, settings, signature] = await Promise.all([
-    db.employeeExit.findUnique({ where: { id: exitId }, include: { employee: { include: { department: true } } } }),
+/** Relieving and experience letter while someone is on notice: worked out fresh and marked draft. Once they have left it is issued as an HR letter. */
+export async function draftExitLetterPdf(exitId: string): Promise<Attachment | null> {
+  const [exit, body, settings, signature] = await Promise.all([
+    db.employeeExit.findUnique({ where: { id: exitId }, select: { stage: true, employee: { select: { firstName: true, lastName: true } } } }),
+    draftRelievingBody(exitId),
     getSettings(),
-    certificateSignature(),
+    letterSignature(),
   ]);
-  if (!exit?.lastWorkingDay || (exit.stage !== "ON_NOTICE" && exit.stage !== "LEFT")) return null;
-  const e = exit.employee;
-  const name = `${e.firstName} ${e.lastName}`.trim();
+  if (!body || exit?.stage !== "ON_NOTICE") return null;
+  const content = await renderToBuffer(<LetterPdf body={body} number={null} issuedOn={new Date()} settings={settings} signatureImage={signature} watermark="draft" />);
+  return { filename: `Relieving letter ${fileSafe(`${exit.employee.firstName} ${exit.employee.lastName}`.trim())} draft.pdf`, content, contentType: "application/pdf" };
+}
+
+const WATERMARK: Record<string, string | null> = { ISSUED: null, REPLACED: "replaced", CANCELLED: "cancelled" };
+
+/** Any issued HR letter, offer letter or ID card, from the wording saved when it was issued. */
+export async function letterPdf(id: string): Promise<Attachment | null> {
+  const [letter, settings, signature] = await Promise.all([db.hrLetter.findUnique({ where: { id } }), getSettings(), letterSignature()]);
+  if (!letter) return null;
+  const body = letter.body as unknown as LetterBody;
+  const watermark = WATERMARK[letter.status];
   const content = await renderToBuffer(
-    <ExitLetterPdf
-      settings={settings}
-      signatureImage={signature}
-      f={{
-        name,
-        firstName: e.firstName,
-        code: e.code,
-        designation: e.designation,
-        department: e.department?.name ?? null,
-        joined: e.dateOfJoining,
-        lastDay: exit.lastWorkingDay,
-        resigned: exit.kind === "RESIGNATION",
-        issuedOn: exit.leftAt ?? new Date(),
-        draft: exit.stage !== "LEFT",
-      }}
-    />,
+    letter.kind === "ID_CARD" ? (
+      <IdCardPdf body={body} settings={settings} photo={letter.employeeId ? await idPhoto(letter.employeeId) : null} signatureImage={signature} watermark={watermark} />
+    ) : (
+      <LetterPdf body={body} number={letter.number} issuedOn={letter.issuedOn} settings={settings} signatureImage={signature} watermark={watermark} />
+    ),
   );
-  return { filename: `Relieving letter ${fileSafe(name)}.pdf`, content, contentType: "application/pdf" };
+  return { filename: `${LETTER_KINDS[letter.kind].label} ${fileSafe(letter.recipient)}${letter.number ? ` ${fileSafe(letter.number)}` : ""}.pdf`, content, contentType: "application/pdf" };
 }
 
 /** Serves a PDF in the browser, for the "Download PDF" buttons. */

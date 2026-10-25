@@ -24,6 +24,7 @@ export const DOCUMENT_TYPES = [
   "Offer letter",
   "Experience letter",
   "Resume",
+  "Passport photo",
   "Other",
 ] as const;
 

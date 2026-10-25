@@ -20,7 +20,7 @@ The logo is a two-swoosh "E" with a four-point orange spark. Tagline: Learn. Bui
 | `src/lib/pdf/layout.tsx` | `BRAND = #0a3d47` and `<PdfLogo />`, the colour mark at the top of every PDF |
 | `src/lib/mail.ts` | Emails: teal-navy header with an orange rule |
 
-The mark is on the sign-in page, the menu, careers, every PDF (invoice, quote, credit note, receipt, payslip, certificate, relieving letter) and the printable pages (invoice, quote, purchase order, payslip, offer letter, programme report).
+The mark is on the sign-in page, the menu, careers, every PDF (invoice, quote, credit note, receipt, payslip, certificate, every HR letter and the ID card, from `src/lib/pdf/letter.tsx`) and the printable pages (invoice, quote, purchase order, payslip, programme report).
 
 Sub-brand lockups exist but are not used in the app: Edubotics Kids, Edubotics Future, Edubotics Career Accelerator, Edubotics for Schools, and the parent-group lockup ("A division of Hindusthan Group"). Ask the owner before putting one on a document or page.
 

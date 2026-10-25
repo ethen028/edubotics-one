@@ -391,7 +391,7 @@ export function OfferForm({
           <input name="specialAllowance" type="number" min={0} step="1" defaultValue={0} className="input" />
         </Field>
         <Field label="Probation (months)">
-          <input name="probationMonths" type="number" min={0} max={24} defaultValue={6} className="input" />
+          <input name="probationMonths" type="number" min={0} max={24} defaultValue={3} className="input" />
         </Field>
         <Field label="Extra terms for the letter" className="sm:col-span-2">
           <input name="notes" className="input" placeholder="e.g. Travel to partner schools across Ernakulam district" />
