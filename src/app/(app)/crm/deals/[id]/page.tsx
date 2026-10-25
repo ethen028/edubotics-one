@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
+import { canEditCrmRecord } from "@/lib/permissions";
 import { Badge, PageHeader } from "@/components/ui";
 import { formatINR, humanize } from "@/lib/format";
 import { DealForm } from "../../forms";
@@ -38,6 +39,7 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
     },
   });
   if (!deal) notFound();
+  const canEdit = canEditCrmRecord(user, deal);
   const today = todayIST();
   const [users, organizations, contacts] = await Promise.all([
     activeUsers(),
@@ -162,7 +164,11 @@ export default async function DealPage({ params }: PageProps<"/crm/deals/[id]">)
       )}
       <div className="grid gap-6 xl:grid-cols-5">
         <div className="xl:col-span-3">
-          <DealForm action={updateDeal.bind(null, deal.id)} deal={deal} organizations={organizations} contacts={contacts} users={users} />
+          {canEdit ? (
+            <DealForm action={updateDeal.bind(null, deal.id)} deal={deal} organizations={organizations} contacts={contacts} users={users} />
+          ) : (
+            <p className="card text-sm text-slate-500">This deal belongs to someone else. Its owner, a manager or an admin can change it.</p>
+          )}
         </div>
         <div className="xl:col-span-2">
           <ActivityPanel

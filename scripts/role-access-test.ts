@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readdir } from "node:fs/promises";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Role } from "@prisma/client";
 import { companyScope, mainCompanyId } from "../src/lib/company-scope";
+import { canOpenPage } from "../src/lib/page-access";
 import { SignJWT } from "jose";
 
 /**
@@ -22,33 +23,13 @@ const ROLES = ["owner", "admin", "hr", "manager", "employee"] as const;
 type Who = (typeof ROLES)[number];
 type Outcome = "open" | "denied" | "not found" | "elsewhere" | "error";
 
-/** Who may open each page. Pages not listed here are open to everyone and scope their records to the person. */
-const EXPECT: [RegExp, Who[]][] = [
-  [/^\/dashboard(\/list)?$/, ["owner"]],
-  [/^\/companies$/, ["owner"]], // superadmins only
-  [/^\/dashboard\/admin$/, ["owner", "admin"]],
-  [/^\/dashboard\/hr$/, ["owner", "admin", "hr"]],
-  [/^\/dashboard\/me$/, [...ROLES]],
-  [/^\/admin(\/|$)/, ["owner", "admin"]],
-  [/^\/payroll$|^\/payroll\/(?!my|payslip)/, ["owner", "admin"]],
-  [/^\/payslip:other$/, ["owner", "admin"]],
-  [/^\/(accounts|quotes|invoices|credit-notes)(\/|$)/, ["owner", "admin", "manager"]],
-  [/^\/purchases\/payables/, ["owner", "admin"]],
-  [/^\/approvals$/, ["owner", "admin", "manager"]],
-  [/^\/expenses\/team/, ["owner", "admin", "manager"]],
-  [/^\/hr\/(assets|departments|leave-types)(\/|$)/, ["owner", "admin", "hr"]],
-  [/^\/hr\/(onboarding|training|approvals|attendance\/register)(\/|$)/, ["owner", "admin", "hr", "manager"]],
-  [/^\/recruitment(\/(jobs|candidates|offers)|$)/, ["owner", "admin", "hr", "manager"]],
-  [/^\/hr\/employees\/new$/, ["owner", "admin", "hr"]],
-  [/^\/hr\/exits\/new$/, ["owner", "admin"]],
-  [/^\/hr\/letters(\/|$)/, ["owner", "admin", "hr"]],
-  [/^\/letter:pay$/, ["owner", "admin"]],
-  [/^\/hr\/exits$/, ["owner", "admin", "manager"]],
-  [/^\/hr\/reviews\/cycles/, ["owner", "admin"]],
-  [/^\/purchases\/bills/, ["owner", "admin"]],
-  [/^\/notices\/new$/, ["owner", "admin", "hr", "manager"]],
-  [/^\/(checklists\/(team|templates)|crm\/commission|operations\/(programmes\/new|reports)|projects\/(new|people)|timesheets\/team|workshops\/new)(\/|$)/, ["owner", "admin", "manager"]],
-];
+// Who may open each page comes from the app's own access list (src/lib/page-access.ts); this script checks
+// the running app really behaves that way. Someone else's payslip and a letter that shows pay are extra.
+const PEOPLE: Record<Who, { role: Role; isOwner?: boolean; isSuperadmin?: boolean }> = {
+  owner: { role: "ADMIN", isOwner: true, isSuperadmin: true }, admin: { role: "ADMIN" }, hr: { role: "HR" }, manager: { role: "MANAGER" }, employee: { role: "EMPLOYEE" },
+};
+const EXTRA: Record<string, Who[]> = { "/payslip:other": ["owner", "admin"], "/letter:pay": ["owner", "admin"] };
+const allowedFor = (route: string) => EXTRA[route] ?? ROLES.filter((r) => canOpenPage(PEOPLE[r], route));
 
 async function cookieFor(userId: string) {
   const session = await db.session.create({ data: { userId, method: "PASSWORD" } });
@@ -64,7 +45,7 @@ async function open(route: string, cookie: string): Promise<Outcome> {
   const body = response.status === 200 ? await response.text() : "";
   const location = response.headers.get("location") ?? "";
   // A redirect or not-found after the loading screen starts streaming is carried in the page body.
-  if ((response.status === 307 && location.includes("denied")) || (body.includes("NEXT_REDIRECT") && body.includes("/?denied=1"))) return "denied";
+  if ((response.status === 307 && location.includes("/no-access")) || (body.includes("NEXT_REDIRECT") && body.includes("/no-access"))) return "denied";
   if (response.status === 404 || body.includes("NEXT_HTTP_ERROR_FALLBACK;404")) return "not found";
   if (response.status === 307 || response.status === 308 || body.includes("NEXT_REDIRECT")) return "elsewhere";
   if (response.status !== 200 || /:E\{\s*"digest"/.test(body)) return "error";
@@ -109,7 +90,7 @@ async function main() {
 
     const failures: string[] = [];
     for (const { route, outcomes } of table) {
-      const allowed = EXPECT.find(([pattern]) => pattern.test(route))?.[1] ?? ROLES;
+      const allowed = allowedFor(route);
       for (const r of ROLES) {
         const reached = outcomes[r] === "open";
         if (outcomes[r] === "error") failures.push(`${route}: error for ${r}`);

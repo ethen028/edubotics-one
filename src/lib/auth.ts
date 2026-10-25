@@ -119,21 +119,26 @@ export async function requireUser(roles?: Role[]): Promise<CurrentUser> {
   const problem = sessionAccessProblem({ user, session }, process.env.REQUIRE_VERIFIED_EMAIL === "true");
   if (problem === "password") redirect("/change-password");
   if (problem === "email") redirect("/verify-email");
-  if (roles && !roles.includes(user.role)) redirect("/?denied=1");
+  if (roles && !roles.includes(user.role)) deny(roles);
   return user;
+}
+
+/** Sends someone to the "Not for your role" page, which names who the page or action is for. */
+export function deny(allowed: readonly Role[] | "owner" | "superadmin"): never {
+  redirect(`/no-access?for=${typeof allowed === "string" ? allowed : allowed.join(".")}`);
 }
 
 /** The owner dashboard and its records: the company owner (an admin with the owner mark) only. */
 export async function requireOwner(): Promise<CurrentUser> {
   const user = await requireUser(["ADMIN"]);
-  if (!user.isOwner) redirect("/?denied=1");
+  if (!user.isOwner) deny("owner");
   return user;
 }
 
 /** The group pages (Companies, switching): superadmins only. */
 export async function requireSuperadmin(): Promise<CurrentUser> {
   const user = await requireUser();
-  if (!user.isSuperadmin) redirect("/?denied=1");
+  if (!user.isSuperadmin) deny("superadmin");
   return user;
 }
 
@@ -147,7 +152,7 @@ export async function isBackupAdmin(user: { role: Role }) {
 
 export async function requireBackupAdmin(): Promise<CurrentUser> {
   const user = await requireUser(["ADMIN"]);
-  if (!(await isBackupAdmin(user))) redirect("/?denied=1");
+  if (!(await isBackupAdmin(user))) redirect("/no-access"); // an admin, but in another company of the group
   return user;
 }
 

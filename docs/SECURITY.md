@@ -9,7 +9,7 @@ Orbit holds salaries, bank details, ID documents and the company's money records
 - Salary and payslip figures: admins and the employee only. HR never sees pay. Only the owner sees the owner dashboard and changes the owner's login.
 - Staff messages are readable only by members of the conversation. Admins have no way in; don't add one.
 - Companies: every business table has a `companyId`, and `db` (`src/lib/db.ts`) adds the current company to every query and create through `src/lib/company-scope.ts`, so pages never filter by company themselves. `rawDb` skips that filter: use it only for sign-in, your own login, the superadmin's group pages and background jobs that loop over companies with `forEachCompany`. Raw SQL is not filtered: add `"companyId" = ${await currentCompanyId()}` by hand. A superadmin's login can only be changed by a superadmin. Group pages use `requireSuperadmin()`; backups (the whole database) use `requireBackupAdmin()`.
-- New pages need the right roles in both `requireUser` and `src/lib/nav.ts`, and should be added to `scripts/role-access-test.ts` if a role must be kept out.
+- New pages need a row in `src/lib/page-access.ts` with the same roles as their `requireUser` call, and a menu entry in `src/lib/nav.ts` only for roles that can open them. `tests/page-access.test.ts` fails otherwise, and also fails if a server action reads the database before checking the role or a download skips `getApiUser()`.
 
 ## Data
 

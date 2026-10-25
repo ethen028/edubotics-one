@@ -22,7 +22,7 @@ async function request(path: string, actor: Actor) {
   return { status: response.status, location: response.headers.get("location"), body: await response.text() };
 }
 function denied(result: Awaited<ReturnType<typeof request>>) {
-  return result.status === 307 && result.location?.includes("denied") || result.body.includes("NEXT_REDIRECT") && result.body.includes("/?denied=1");
+  return result.status === 307 && result.location?.includes("/no-access") || result.body.includes("NEXT_REDIRECT") && result.body.includes("/no-access");
 }
 async function page(path: string, actor: Actor) {
   const result = await request(path, actor);

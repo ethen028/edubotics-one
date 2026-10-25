@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDate, formatINR, humanize } from "@/lib/format";
-import { canOffer } from "@/lib/recruitment";
 import { PageHeader } from "@/components/ui";
 import { issueOfferLetterAction } from "../../../hr/letters/actions";
 import { LetterStatusBadge } from "../../../hr/letters/ui";
@@ -12,8 +11,7 @@ export const metadata = { title: "Offer letter" };
 
 /** The offer letter is issued as a numbered HR letter on the letterhead, then downloaded or emailed from there. */
 export default async function OfferLetterPage({ params }: PageProps<"/recruitment/offers/[id]">) {
-  const user = await requireUser();
-  if (!canOffer(user)) redirect("/?denied=1");
+  await requireUser(["ADMIN"]);
   const { id } = await params;
   const offer = await db.offer.findUnique({
     where: { id },

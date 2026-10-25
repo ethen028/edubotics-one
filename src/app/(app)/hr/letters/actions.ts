@@ -6,7 +6,6 @@ import { LetterKind } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { canOffer } from "@/lib/recruitment";
 import { logActivity } from "@/lib/activity";
 import { flash } from "@/lib/flash";
 import { issueLetter, issueOfferLetter } from "@/lib/letters";
@@ -42,7 +41,6 @@ export async function issueLetterAction(kind: LetterKind, employeeId: string, re
 /** Issue (or reissue) the offer letter for an offer. Admins only, as offers carry salary. */
 export async function issueOfferLetterAction(offerId: string) {
   const user = await requireUser(["ADMIN"]);
-  if (!canOffer(user)) redirect("/?denied=1");
   const result = await issueOfferLetter(offerId, user.id);
   if ("error" in result) redirect("/recruitment");
   const { letter } = result;

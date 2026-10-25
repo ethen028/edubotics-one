@@ -1,11 +1,11 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getApiUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canMarkAttendance } from "@/lib/workshops";
 import { certificatePdf, pdfResponse } from "@/lib/pdf";
 
 /** One certificate, the same file that is attached when it's emailed. Trainers on the workshop can open it too. */
 export async function GET(req: Request, { params }: RouteContext<"/workshops/certificates/[id]/pdf">) {
-  const user = await getCurrentUser();
+  const user = (await getApiUser()).user;
   const id = (await params).id;
   const cert = await db.workshopCertificate.findUnique({
     where: { id },
