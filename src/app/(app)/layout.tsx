@@ -1,4 +1,7 @@
-import { requireUser, isAdmin } from "@/lib/auth";
+import { requireUser, isAdmin, isBackupAdmin } from "@/lib/auth";
+import { allCompanies, currentCompany } from "@/lib/company";
+import { CompanySwitcher } from "@/components/company-switcher";
+import { switchCompany } from "./companies/actions";
 import { canManagePeople } from "@/lib/permissions";
 import Link from "next/link";
 import { NavLink } from "@/components/nav-link";
@@ -59,6 +62,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       myPlanTasksToUpdate(user.id),
       unreadMessageCount(user.id),
     ]);
+  const [company, companies, backups] = await Promise.all([
+    currentCompany(),
+    user.isSuperadmin ? allCompanies() : [],
+    isBackupAdmin(user),
+  ]);
   const groups = buildNav(user, {
     inbox,
     messages,
@@ -72,7 +80,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     myInterviews,
     reviewTodos: reviewTodos.length,
     planToUpdate,
-  });
+  }, { backups });
   // Shortcuts in the bar along the top: only the things this person has to act on.
   const waiting = [
     { n: approvals.total, label: `${approvals.total} to approve`, href: "/approvals" },
@@ -96,7 +104,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             </div>
             <div className="rail-hide ml-2 leading-tight">
               <div className="font-display text-sm font-semibold">Orbit</div>
-              <div className="sidebar-muted text-[11px]">Global Operations</div>
+              <div className="sidebar-muted max-w-[9rem] truncate text-[11px]" title={company.name}>{company.name}</div>
             </div>
           </div>
         }
@@ -131,7 +139,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <div className="avatar md:hidden">{initials(user.name)}</div>
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium md:hidden">{user.name}</div>
-            <div className="sidebar-muted text-xs md:hidden">{humanize(user.role)}</div>
+            <div className="sidebar-muted text-xs md:hidden">{user.isSuperadmin ? "Superadmin" : humanize(user.role)}</div>
             <div className="sidebar-links mt-1 flex items-center gap-2">
               <Link href="/account" className="sidebar-link text-xs" title="My account">
                 <Icon name="user" className="h-4 w-4 shrink-0" />
@@ -153,7 +161,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <div className="min-w-0 flex-1">
               <CommandPalette groups={groups} userId={user.id} />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              {companies.length > 0 && (
+                <CompanySwitcher id="company-switch" className="hidden sm:flex" companies={companies} current={company.id} action={switchCompany} />
+              )}
               <form action={setAppearance} className="theme-pill" aria-label="Colours">
                 <button name="theme" value="LIGHT" aria-pressed={!dark} title="Light colours">
                   <Icon name="sun" className="h-3.5 w-3.5" />
@@ -179,11 +190,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 <span className="avatar">{initials(user.name)}</span>
                 <span className="hidden leading-tight lg:block">
                   <span className="block text-sm font-semibold">{user.name}</span>
-                  <span className="block text-xs text-slate-500">{humanize(user.role)}</span>
+                  <span className="block text-xs text-slate-500">{user.isSuperadmin ? "Superadmin" : humanize(user.role)}</span>
                 </span>
               </Link>
             </div>
           </header>
+          {companies.length > 0 && (
+            <CompanySwitcher id="company-switch-phone" className="mb-3 sm:hidden" companies={companies} current={company.id} action={switchCompany} />
+          )}
           {waiting.length > 0 && (
             <div className="waiting-strip print:hidden">
               <span className="text-slate-500">Waiting on you:</span>

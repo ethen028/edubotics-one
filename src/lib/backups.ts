@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { db } from "./db";
+import { firstCompanyId } from "./company";
 
 /*
  * Automatic backups for the office computer (Admin → Backups, docs/backups.md).
@@ -219,7 +220,7 @@ export function backupsToDelete(names: string[], now: Date, keepDays: number, ke
 }
 
 async function prune() {
-  const s = await db.companySettings.findUnique({ where: { id: 1 }, select: { backupKeepDays: true, backupKeepMonths: true } });
+  const s = await db.companySettings.findUnique({ where: { companyId: await firstCompanyId() }, select: { backupKeepDays: true, backupKeepMonths: true } });
   const keepDays = s?.backupKeepDays ?? 30;
   const keepMonths = s?.backupKeepMonths ?? 12;
   for (const dir of [backupDir(), copyDir()]) {
@@ -252,7 +253,7 @@ let lastFailure = 0;
 
 async function tick() {
   if (!backupDir()) return;
-  const s = await db.companySettings.findUnique({ where: { id: 1 }, select: { backupsEnabled: true, backupHour: true } });
+  const s = await db.companySettings.findUnique({ where: { companyId: await firstCompanyId() }, select: { backupsEnabled: true, backupHour: true } });
   if (s && !s.backupsEnabled) return;
   // Count manual backups too, not the safety copy taken just before a restore.
   const newest = (await listBackups()).find((b) => b.kind !== "before-restore");
@@ -284,7 +285,7 @@ const STALE_AFTER = 2 * 24 * 3600 * 1000;
 /** What an admin should know about backups right now, or null when all is well (or there's no Docker setup). */
 export async function backupProblem(): Promise<{ level: "red" | "amber"; text: string } | null> {
   if (!backupDir()) return null;
-  const s = await db.companySettings.findUnique({ where: { id: 1 }, select: { backupsEnabled: true } });
+  const s = await db.companySettings.findUnique({ where: { companyId: await firstCompanyId() }, select: { backupsEnabled: true } });
   const [run, files] = await Promise.all([lastRun(), listBackups()]);
   const newest = files[0];
   if (!(await helperRunning())) return { level: "red", text: "The backup helper isn't running, so no backups are being made." };

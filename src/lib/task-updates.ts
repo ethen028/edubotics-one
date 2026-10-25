@@ -1,5 +1,6 @@
 import "server-only";
-import type { Prisma, ProjectTask, WorkStatus } from "@prisma/client";
+import type { ProjectTask, WorkStatus } from "@prisma/client";
+import type { Tx } from "./db";
 import type { IncomingFile } from "./project-files";
 import { notify } from "./notifications";
 
@@ -21,7 +22,7 @@ export function nextTaskState(task: Pick<ProjectTask, "progress" | "status">, in
 
 /** Records a progress report on a task (with files) and applies the new progress and status. Run inside a transaction. */
 export async function recordTaskUpdate(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   task: ProjectTask,
   authorId: string,
   input: { note: string | null; progress?: number; status?: WorkStatus; files: IncomingFile[] },
@@ -72,7 +73,7 @@ export async function recordTaskUpdate(
 }
 
 /** When a task is finished, the people waiting on it hear they can start (Task Flow v5's dependencies). */
-export async function afterStatusChange(tx: Prisma.TransactionClient, task: Pick<ProjectTask, "id" | "title" | "projectId">, status: WorkStatus, actorId: string) {
+export async function afterStatusChange(tx: Tx, task: Pick<ProjectTask, "id" | "title" | "projectId">, status: WorkStatus, actorId: string) {
   if (status !== "DONE") return;
   const waiting = await tx.projectTask.findMany({
     where: { dependsOnId: task.id, status: { not: "DONE" }, assigneeId: { not: null } },

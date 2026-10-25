@@ -23,7 +23,7 @@ export default async function PayrollRunPage({ params }: PageProps<"/payroll/[mo
     notFound();
   }
   const [run, settings, waitingClaims, settlements] = await Promise.all([
-    db.payrollRun.findUnique({
+    db.payrollRun.findFirst({
       where: { month },
       include: {
         payslips: {

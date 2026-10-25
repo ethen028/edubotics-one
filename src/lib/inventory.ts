@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma, StockRequestStatus } from "@prisma/client";
 import { db } from "./db";
+import { currentCompanyId } from "./company";
 import { isAdmin, type CurrentUser } from "./auth";
 
 export const INVENTORY_CATEGORIES = [
@@ -61,10 +62,11 @@ export async function reservedByItem(itemIds?: string[]) {
   return new Map(rows.map((r) => [r.itemId, r._sum.quantity ?? 0]));
 }
 
-/** Items at or below their reorder level. Postgres compares the two columns directly. */
+/** Items at or below their reorder level. Postgres compares the two columns directly (raw SQL, so the company by hand). */
 export async function lowStockItems() {
+  const companyId = await currentCompanyId();
   return db.$queryRaw<{ id: string; sku: string; name: string; unit: string; onHand: number; reorderLevel: number }[]>`
     SELECT "id", "sku", "name", "unit", "onHand", "reorderLevel" FROM "StockItem"
-    WHERE "active" AND "reorderLevel" > 0 AND "onHand" <= "reorderLevel"
+    WHERE "companyId" = ${companyId} AND "active" AND "reorderLevel" > 0 AND "onHand" <= "reorderLevel"
     ORDER BY "onHand" - "reorderLevel", "name"`;
 }

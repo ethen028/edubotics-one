@@ -1,6 +1,6 @@
 import "server-only";
 import type { SignInMethod } from "@prisma/client";
-import { db } from "./db";
+import { rawDb as db } from "./db"; // a person can sign in whichever company they are in
 
 /** Atomic credential check and session creation, independent of Next's request context. */
 export async function createSessionRecord(

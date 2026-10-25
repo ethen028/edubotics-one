@@ -7,55 +7,24 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
-import { TRAINING_MODULES } from "../src/lib/hr-constants";
-import { KERALA_HOLIDAYS } from "./kerala-holidays";
+import { companyScope, mainCompanyId } from "../src/lib/company-scope";
+import { addStarterData } from "../src/lib/company-starter";
 import { loadOperatingCalendar } from "../src/lib/plan-load";
 
 // tsx does not load .env the way Next.js and the Prisma CLI do.
 if (existsSync(".env")) loadEnvFile(".env");
-const db = new PrismaClient();
-
-const departments = ["Management", "Training & Delivery", "Sales & Partnerships", "Operations", "R&D / Technical"];
-
-// Edubotics policy (Ethen, Oct 2026): 15 casual + 3 sick = 18 paid days a year, plus unpaid LOP.
-// Edit under Admin → Leave types. A quota of 0 means unlimited, so earned leave isn't seeded.
-const leaveTypes = [
-  { code: "CL", name: "Casual leave", annualQuota: 15, paid: true },
-  { code: "SL", name: "Sick leave", annualQuota: 3, paid: true },
-  { code: "LOP", name: "Loss of pay", annualQuota: 0, paid: false },
-];
-
-// Fixed-date holidays for years after the Kerala list below. Onam, Vishu, Eid, Deepavali, etc. move every year: add them under HR → Holidays.
-const fixedHolidays = [
-  ["01-26", "Republic Day"],
-  ["05-01", "May Day"],
-  ["08-15", "Independence Day"],
-  ["10-02", "Gandhi Jayanthi"],
-  ["12-25", "Christmas"],
-] as const;
+const rawDb = new PrismaClient();
+let companyId = "";
+// Every query below runs inside `companyId`, the same company filter the app uses (src/lib/company-scope.ts).
+const db = rawDb.$extends(companyScope(async () => companyId));
 
 async function main() {
-  for (const name of departments) {
-    await db.department.upsert({ where: { name }, update: {}, create: { name } });
+  // Every company gets the starter data; the annual plan and the first admin go to the first company.
+  for (const c of await rawDb.company.findMany({ orderBy: { createdAt: "asc" } })) {
+    companyId = c.id;
+    await addStarterData(db, c.id);
   }
-  for (const t of leaveTypes) {
-    await db.leaveType.upsert({ where: { code: t.code }, update: {}, create: t });
-  }
-  for (const [day, name, tentative = false] of KERALA_HOLIDAYS) {
-    const date = new Date(`${day}T00:00:00.000Z`);
-    await db.holiday.upsert({ where: { date }, update: {}, create: { date, name, tentative } });
-  }
-  const year = new Date().getFullYear();
-  for (const y of [year, year + 1]) {
-    for (const [md, name] of fixedHolidays) {
-      const date = new Date(`${y}-${md}T00:00:00.000Z`);
-      await db.holiday.upsert({ where: { date }, update: {}, create: { date, name } });
-    }
-  }
-
-  for (const m of TRAINING_MODULES) {
-    await db.trainingModule.upsert({ where: { title: m.title }, update: {}, create: m });
-  }
+  companyId = await mainCompanyId(rawDb);
 
   // Only on a database with no plan yet, so months someone removed on purpose don't come back on the next restart.
   if ((await db.planMonth.count()) === 0) console.log(`Loaded ${await loadOperatingCalendar(db)} months of the operating calendar.`);
@@ -64,7 +33,7 @@ async function main() {
   const password = process.env.SEED_ADMIN_PASSWORD ?? "";
   if (!email || password.length < 8) {
     console.log("Skipped admin login: set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD (8+ chars) to create one.");
-  } else if (await db.user.findUnique({ where: { email } })) {
+  } else if (await rawDb.user.findUnique({ where: { email } })) {
     console.log(`Admin ${email} already exists.`);
   } else {
     await db.user.create({
@@ -73,6 +42,7 @@ async function main() {
         name: process.env.SEED_ADMIN_NAME ?? "Admin",
         role: "ADMIN",
         isOwner: (await db.user.count({ where: { isOwner: true } })) === 0, // the first admin is the company owner
+        isSuperadmin: (await rawDb.user.count({ where: { isSuperadmin: true } })) === 0, // and the group's superadmin
         passwordHash: await bcrypt.hash(password, 12),
         mustChangePassword: true, // the starting password is in docker-compose.yml for anyone to read
       },
@@ -87,4 +57,4 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(() => db.$disconnect());
+  .finally(() => rawDb.$disconnect());

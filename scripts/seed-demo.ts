@@ -10,9 +10,10 @@
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
-import { PrismaClient, type Prisma, type Role } from "@prisma/client";
+import { PrismaClient, type Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { loadOperatingCalendar } from "../src/lib/plan-load";
+import { companyScope, mainCompanyId } from "../src/lib/company-scope";
 import { monthStart } from "../src/lib/plan-rules";
 
 if (existsSync(".env")) loadEnvFile(".env");
@@ -39,7 +40,10 @@ if (!/demo|test/i.test(dbName) && process.env.DEMO_SEED_ALLOW !== "yes") {
   );
 }
 
-const prisma = new PrismaClient();
+const rawPrisma = new PrismaClient();
+// Demo data goes into the first company, through the same company filter the app uses.
+const prisma = rawPrisma.$extends(companyScope(() => mainCompanyId(rawPrisma)));
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 // ---- dates around today, in India time -------------------------------------------------------------------------
 const IST = 5.5 * 3600000;
@@ -79,7 +83,7 @@ const PEOPLE: Person[] = [
   { code: "DEMO-008", first: "Nikhil", last: "Joseph", login: "engineer.demo", role: "EMPLOYEE", title: "R&D Engineer", dept: "R&D / Technical", joined: "2025-01-06", basic: 20000, hra: 8000, special: 4000 },
 ];
 
-async function hasRealData(db: Prisma.TransactionClient) {
+async function hasRealData(db: Tx) {
   const counts = await Promise.all([
     db.employee.count(),
     db.organization.count(),
@@ -92,7 +96,7 @@ async function hasRealData(db: Prisma.TransactionClient) {
   return counts.some((c) => c > 0);
 }
 
-async function main(db: Prisma.TransactionClient) {
+async function main(db: Tx) {
   const password = process.env.DEMO_PASSWORD || `Demo-${randomBytes(6).toString("base64url")}-26`;
   if (password.length < 10) refuse("DEMO_PASSWORD needs at least 10 characters.");
   const passwordHash = await bcrypt.hash(password, 12);
@@ -112,13 +116,14 @@ async function main(db: Prisma.TransactionClient) {
   const dept = (name: string) => departments.find((d) => d.name === name)?.id ?? null;
   const leaveType = (code: string) => leaveTypes.find((t) => t.code === code)!.id;
 
+  const companyId = await mainCompanyId(rawPrisma);
   await db.companySettings.upsert({
-    where: { id: 1 },
-    create: { id: 1 },
+    where: { companyId },
+    create: { companyId },
     update: {},
   });
   await db.companySettings.update({
-    where: { id: 1 },
+    where: { companyId },
     data: {
       weeklyOffDays: [0], // Saturdays hold the weekly review in the operating calendar
       companyPhone: "+91 484 400 0000",
@@ -141,7 +146,11 @@ async function main(db: Prisma.TransactionClient) {
   for (const p of PEOPLE) {
     const name = `${p.first} ${p.last}`;
     const user = await db.user.create({
-      data: { email: `${p.login}@${DOMAIN}`, name, role: p.role, passwordHash, emailVerifiedAt: new Date(), passwordChangedAt: new Date() },
+      data: {
+        email: `${p.login}@${DOMAIN}`, name, role: p.role, passwordHash, emailVerifiedAt: new Date(), passwordChangedAt: new Date(),
+        // The demo director is the group's superadmin when there is none yet, so Group → Companies can be shown.
+        isSuperadmin: p.login === "admin.demo" && (await rawPrisma.user.count({ where: { isSuperadmin: true } })) === 0,
+      },
     });
     users[p.login] = user;
     employees[p.login] = await db.employee.create({
@@ -278,7 +287,7 @@ async function main(db: Prisma.TransactionClient) {
   }
 
   // ---- quotes, invoices and payments ----------------------------------------------------------------------------
-  const settings = await db.companySettings.findUniqueOrThrow({ where: { id: 1 } });
+  const settings = await db.companySettings.findUniqueOrThrow({ where: { companyId } });
   const prefix = settings.invoicePrefix;
   const fy = financialYear(today);
   let invoiceSeq = 0;
@@ -512,7 +521,7 @@ async function main(db: Prisma.TransactionClient) {
   // ---- this month's work plan -------------------------------------------------------------------------------------
   await loadOperatingCalendar(db);
   const month = await db.planMonth.upsert({
-    where: { month: monthStart(today) },
+    where: { companyId_month: { companyId, month: monthStart(today) } },
     create: { month: monthStart(today), focus: "College projects and workshops", activities: "" },
     update: {},
   });

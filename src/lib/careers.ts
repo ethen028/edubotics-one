@@ -22,8 +22,7 @@ export const PUBLIC_JOB_SELECT = {
 
 /** What the public page shows about the company: name, intro and a contact email only. */
 export async function careersSettings() {
-  const s = await db.companySettings.findUnique({
-    where: { id: 1 },
+  const s = await db.companySettings.findFirst({
     select: { careersEnabled: true, careersIntro: true, careersContactEmail: true, companyName: true },
   });
   return {

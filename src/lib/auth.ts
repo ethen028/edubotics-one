@@ -5,7 +5,8 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { cache } from "react";
 import type { Role, SignInMethod } from "@prisma/client";
-import { db } from "./db";
+import { rawDb as db } from "./db"; // sign-in works across the whole group, before a company is known
+import { companyOfSession, currentCompanyId, firstCompanyId } from "./company";
 import { requestIp } from "./activity";
 import { sessionAccessProblem } from "./session-access";
 import { createSessionRecord } from "./session-store";
@@ -77,11 +78,9 @@ export const getCurrentSession = cache(async () => {
   } catch {
     return null;
   }
-  const [session, settings] = await Promise.all([
-    db.session.findUnique({ where: { id: sid }, include: { user: { include: { employee: true } } } }),
-    db.companySettings.findUnique({ where: { id: 1 }, select: { sessionIdleHours: true } }),
-  ]);
+  const session = await db.session.findUnique({ where: { id: sid }, include: { user: { include: { employee: true } } } });
   if (!session || session.endedAt || !session.user.active || session.user.closedAt) return null;
+  const settings = await db.companySettings.findUnique({ where: { companyId: companyOfSession({ session, user: session.user }) }, select: { sessionIdleHours: true } });
   const now = Date.now();
   const idleLimit = (settings?.sessionIdleHours ?? 12) * 60 * 60 * 1000;
   if (now - session.lastSeenAt.getTime() > idleLimit) {
@@ -92,7 +91,8 @@ export const getCurrentSession = cache(async () => {
     await db.session.update({ where: { id: session.id }, data: { lastSeenAt: new Date(now) } });
   }
   const { user, ...rest } = session;
-  return { session: rest, user };
+  // A superadmin is an admin with the owner's view in whichever company they have picked.
+  return { session: rest, user: user.isSuperadmin ? { ...user, role: "ADMIN" as Role, isOwner: true } : user };
 });
 
 /** The signed-in user (with their employee record), or null. Cached per request. */
@@ -127,6 +127,27 @@ export async function requireUser(roles?: Role[]): Promise<CurrentUser> {
 export async function requireOwner(): Promise<CurrentUser> {
   const user = await requireUser(["ADMIN"]);
   if (!user.isOwner) redirect("/?denied=1");
+  return user;
+}
+
+/** The group pages (Companies, switching): superadmins only. */
+export async function requireSuperadmin(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (!user.isSuperadmin) redirect("/?denied=1");
+  return user;
+}
+
+/**
+ * Backups copy the whole database, every company in it, so they are managed by the admins of the first
+ * company (where the group started) and by a superadmin working there.
+ */
+export async function isBackupAdmin(user: { role: Role }) {
+  return user.role === "ADMIN" && (await currentCompanyId()) === (await firstCompanyId());
+}
+
+export async function requireBackupAdmin(): Promise<CurrentUser> {
+  const user = await requireUser(["ADMIN"]);
+  if (!(await isBackupAdmin(user))) redirect("/?denied=1");
   return user;
 }
 

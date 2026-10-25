@@ -70,7 +70,7 @@ export default async function ExitPage({ params }: PageProps<"/hr/exits/[id]">) 
     manage && exit.stage !== "WITHDRAWN" ? handoverCounts(e.id, e.userId) : [],
     admin ? getLeaveBalances(e.id, lastDay.getUTCFullYear()) : [],
     admin
-      ? db.payrollRun.findUnique({
+      ? db.payrollRun.findFirst({
           where: { month },
           select: { status: true, payslips: { where: { employeeId: e.id }, select: { id: true, finalSettlement: true } } },
         })

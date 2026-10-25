@@ -79,7 +79,7 @@ export async function CalendarCard({ user, today }: { user: CurrentUser; today: 
 
 /** This month's focus from the operating plan, the person's own plan tasks and how the team stands. */
 export async function PlanCard({ user, today }: { user: CurrentUser; today: Date }) {
-  const plan = await db.planMonth.findUnique({
+  const plan = await db.planMonth.findFirst({
     where: { month: monthStart(today) },
     include: { tasks: { select: { id: true, activity: true, ownerId: true, status: true, rag: true, lastUpdateAt: true } } },
   });

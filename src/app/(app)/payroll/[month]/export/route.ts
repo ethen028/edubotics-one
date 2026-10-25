@@ -6,7 +6,7 @@ import { csvCell as csv } from "@/lib/csv";
 export async function GET(_: Request, { params }: RouteContext<"/payroll/[month]/export">) {
   await requireUser(["ADMIN"]);
   const { month } = await params;
-  const run = await db.payrollRun.findUnique({
+  const run = await db.payrollRun.findFirst({
     where: { month },
     include: { payslips: { include: { employee: true }, orderBy: { employee: { firstName: "asc" } } } },
   });

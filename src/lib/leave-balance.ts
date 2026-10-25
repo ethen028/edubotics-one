@@ -1,6 +1,5 @@
 import "server-only";
-import { db } from "./db";
-import type { Prisma } from "@prisma/client";
+import { db, type Tx } from "./db";
 import { leaveDaysInYear, yearBounds } from "./leave";
 import { getSettings } from "./settings";
 import { todayIST } from "./time";
@@ -16,7 +15,7 @@ export type LeaveBalance = {
 };
 
 /** Balances for one employee for a calendar year, by leave type. */
-export async function getLeaveBalances(employeeId: string, year = todayIST().getUTCFullYear(), client: Pick<Prisma.TransactionClient, "leaveType" | "leaveRequest" | "holiday"> = db): Promise<LeaveBalance[]> {
+export async function getLeaveBalances(employeeId: string, year = todayIST().getUTCFullYear(), client: Pick<Tx, "leaveType" | "leaveRequest" | "holiday"> = db): Promise<LeaveBalance[]> {
   const bounds = yearBounds(year);
   const [types, requests, holidays, settings] = await Promise.all([
     client.leaveType.findMany({ where: { active: true }, orderBy: { code: "asc" } }),

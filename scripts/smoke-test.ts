@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readdir } from "node:fs/promises";
 import { PrismaClient } from "@prisma/client";
+import { companyScope, mainCompanyId } from "../src/lib/company-scope";
 import { SignJWT } from "jose";
 import { request as httpRequest } from "node:http";
 
@@ -10,7 +11,8 @@ assert.ok(["localhost", "127.0.0.1"].includes(database.hostname) && database.pat
 const base = new URL(process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3001");
 assert.ok(["localhost", "127.0.0.1"].includes(base.hostname), "Smoke tests only target localhost");
 assert.ok(process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 32, "Set SESSION_SECRET");
-const db = new PrismaClient();
+const rawDb = new PrismaClient();
+const db = rawDb.$extends(companyScope(() => mainCompanyId(rawDb))); // the first company, like the app before sign-in
 const sessions: string[] = [];
 
 // Node fetch intentionally ignores Host overrides; use HTTP for virtual-host boundary tests.

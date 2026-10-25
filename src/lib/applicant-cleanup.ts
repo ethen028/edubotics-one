@@ -7,6 +7,7 @@
  * No "server-only" import: the scheduler is started from src/instrumentation.ts.
  */
 import { db } from "./db";
+import { forEachCompany } from "./company";
 
 /** The moment before which a closed applicant's last change makes them due for deletion. */
 export function applicantCutoff(now: Date, months: number) {
@@ -17,7 +18,7 @@ export function applicantCutoff(now: Date, months: number) {
 
 /** Deletes the applicants that are due and notes how many in the activity log. Returns the count. */
 export async function deleteOldApplicants(now = new Date()) {
-  const s = await db.companySettings.findUnique({ where: { id: 1 }, select: { applicantRetentionMonths: true } });
+  const s = await db.companySettings.findFirst({ select: { applicantRetentionMonths: true } });
   const months = s?.applicantRetentionMonths ?? 12;
   if (months <= 0) return 0;
   const { count } = await db.candidate.deleteMany({
@@ -41,7 +42,7 @@ export async function deleteOldApplicants(now = new Date()) {
 export function startApplicantCleanup() {
   const g = globalThis as unknown as { applicantCleanup?: NodeJS.Timeout };
   if (g.applicantCleanup) return;
-  const safeRun = () => deleteOldApplicants().catch((e) => console.error("Applicant clean-up failed", e));
+  const safeRun = () => forEachCompany(() => deleteOldApplicants()).catch((e) => console.error("Applicant clean-up failed", e));
   setTimeout(safeRun, 3 * 60 * 1000).unref();
   g.applicantCleanup = setInterval(safeRun, 6 * 3600 * 1000);
   g.applicantCleanup.unref();

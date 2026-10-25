@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, isBackupAdmin } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { backupDir, isBackupName } from "@/lib/backups";
 
@@ -11,7 +11,7 @@ export async function GET(_: Request, { params }: RouteContext<"/admin/backups/d
   const user = await getCurrentUser();
   const dir = backupDir();
   const { name } = await params;
-  if (!user || !isAdmin(user) || !dir || !isBackupName(name)) return new Response("Not found", { status: 404 });
+  if (!user || !(await isBackupAdmin(user)) || !dir || !isBackupName(name)) return new Response("Not found", { status: 404 });
   const file = path.join(/*turbopackIgnore: true*/ dir, name);
   const stat = await fs.stat(file).catch(() => null);
   if (!stat?.isFile()) return new Response("Not found", { status: 404 });

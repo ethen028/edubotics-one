@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "./db";
+import { currentCompanyId } from "./company";
 
 // Staff messages: private one-to-one chats and small named groups. Everything here is scoped to the person asking:
 // a conversation is only ever loaded through their own membership, so nobody (admins included) can open one they
@@ -19,19 +20,21 @@ export const myMembership = (userId: string): Prisma.ConversationWhereInput => (
 
 /** Messages from other people that arrived after this person last opened each conversation. */
 export async function unreadMessageCount(userId: string) {
+  const companyId = await currentCompanyId(); // raw SQL: the company filter is written by hand
   const rows = await db.$queryRaw<{ n: bigint }[]>`
     SELECT count(*) AS n FROM "ChatMessage" m
     JOIN "ConversationMember" cm ON cm."conversationId" = m."conversationId" AND cm."userId" = ${userId} AND cm."leftAt" IS NULL
-    WHERE m."senderId" <> ${userId} AND m."event" = false AND m."createdAt" > cm."lastReadAt"`;
+    WHERE m."companyId" = ${companyId} AND m."senderId" <> ${userId} AND m."event" = false AND m."createdAt" > cm."lastReadAt"`;
   return Number(rows[0]?.n ?? 0);
 }
 
 /** Unread counts per conversation for this person. */
 async function unreadByConversation(userId: string) {
+  const companyId = await currentCompanyId();
   const rows = await db.$queryRaw<{ id: string; n: bigint }[]>`
     SELECT m."conversationId" AS id, count(*) AS n FROM "ChatMessage" m
     JOIN "ConversationMember" cm ON cm."conversationId" = m."conversationId" AND cm."userId" = ${userId} AND cm."leftAt" IS NULL
-    WHERE m."senderId" <> ${userId} AND m."event" = false AND m."createdAt" > cm."lastReadAt"
+    WHERE m."companyId" = ${companyId} AND m."senderId" <> ${userId} AND m."event" = false AND m."createdAt" > cm."lastReadAt"
     GROUP BY m."conversationId"`;
   return new Map(rows.map((r) => [r.id, Number(r.n)]));
 }

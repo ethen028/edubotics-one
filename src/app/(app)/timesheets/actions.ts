@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Prisma, Project, ProjectTask } from "@prisma/client";
+import type { Project, ProjectTask } from "@prisma/client";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, type Tx } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
 import { canManage } from "@/lib/team";
@@ -87,7 +87,7 @@ function readEntry(formData: FormData): { error: string } | { data: EntryInput; 
  * two browser tabs can't both slip in the same slot.
  */
 async function checkDay(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   timesheetId: string,
   date: Date,
   hours: number,

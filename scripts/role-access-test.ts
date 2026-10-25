@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { readdir } from "node:fs/promises";
 import { PrismaClient } from "@prisma/client";
+import { companyScope, mainCompanyId } from "../src/lib/company-scope";
 import { SignJWT } from "jose";
 
 /**
- * Role access check: signs in as the owner, an admin, HR, a manager and an employee, opens every page by
+ * Role access check: signs in as the owner (the group's superadmin), an admin, HR, a manager and an employee, opens every page by
  * typing its address, and checks each role reaches only what its job needs. Prints the whole table.
  * Opt-in, like the smoke test: a local _test database with the demo data (`npm run demo:seed`) and a running app.
  */
@@ -13,7 +14,8 @@ assert.ok(["localhost", "127.0.0.1"].includes(database.hostname) && database.pat
 const base = new URL(process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3001");
 assert.ok(["localhost", "127.0.0.1"].includes(base.hostname), "Only targets localhost");
 assert.ok(process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 32, "Set SESSION_SECRET");
-const db = new PrismaClient();
+const rawDb = new PrismaClient();
+const db = rawDb.$extends(companyScope(() => mainCompanyId(rawDb))); // the first company, like the app before sign-in
 const sessions: string[] = [];
 
 const ROLES = ["owner", "admin", "hr", "manager", "employee"] as const;
@@ -23,6 +25,7 @@ type Outcome = "open" | "denied" | "not found" | "elsewhere" | "error";
 /** Who may open each page. Pages not listed here are open to everyone and scope their records to the person. */
 const EXPECT: [RegExp, Who[]][] = [
   [/^\/dashboard(\/list)?$/, ["owner"]],
+  [/^\/companies$/, ["owner"]], // superadmins only
   [/^\/dashboard\/admin$/, ["owner", "admin"]],
   [/^\/dashboard\/hr$/, ["owner", "admin", "hr"]],
   [/^\/dashboard\/me$/, [...ROLES]],
@@ -72,8 +75,8 @@ async function main() {
   try {
     const find = (where: object) => db.user.findFirstOrThrow({ where: { active: true, ...where }, include: { employee: true } });
     const users: Record<Who, Awaited<ReturnType<typeof find>>> = {
-      owner: await find({ isOwner: true }),
-      admin: await find({ role: "ADMIN", isOwner: false }),
+      owner: await find({ isSuperadmin: true }),
+      admin: await find({ role: "ADMIN", isOwner: false, isSuperadmin: false }),
       hr: await find({ role: "HR" }),
       manager: await find({ role: "MANAGER" }),
       employee: await find({ role: "EMPLOYEE", employee: { isNot: null } }),
