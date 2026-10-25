@@ -128,6 +128,7 @@ export async function recalculateRun(runId: string) {
 }
 
 export async function updateSlip(slipId: string, _: FormState, formData: FormData): Promise<FormState> {
+  await requireUser(["ADMIN"]);
   const slip = await db.payslip.findUniqueOrThrow({
     where: { id: slipId },
     include: { employee: true, expenseClaims: { select: { amount: true, approvedAmount: true } } },
@@ -156,6 +157,7 @@ export async function updateSlip(slipId: string, _: FormState, formData: FormDat
 }
 
 export async function removeSlip(slipId: string) {
+  await requireUser(["ADMIN"]);
   const slip = await db.payslip.findUniqueOrThrow({ where: { id: slipId } });
   const run = await draftRun(slip.runId);
   // Its expense claims go back to waiting for the next payroll.

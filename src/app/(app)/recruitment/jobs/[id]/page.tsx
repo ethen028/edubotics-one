@@ -1,18 +1,17 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { Badge, PageHeader } from "@/components/ui";
 import { formatDate, formatINR, humanize } from "@/lib/format";
-import { PIPELINE_STAGES, canRecruit } from "@/lib/recruitment";
+import { PIPELINE_STAGES } from "@/lib/recruitment";
 import { pastApplyBy } from "@/lib/careers";
 import { JobForm } from "../../forms";
 import { setJobStatus, updateJob } from "../../actions";
 import { JobStatusBadge, StageBadge } from "../../ui";
 
 export default async function JobPage({ params }: PageProps<"/recruitment/jobs/[id]">) {
-  const user = await requireUser();
-  if (!canRecruit(user)) redirect("/?denied=1");
+  await requireUser(["ADMIN", "HR", "MANAGER"]);
   const { id } = await params;
   const job = await db.jobOpening.findUnique({
     where: { id },

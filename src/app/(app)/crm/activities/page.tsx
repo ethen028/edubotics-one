@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireUser, type CurrentUser } from "@/lib/auth";
+import { canTickActivity } from "@/lib/permissions";
 import { startOfTomorrowIST } from "@/lib/time";
 import { Badge, Empty, PageHeader } from "@/components/ui";
 import { formatDateTime, humanize } from "@/lib/format";
@@ -21,7 +22,7 @@ function Related({ a }: { a: Row }) {
   return <span className="text-slate-400">—</span>;
 }
 
-function Section({ title, rows, color }: { title: string; rows: Row[]; color: "red" | "amber" | "gray" }) {
+function Section({ title, rows, color, user }: { title: string; rows: Row[]; color: "red" | "amber" | "gray"; user: CurrentUser }) {
   if (rows.length === 0) return null;
   return (
     <section className="mb-6">
@@ -34,9 +35,11 @@ function Section({ title, rows, color }: { title: string; rows: Row[]; color: "r
             {rows.map((a) => (
               <tr key={a.id}>
                 <td className="w-8">
-                  <form action={toggleActivity.bind(null, a.id)}>
-                    <button title="Mark as done" className="h-4 w-4 rounded border border-slate-400 bg-surface hover:border-emerald-500" />
-                  </form>
+                  {canTickActivity(user, a) && (
+                    <form action={toggleActivity.bind(null, a.id)}>
+                      <button title="Mark as done" className="h-4 w-4 rounded border border-slate-400 bg-surface hover:border-emerald-500" />
+                    </form>
+                  )}
                 </td>
                 <td>
                   <Badge>{humanize(a.type)}</Badge> <span className="font-medium">{a.subject}</span>
@@ -89,9 +92,9 @@ export default async function ActivitiesPage({ searchParams }: PageProps<"/crm/a
         <Empty>Nothing scheduled. Nice.</Empty>
       ) : (
         <>
-          <Section title="Overdue" rows={overdue} color="red" />
-          <Section title="Today" rows={today} color="amber" />
-          <Section title="Upcoming" rows={later} color="gray" />
+          <Section title="Overdue" rows={overdue} user={user} color="red" />
+          <Section title="Today" rows={today} user={user} color="amber" />
+          <Section title="Upcoming" rows={later} user={user} color="gray" />
         </>
       )}
     </>

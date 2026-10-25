@@ -63,6 +63,7 @@ export async function setTaskStatus(taskId: string, formData: FormData) {
 }
 
 export async function deleteTask(taskId: string) {
+  await requireUser(["ADMIN", "HR", "MANAGER"]);
   const task = await db.onboardingTask.findUniqueOrThrow({ where: { id: taskId } });
   await requireManager(task.employeeId);
   await db.onboardingTask.delete({ where: { id: taskId } });

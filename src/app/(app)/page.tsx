@@ -39,9 +39,8 @@ function greeting() {
   return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 }
 
-export default async function Home({ searchParams }: PageProps<"/">) {
+export default async function Home() {
   const user = await requireUser();
-  const { denied } = (await searchParams) as Record<string, string | undefined>;
   const admin = isAdmin(user);
   const backupIssue = admin ? await backupProblem() : null;
   const manager = isManagerOrAdmin(user);
@@ -191,12 +190,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   return (
     <>
-      {denied && (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          You don&apos;t have access to that page.
-        </div>
-      )}
-
       <PendingAcks notices={toAcknowledge} />
       <ReviewTodos todos={reviewTodos} today={today} />
       {myExit && (

@@ -42,7 +42,7 @@ npm run build               # what CI and Docker run
 
 - `npm run typecheck`, `npm run lint`, `npm test` and `npm run build` pass (CI runs these plus the security checks).
 - A role-sensitive change was tried as the roles it affects (`npm run test:roles` against a `_test` database).
-- New pages appear in `src/lib/nav.ts` for the right roles and work at 375 px wide.
+- New pages have a row in `src/lib/page-access.ts`, appear in `src/lib/nav.ts` for the right roles, and work at 375 px wide.
 - The README module list is updated if you added or changed what staff can do.
 - Every merge needs the office copy rebuilt (`docker compose up -d --build`) and, if there is a migration, `npx prisma migrate deploy` on the Vercel database. Say so in the PR.
 
