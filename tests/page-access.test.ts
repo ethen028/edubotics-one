@@ -26,7 +26,7 @@ function guardOf(source: string): PageAccess | "none" {
   if (!m) return "none";
   if (m[0] === "requireOwner()") return "owner";
   if (m[0] === "requireSuperadmin()") return "superadmin";
-  if (m[0] === "requireBackupAdmin()") return ["ADMIN"]; // admins, and only in the first company (checked in auth.ts)
+  if (m[0] === "requireBackupAdmin()") return "superadmin"; // the whole database, every company
   if (!m[1]) return "everyone";
   return JSON.parse(m[1].replace(/,\s*\]$/, "]"));
 }
@@ -118,6 +118,9 @@ test("roles reach only the pages their job needs", () => {
   // Superadmin only: the companies of the group
   assert.equal(opens("superadmin", "/companies"), true);
   for (const who of ["owner", "admin", "hr", "manager", "employee"] as const) assert.equal(opens(who, "/companies"), false, who);
+  // Backups hold every company and every private chat: the superadmin only
+  assert.equal(opens("superadmin", "/admin/backups"), true);
+  for (const who of ["owner", "admin", "hr", "manager", "employee"] as const) assert.equal(opens(who, "/admin/backups"), false, who);
   // Admin only: logins, settings, payroll, offers, payables, review cycles, starting an exit
   for (const path of ["/admin/users", "/admin/settings", "/payroll", "/payroll/2026-10", "/recruitment/offers/x", "/purchases/payables", "/hr/reviews/cycles/new", "/hr/exits/new"]) {
     assert.equal(opens("admin", path), true, path);

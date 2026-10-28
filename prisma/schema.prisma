@@ -1715,7 +1715,7 @@ enum StockRequestStatus {
 /// Someone asks for kits or parts, usually for a project. Approved in the Approvals inbox, then issued from stock.
 model StockRequest {
   id           String             @id @default(cuid())
-  number       Int                @unique @default(autoincrement()) // shown as REQ-0001
+  number       Int // shown as REQ-0001, counted per company (src/lib/company-numbers.ts)
   requesterId  String
   requester    User               @relation("StockRequester", fields: [requesterId], references: [id])
   projectId    String?
@@ -1740,6 +1740,7 @@ model StockRequest {
   companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
   company   Company @relation(fields: [companyId], references: [id])
 
+  @@unique([companyId, number])
   @@index([status])
   @@index([requesterId])
   @@index([companyId])
@@ -2271,7 +2272,7 @@ enum PurchaseOrderStatus {
 
 model PurchaseOrder {
   id           String              @id @default(cuid())
-  number       Int                 @unique @default(autoincrement()) // shown as PO-0001
+  number       Int // shown as PO-0001, counted per company (src/lib/company-numbers.ts)
   vendorId     String
   vendor       Vendor              @relation(fields: [vendorId], references: [id])
   requesterId  String
@@ -2302,6 +2303,7 @@ model PurchaseOrder {
   companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
   company   Company @relation(fields: [companyId], references: [id])
 
+  @@unique([companyId, number])
   @@index([status])
   @@index([vendorId])
   @@index([companyId])
@@ -2760,7 +2762,7 @@ enum TicketStatus {
 /// A request from any staff member to the admin team: equipment, ID card, repairs, letters…
 model HelpdeskTicket {
   id              String               @id @default(cuid())
-  number          Int                  @unique @default(autoincrement()) // shown as HD-001
+  number          Int // shown as HD-001, counted per company (src/lib/company-numbers.ts)
   title           String
   description     String
   category        String // see HELPDESK_CATEGORIES
@@ -2785,6 +2787,7 @@ model HelpdeskTicket {
   companyId String  @default(dbgenerated("current_setting('orbit.company_id'::text)"))
   company   Company @relation(fields: [companyId], references: [id])
 
+  @@unique([companyId, number])
   @@index([requesterId, status])
   @@index([status, assigneeId])
   @@index([companyId])

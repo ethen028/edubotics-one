@@ -1,8 +1,5 @@
 /** Purchase maths and labels, shared by the server and the purchase order form. No database access here. */
 
-/** The company's own state. A vendor in another state charges IGST instead of CGST + SGST. */
-export const COMPANY_STATE = "Kerala";
-
 /** States and union territories, for where a vendor is registered. Same list as invoices use. */
 export { INDIAN_STATES } from "./invoices";
 

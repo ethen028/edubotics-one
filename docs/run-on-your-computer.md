@@ -72,7 +72,7 @@ To stop it, run `docker compose stop` in the folder. To start it again, run `doc
 
 ## 8. Backups
 
-Orbit backs itself up every day at 5 PM into a `backups` folder inside this folder, and keeps a month of them. Admins see the backups, and a **Back up now** button, under **Admin > Backups**.
+Orbit backs itself up every day at 5 PM into a `backups` folder inside this folder, and keeps a month of them. The superadmin sees the backups, and a **Back up now** button, under **Admin > Backups**.
 
 A backup on the same computer won't help if the computer is lost, so also keep a copy somewhere else: either name a second folder (a synced Google Drive or OneDrive folder) as explained in `docs/backups.md`, or press **Download** on a backup once a week and save it to a USB drive. The same guide explains how to bring a backup back.
 

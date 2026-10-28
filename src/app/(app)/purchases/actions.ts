@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { withNextNumber } from "@/lib/company-numbers";
+import { getSettings } from "@/lib/settings";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
@@ -12,7 +14,7 @@ import { todayIST } from "@/lib/time";
 import { MAX_DOCUMENT_BYTES, sniffMime } from "@/lib/hr-constants";
 import { STOCK_UNITS } from "@/lib/inventory";
 import { canApproveOrder, RECEIVABLE_STATUSES, BILLABLE_STATUSES, settledByBill } from "@/lib/purchases";
-import { COMPANY_STATE, GST_RATES, INDIAN_STATES, PAYMENT_METHODS, orderTotals, poNo, round2 } from "@/lib/purchase-math";
+import { GST_RATES, INDIAN_STATES, PAYMENT_METHODS, orderTotals, poNo, round2 } from "@/lib/purchase-math";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
 import { flash } from "@/lib/flash";
@@ -192,17 +194,19 @@ export async function createOrder(_: FormState, formData: FormData): Promise<For
   if (totals.total <= 0) return { error: "The order adds up to zero. Check the prices." };
   // Admins look after purchasing, so their own orders don't wait for approval.
   const autoApprove = isAdmin(user);
-  const order = await db.purchaseOrder.create({
+  const interState = vendor.state !== (await getSettings()).companyState;
+  const order = await withNextNumber(async () => (await db.purchaseOrder.aggregate({ _max: { number: true } }))._max.number, (number) => db.purchaseOrder.create({
     data: {
+      number,
       ...data,
       requesterId: user.id,
-      interState: vendor.state !== COMPANY_STATE,
+      interState,
       ...totals,
       status: autoApprove ? "APPROVED" : "PENDING",
       ...(autoApprove ? { decidedById: user.id, decidedAt: new Date(), decisionNote: "Admin order, approved automatically" } : {}),
       lines: { create: lines },
     },
-  });
+  }));
   refresh({ projectId: data.projectId });
   await flash("Purchase order saved.");
   redirect(`/purchases/${order.id}`);

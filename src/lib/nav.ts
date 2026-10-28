@@ -45,7 +45,7 @@ type NavUser = { role: Role; isOwner?: boolean; isSuperadmin?: boolean; employee
  * The whole menu for one person, as plain data. The side menu, the tabs along the top of each page and the
  * "Find anything" search box are all drawn from this, so a page only has to be added here once.
  */
-export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean } = { backups: true }): NavGroupData[] {
+export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean } = { backups: user.isSuperadmin === true }): NavGroupData[] {
   const admin = user.role === "ADMIN";
   const managerOrAdmin = admin || user.role === "MANAGER";
   const people = canManagePeople(user);
@@ -208,7 +208,7 @@ export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean 
         { href: "/admin/roles", label: "Roles and permissions" },
         { href: "/admin/activity", label: "Activity log" },
         { href: "/admin/health", label: "Service health" },
-        // Backups copy every company, so they live in the first company only (isBackupAdmin in src/lib/auth.ts).
+        // Backups copy every company, so only the superadmin has them (isBackupAdmin in src/lib/auth.ts).
         ...(where.backups ? [{ href: "/admin/backups", label: "Backups" }] : []),
         { href: "/admin/settings", label: "Settings" },
       ],

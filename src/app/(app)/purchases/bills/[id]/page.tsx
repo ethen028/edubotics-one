@@ -6,7 +6,8 @@ import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-for
 import { Field, PageHeader, Stat } from "@/components/ui";
 import { formatDate, formatDateTime, toDateInput } from "@/lib/format";
 import { todayIST } from "@/lib/time";
-import { COMPANY_STATE, PAYMENT_METHODS, billState, methodLabel, poNo, round2 } from "@/lib/purchase-math";
+import { getSettings } from "@/lib/settings";
+import { PAYMENT_METHODS, billState, methodLabel, poNo, round2 } from "@/lib/purchase-math";
 import { cancelBill, deletePayment, recordPayment } from "../../actions";
 import { BillBadge, TotalsTable, formatINR2 } from "../../ui";
 
@@ -169,7 +170,7 @@ export default async function BillPage({ params }: PageProps<"/purchases/bills/[
                 subtotal={Number(bill.subtotal)}
                 tax={Number(bill.tax)}
                 total={Number(bill.total)}
-                interState={bill.vendor.state !== COMPANY_STATE}
+                interState={bill.vendor.state !== (await getSettings()).companyState}
               />
             </div>
             {bill.vendor.bankDetails && (

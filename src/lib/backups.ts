@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { db } from "./db";
+import { db, rawDb } from "./db";
 import { firstCompanyId } from "./company";
+import { spaceLevel } from "./backup-rules";
 
 /*
  * Automatic backups for the office computer (Admin → Backups, docs/backups.md).
@@ -220,7 +221,7 @@ export function backupsToDelete(names: string[], now: Date, keepDays: number, ke
 }
 
 async function prune() {
-  const s = await db.companySettings.findUnique({ where: { companyId: await firstCompanyId() }, select: { backupKeepDays: true, backupKeepMonths: true } });
+  const s = await rawDb.companySettings.findUnique({ where: { companyId: await firstCompanyId() }, select: { backupKeepDays: true, backupKeepMonths: true } });
   const keepDays = s?.backupKeepDays ?? 30;
   const keepMonths = s?.backupKeepMonths ?? 12;
   for (const dir of [backupDir(), copyDir()]) {
@@ -253,7 +254,7 @@ let lastFailure = 0;
 
 async function tick() {
   if (!backupDir()) return;
-  const s = await db.companySettings.findUnique({ where: { companyId: await firstCompanyId() }, select: { backupsEnabled: true, backupHour: true } });
+  const s = await rawDb.companySettings.findUnique({ where: { companyId: await firstCompanyId() }, select: { backupsEnabled: true, backupHour: true } });
   if (s && !s.backupsEnabled) return;
   // Count manual backups too, not the safety copy taken just before a restore.
   const newest = (await listBackups()).find((b) => b.kind !== "before-restore");
@@ -281,11 +282,17 @@ export function startBackupScheduler() {
 }
 
 const STALE_AFTER = 2 * 24 * 3600 * 1000;
+/** Free space on the drive that holds a folder, in bytes, or null when it can't be read. */
+export async function freeSpace(dir: string | null) {
+  if (!dir) return null;
+  const s = await fs.statfs(dir).catch(() => null);
+  return s ? s.bavail * s.bsize : null;
+}
 
 /** What an admin should know about backups right now, or null when all is well (or there's no Docker setup). */
 export async function backupProblem(): Promise<{ level: "red" | "amber"; text: string } | null> {
   if (!backupDir()) return null;
-  const s = await db.companySettings.findUnique({ where: { companyId: await firstCompanyId() }, select: { backupsEnabled: true } });
+  const s = await rawDb.companySettings.findUnique({ where: { companyId: await firstCompanyId() }, select: { backupsEnabled: true } });
   const [run, files] = await Promise.all([lastRun(), listBackups()]);
   const newest = files[0];
   if (!(await helperRunning())) return { level: "red", text: "The backup helper isn't running, so no backups are being made." };
@@ -293,6 +300,12 @@ export async function backupProblem(): Promise<{ level: "red" | "amber"; text: s
   if (s && !s.backupsEnabled) return { level: "amber", text: "Daily backups are switched off." };
   if (!newest) return { level: "amber", text: "There is no backup yet." };
   if (Date.now() - newest.at.getTime() > STALE_AFTER) return { level: "amber", text: "The newest backup is more than 2 days old." };
+  const [mainFree, copyFree] = await Promise.all([freeSpace(backupDir()), freeSpace(copyDir())]);
+  for (const [free, where] of [[mainFree, "this computer's backup drive"], [copyFree, "the second backup folder"]] as const) {
+    const level = spaceLevel(free, newest.size);
+    if (level === "red") return { level, text: `There is almost no room left on ${where}, so the next backup may fail. Free some space or keep fewer backups.` };
+    if (level === "amber") return { level, text: `${where[0].toUpperCase()}${where.slice(1)} is running out of room for backups. Free some space or keep fewer backups.` };
+  }
   if (run?.copyError) return { level: "amber", text: "The last backup could not be copied to the second folder." };
   return null;
 }

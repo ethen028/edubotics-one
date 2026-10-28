@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isScopedModel, scopeArgs } from "../src/lib/company-scope";
+import { isScopedModel, linkedIds, scopeArgs } from "../src/lib/company-scope";
 
 const C = "cmp_a";
 
@@ -56,4 +56,32 @@ test("sign-in tables and the company list are never filtered", () => {
 
 test("a company named in the data is kept, not overwritten", () => {
   assert.equal((scopeArgs("CompanySettings", "create", { data: { companyId: "cmp_b" } }, C).data as { companyId: string }).companyId, "cmp_b");
+});
+
+const links = (model: string, operation: string, args: Record<string, unknown>) =>
+  Object.fromEntries([...linkedIds(model, operation, args)].map(([k, v]) => [k, [...v].sort()]));
+
+test("a new invoice's school, contact and maker are all checked to be in the same company", () => {
+  assert.deepEqual(links("Invoice", "create", { data: { organizationId: "org1", contactId: "c1", createdById: "u1", billToName: "x", lines: { create: [{ description: "Kit" }] } } }), {
+    "Organization.id": ["org1"],
+    "Contact.id": ["c1"],
+    "User.id": ["u1"],
+  });
+});
+
+test("links made with connect, inside nested creates and in updates are checked too", () => {
+  assert.deepEqual(links("Project", "create", { data: { name: "P", owner: { connect: { id: "u1" } }, members: { create: [{ userId: "u2" }] } } }), {
+    "User.id": ["u1", "u2"],
+  });
+  assert.deepEqual(links("ProjectTask", "update", { where: { id: "t1" }, data: { assigneeId: { set: "u3" } } }), { "User.id": ["u3"] });
+  assert.deepEqual(links("ProjectMember", "upsert", { where: {}, create: { projectId: "p1", userId: "u4" }, update: {} }), {
+    "Project.id": ["p1"],
+    "User.id": ["u4"],
+  });
+});
+
+test("reads and writes with no links need no extra check", () => {
+  assert.equal(linkedIds("Invoice", "findMany", { where: { organizationId: "org1" } }).size, 0);
+  assert.equal(linkedIds("Lead", "update", { where: { id: "l1" }, data: { name: "New name" } }).size, 0);
+  assert.equal(linkedIds("Lead", "update", { where: { id: "l1" }, data: { ownerId: null } }).size, 0);
 });

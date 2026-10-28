@@ -6,11 +6,12 @@ import { Prisma } from "@prisma/client";
  * create, nested creates included. Pages and actions therefore never name the company themselves.
  *
  * Not filtered: the sign-in tables below (looked up before anyone is signed in) and raw SQL, which has to
- * filter on "companyId" by hand. Includes follow relations from an already filtered row, so they stay in it.
+ * filter on "companyId" by hand. Includes follow relations from an already filtered row, so they stay in it,
+ * because every write is also checked: a row can't be linked to another company's row (`linkedIds`).
  */
 export const UNSCOPED_MODELS = new Set(["Company", "Session", "LoginAttempt", "AccountToken", "RateLimitBucket", "AccountMailJob"]);
 
-type Field = { name: string; kind: string; type: string; relationFromFields?: readonly string[] };
+type Field = { name: string; kind: string; type: string; relationFromFields?: readonly string[]; relationToFields?: readonly string[] };
 type ModelInfo = { scoped: boolean; fields: Map<string, Field> };
 
 const MODELS = new Map<string, ModelInfo>(
@@ -100,20 +101,87 @@ export function scopeArgs(model: string, operation: string, args: Data | undefin
   return a;
 }
 
+const WRITES = new Set(["create", "createMany", "createManyAndReturn", "update", "updateMany", "updateManyAndReturn", "upsert"]);
+
+/** "Organization.id" → the ids a write points at in that model's column. */
+export type Links = Map<string, Set<string>>;
+
+function addLink(links: Links, model: string, field: string, value: unknown) {
+  const v = isObject(value) && "set" in value ? value.set : value; // update data may say { set: id }
+  if (typeof v !== "string" || !isScopedModel(model)) return;
+  const key = `${model}.${field}`;
+  if (!links.has(key)) links.set(key, new Set());
+  links.get(key)!.add(v);
+}
+
+/** Links by id inside connect / set / connectOrCreate: { id } or [{ id }, …]. Other unique keys aren't checked. */
+function addWhereLinks(links: Links, model: string, where: unknown) {
+  each(where, (w) => isObject(w) && addLink(links, model, "id", w.id));
+}
+
+function collectLinks(links: Links, model: string, data: unknown) {
+  const info = MODELS.get(model);
+  if (!info || !isObject(data)) return;
+  for (const f of info.fields.values()) {
+    if (f.kind !== "object") continue;
+    // A plain foreign key on this row: organizationId: "…" points at Organization.id.
+    if (f.relationFromFields?.length === 1 && f.relationToFields?.length === 1 && f.relationFromFields[0] in data) {
+      addLink(links, f.type, f.relationToFields[0], data[f.relationFromFields[0]]);
+    }
+    const nested = data[f.name];
+    if (!isObject(nested)) continue;
+    addWhereLinks(links, f.type, nested.connect);
+    addWhereLinks(links, f.type, nested.set);
+    each(nested.connectOrCreate, (c) => isObject(c) && (addWhereLinks(links, f.type, c.where), collectLinks(links, f.type, c.create)));
+    each(nested.create, (c) => collectLinks(links, f.type, c));
+    if (isObject(nested.createMany)) each(nested.createMany.data, (c) => collectLinks(links, f.type, c));
+    each(nested.update, (u) => collectLinks(links, f.type, isObject(u) && "where" in u && isObject(u.data) ? u.data : u));
+    each(nested.upsert, (u) => isObject(u) && (collectLinks(links, f.type, u.create), collectLinks(links, f.type, u.update)));
+  }
+}
+
+/** Every row a write links to by id, so it can be checked to be in the same company. Pure, so it is unit tested. */
+export function linkedIds(model: string, operation: string, args: Data | undefined): Links {
+  const links: Links = new Map();
+  if (!WRITES.has(operation) || !args) return links;
+  if (operation === "upsert") {
+    collectLinks(links, model, args.create);
+    collectLinks(links, model, args.update);
+  } else {
+    each(args.data, (d) => collectLinks(links, model, d));
+  }
+  return links;
+}
+
+/** The message when a form names a record of another company (an id copied from elsewhere, or a tampered form). */
+export const OTHER_COMPANY = "That record belongs to another company of the group.";
+
+type Finder = { findFirst: (a: { where: Data; select: Data }) => Promise<unknown> };
+
 /** The Prisma extension. `currentCompany` says which company this query runs for. */
 export function companyScope(currentCompany: () => Promise<string>) {
-  return Prisma.defineExtension({
+  return Prisma.defineExtension((client) => client.$extends({
     name: "company-scope",
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
           if (!isScopedModel(model)) return query(args);
           const companyId = await currentCompany();
+          for (const [key, ids] of linkedIds(model, operation, args as Data)) {
+            const [target, field] = key.split(".");
+            const finder = (client as unknown as Record<string, Finder>)[target[0].toLowerCase() + target.slice(1)];
+            // Outside the filter, so it sees every company. A superadmin's own login works in every company.
+            const foreign = await finder.findFirst({
+              where: { [field]: { in: [...ids] }, companyId: { not: companyId }, ...(target === "User" ? { isSuperadmin: false } : {}) },
+              select: { [field]: true },
+            });
+            if (foreign) throw new Error(OTHER_COMPANY);
+          }
           return query(scopeArgs(model, operation, args as Data, companyId) as typeof args);
         },
       },
     },
-  });
+  }));
 }
 
 /** The first company: where people land before signing in, and what scripts and the seed work in. */

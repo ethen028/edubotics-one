@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { withNextNumber } from "@/lib/company-numbers";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { optionalDateOnlyInput } from "@/lib/date-input";
@@ -173,15 +174,16 @@ export async function createRequest(_: FormState, formData: FormData): Promise<F
 
   // Admins look after the stock, so their own requests don't wait for approval.
   const autoApprove = isAdmin(user);
-  const request = await db.stockRequest.create({
+  const request = await withNextNumber(async () => (await db.stockRequest.aggregate({ _max: { number: true } }))._max.number, (number) => db.stockRequest.create({
     data: {
+      number,
       ...data,
       requesterId: user.id,
       status: autoApprove ? "APPROVED" : "PENDING",
       ...(autoApprove ? { decidedById: user.id, decidedAt: new Date(), decisionNote: "Admin request, approved automatically" } : {}),
       lines: { create: [...wanted].map(([itemId, quantity]) => ({ itemId, quantity })) },
     },
-  });
+  }));
   refresh({ projectId: data.projectId });
   await flash("Stock request sent.");
   redirect(`/inventory/requests/${request.id}`);

@@ -35,6 +35,10 @@ async function main() {
     console.log("Skipped admin login: set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD (8+ chars) to create one.");
   } else if (await rawDb.user.findUnique({ where: { email } })) {
     console.log(`Admin ${email} already exists.`);
+  } else if ((await db.user.count({ where: { role: "ADMIN" } })) > 0) {
+    // Only an install with no admin yet gets one. Otherwise changing the first admin's email in Users would bring
+    // back a login with the password in .env on the next start.
+    console.log(`Skipped admin login: ${email} isn't a login any more, and the company already has an admin.`);
   } else {
     await db.user.create({
       data: {
