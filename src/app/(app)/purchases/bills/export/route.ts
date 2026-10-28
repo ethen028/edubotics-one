@@ -2,8 +2,9 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { todayIST } from "@/lib/time";
+import { getSettings } from "@/lib/settings";
 import { settledByBill } from "@/lib/purchases";
-import { COMPANY_STATE, billState, csvCell, poNo, round2, taxSplit } from "@/lib/purchase-math";
+import { billState, csvCell, poNo, round2, taxSplit } from "@/lib/purchase-math";
 
 /** Every vendor bill with its GST split and payments, for the accountant (input tax credit, TDS returns). */
 export async function GET() {
@@ -14,10 +15,11 @@ export async function GET() {
     orderBy: { billDate: "asc" },
   });
   const settled = await settledByBill(bills.map((b) => b.id));
+  const { companyState } = await getSettings();
   const rows = [
     ["Bill date", "Vendor", "Vendor GSTIN", "Vendor state", "Bill no.", "PO", "Before GST", "CGST", "SGST", "IGST", "Total", "Paid", "TDS", "Left to pay", "Due date", "Status"],
     ...bills.map((b) => {
-      const split = taxSplit(Number(b.tax), b.vendor.state !== COMPANY_STATE);
+      const split = taxSplit(Number(b.tax), b.vendor.state !== companyState);
       const paid = round2(b.payments.reduce((s, p) => s + Number(p.amount), 0));
       const tds = round2(b.payments.reduce((s, p) => s + Number(p.tds), 0));
       const state = billState(b, settled.get(b.id) ?? 0, today);

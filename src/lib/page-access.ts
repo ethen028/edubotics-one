@@ -17,7 +17,7 @@ export const PAGE_ACCESS = {
   "/account": "everyone",
   "/accounts": ["ADMIN", "MANAGER"],
   "/admin/activity": ["ADMIN"],
-  "/admin/backups": ["ADMIN"],
+  "/admin/backups": "superadmin", // the whole database, every company
   "/admin/health": ["ADMIN"],
   "/admin/launch": ["ADMIN"],
   "/admin/roles": ["ADMIN"],

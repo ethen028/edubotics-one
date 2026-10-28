@@ -6,12 +6,12 @@ import { getApiUser, isBackupAdmin } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { backupDir, isBackupName } from "@/lib/backups";
 
-/** Downloads one backup file, for keeping a copy on a laptop or a USB drive. Admins only, and logged. */
+/** Downloads one backup file, for keeping a copy on a laptop or a USB drive. The superadmin only, and logged. */
 export async function GET(_: Request, { params }: RouteContext<"/admin/backups/download/[name]">) {
   const user = (await getApiUser()).user;
   const dir = backupDir();
   const { name } = await params;
-  if (!user || !(await isBackupAdmin(user)) || !dir || !isBackupName(name)) return new Response("Not found", { status: 404 });
+  if (!user || !isBackupAdmin(user) || !dir || !isBackupName(name)) return new Response("Not found", { status: 404 });
   const file = path.join(/*turbopackIgnore: true*/ dir, name);
   const stat = await fs.stat(file).catch(() => null);
   if (!stat?.isFile()) return new Response("Not found", { status: 404 });

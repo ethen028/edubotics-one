@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import { cache } from "react";
 import type { Role, SignInMethod } from "@prisma/client";
 import { rawDb as db } from "./db"; // sign-in works across the whole group, before a company is known
-import { companyOfSession, currentCompanyId, firstCompanyId } from "./company";
+import { companyOfSession } from "./company";
 import { requestIp } from "./activity";
 import { sessionAccessProblem } from "./session-access";
 import { createSessionRecord } from "./session-store";
@@ -143,16 +143,16 @@ export async function requireSuperadmin(): Promise<CurrentUser> {
 }
 
 /**
- * Backups copy the whole database, every company in it, so they are managed by the admins of the first
- * company (where the group started) and by a superadmin working there.
+ * Backups copy the whole database: every company, every salary and every private chat. So only the group's
+ * superadmin can see, download, restore or set them up.
  */
-export async function isBackupAdmin(user: { role: Role }) {
-  return user.role === "ADMIN" && (await currentCompanyId()) === (await firstCompanyId());
+export function isBackupAdmin(user: { isSuperadmin?: boolean }) {
+  return user.isSuperadmin === true;
 }
 
 export async function requireBackupAdmin(): Promise<CurrentUser> {
   const user = await requireUser(["ADMIN"]);
-  if (!(await isBackupAdmin(user))) redirect("/no-access"); // an admin, but in another company of the group
+  if (!isBackupAdmin(user)) deny("superadmin");
   return user;
 }
 

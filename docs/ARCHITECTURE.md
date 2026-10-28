@@ -78,7 +78,7 @@ Four roles in the `Role` enum: `ADMIN`, `HR`, `MANAGER`, `EMPLOYEE`. The company
 
 ## Where it runs
 
-- **Office (production)**: one Windows computer with Docker Desktop, `docker compose up -d --build` (services `db`, `app`, `backup`, optional `gateway`). Staff use it over the office Wi-Fi. The app container applies migrations and the reference seed on every start. Guide: [run-on-your-computer.md](run-on-your-computer.md).
+- **Office (production)**: one Windows computer with Docker Desktop, `docker compose up -d --build` (services `db`, `app`, `backup`, optional `gateway`). Staff use it over the office Wi-Fi. The app container applies migrations and the reference seed on every start. The seed only fills what is empty (a first admin when there is none, starter departments, leave types and training when the list is empty, holidays for a year with none), so nothing deleted on purpose comes back. Guide: [run-on-your-computer.md](run-on-your-computer.md).
 - **Vercel (demo)**: protected demo on Neon PostgreSQL, demo data only. Every deploy needs `npx prisma migrate deploy` against that database. Guide: [vercel-deployment.md](vercel-deployment.md).
 
 ## Choices to keep

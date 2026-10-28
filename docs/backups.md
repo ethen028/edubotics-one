@@ -1,13 +1,13 @@
 # Backups
 
-Orbit makes a full copy of itself every day on the office computer: every record and every uploaded file (documents, receipts, resumes, photos, signatures all live inside the database, so one file holds everything). Admins see the backups under **Admin > Backups**.
+Orbit makes a full copy of itself every day on the office computer: every record and every uploaded file (documents, receipts, resumes, photos, signatures all live inside the database, so one file holds everything). Only the superadmin sees the backups, under **Admin > Backups**: a backup holds every company of the group, every salary and every private chat. The page shows how much room the backups take and how much is free, and warns when the drive or the second folder is running out of room.
 
 ## What happens on its own
 
 - **Every day at 5 PM** (India time) a backup is saved. If the computer was off at 5 PM, it is made as soon as Orbit is running again.
 - Each backup is **checked** right after it is made: a file that doesn't open completely is thrown away and the failure is shown.
 - **Kept:** every backup from the last 30 days, then the first backup of each month for 12 months. Older ones are removed after each new backup.
-- Admins see a red or amber line on **Home** if the last backup failed, the newest one is more than 2 days old, or the backup helper has stopped.
+- The superadmin sees a red or amber line on **Home** if the last backup failed, the newest one is more than 2 days old, the backup helper has stopped, or a backup drive is running out of room.
 
 You can change the time and how long backups are kept under **Admin > Backups**, and make one straight away with **Back up now** (for example before a big change, or before an update).
 

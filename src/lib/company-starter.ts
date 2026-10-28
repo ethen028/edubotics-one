@@ -28,26 +28,50 @@ const fixedHolidays = [
 
 type StarterDb = Pick<Db, "department" | "leaveType" | "holiday" | "trainingModule">;
 
-/** Adds what is missing of the starter data to one company. `db` must already be inside that company. */
-export async function addStarterData(db: StarterDb, companyId: string) {
-  for (const name of departments) {
-    await db.department.upsert({ where: { companyId_name: { companyId, name } }, update: {}, create: { name } });
-  }
-  for (const t of leaveTypes) {
-    await db.leaveType.upsert({ where: { companyId_code: { companyId, code: t.code } }, update: {}, create: t });
-  }
-  for (const [day, name, tentative = false] of KERALA_HOLIDAYS) {
-    const date = new Date(`${day}T00:00:00.000Z`);
-    await db.holiday.upsert({ where: { companyId_date: { companyId, date } }, update: {}, create: { date, name, tentative } });
-  }
-  const year = new Date().getFullYear();
+type StarterHoliday = { date: Date; name: string; tentative: boolean };
+
+/** The starter holidays for a company: the Kerala list plus the fixed-date ones for this year and next. */
+export function starterHolidays(now: Date = new Date()): StarterHoliday[] {
+  const rows: StarterHoliday[] = KERALA_HOLIDAYS.map(([day, name, tentative = false]) => ({ date: new Date(`${day}T00:00:00.000Z`), name, tentative }));
+  const year = now.getUTCFullYear();
   for (const y of [year, year + 1]) {
-    for (const [md, name] of fixedHolidays) {
-      const date = new Date(`${y}-${md}T00:00:00.000Z`);
-      await db.holiday.upsert({ where: { companyId_date: { companyId, date } }, update: {}, create: { date, name } });
+    for (const [md, name] of fixedHolidays) rows.push({ date: new Date(`${y}-${md}T00:00:00.000Z`), name, tentative: false });
+  }
+  return rows;
+}
+
+/**
+ * Holidays to add: only for years the company has no holidays in yet, so a year that is already set up keeps the
+ * holidays someone removed on purpose, while a new year still gets its starter list.
+ */
+export function holidaysToAdd(rows: StarterHoliday[], yearsSetUp: Set<number>) {
+  return rows.filter((h) => !yearsSetUp.has(h.date.getUTCFullYear()));
+}
+
+/**
+ * Adds the starter data to one company where it has none yet. `db` must already be inside that company.
+ * Runs on every start of the office copy, so anything someone deleted stays deleted: departments, leave types and
+ * training modules are only added to an empty list, holidays only to a year with none.
+ */
+export async function addStarterData(db: StarterDb, companyId: string) {
+  if ((await db.department.count()) === 0) {
+    for (const name of departments) {
+      await db.department.upsert({ where: { companyId_name: { companyId, name } }, update: {}, create: { name } });
     }
   }
-  for (const m of TRAINING_MODULES) {
-    await db.trainingModule.upsert({ where: { companyId_title: { companyId, title: m.title } }, update: {}, create: m });
+  if ((await db.leaveType.count()) === 0) {
+    for (const t of leaveTypes) {
+      await db.leaveType.upsert({ where: { companyId_code: { companyId, code: t.code } }, update: {}, create: t });
+    }
+  }
+  const existing = await db.holiday.findMany({ select: { date: true } });
+  const yearsSetUp = new Set(existing.map((h) => h.date.getUTCFullYear()));
+  for (const h of holidaysToAdd(starterHolidays(), yearsSetUp)) {
+    await db.holiday.upsert({ where: { companyId_date: { companyId, date: h.date } }, update: {}, create: h });
+  }
+  if ((await db.trainingModule.count()) === 0) {
+    for (const m of TRAINING_MODULES) {
+      await db.trainingModule.upsert({ where: { companyId_title: { companyId, title: m.title } }, update: {}, create: m });
+    }
   }
 }

@@ -165,7 +165,7 @@ async function main() {
   const outsider = await createUser("EMPLOYEE", "Unrelated");
   const secret = `${tag} Private unrelated loan`;
   const [foreignRequest] = await db.$transaction([
-    db.stockRequest.create({ data: { requesterId: outsider.id, purpose: secret, status: "ISSUED", returnBy: new Date("2026-01-05"), lines: { create: { itemId: item.id, quantity: 1, issued: 1 } }, movements: { create: { itemId: item.id, byId: admin.id, type: "ISSUE", quantity: -1, note: secret } } } }),
+    db.stockRequest.create({ data: { number: 900000 + Math.floor(Math.random() * 99999), requesterId: outsider.id, purpose: secret, status: "ISSUED", returnBy: new Date("2026-01-05"), lines: { create: { itemId: item.id, quantity: 1, issued: 1 } }, movements: { create: { itemId: item.id, byId: admin.id, type: "ISSUE", quantity: -1, note: secret } } } }),
     db.stockItem.update({ where: { id: item.id }, data: { onHand: { decrement: 1 } } }),
   ]);
   assert.ok(!(await page(`/inventory/${item.id}`, staff)).includes(secret), "Item ledger must not expose unrelated request notes");

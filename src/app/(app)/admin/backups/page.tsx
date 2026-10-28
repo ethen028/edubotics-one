@@ -1,10 +1,11 @@
 import { requireBackupAdmin } from "@/lib/auth";
+import { firstCompanyId, inCompany } from "@/lib/company";
 import { getSettings } from "@/lib/settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
 import { formatSize } from "@/lib/project-files";
-import { backupDir, backupProblem, copyDir, folderLabels, lastRun, listBackups, nextScheduledTime, type BackupKind } from "@/lib/backups";
+import { backupDir, backupProblem, copyDir, folderLabels, freeSpace, lastRun, listBackups, nextScheduledTime, type BackupKind } from "@/lib/backups";
 import { backUpNow, updateBackupSettings } from "./actions";
 
 export const metadata = { title: "Backups" };
@@ -17,11 +18,11 @@ function hourLabel(h: number) {
 
 export default async function BackupsPage() {
   await requireBackupAdmin();
-  const s = await getSettings();
+  const s = await inCompany(await firstCompanyId(), getSettings); // backup settings live in the first company
   const dir = backupDir();
   const copy = copyDir();
   const folders = folderLabels();
-  const [files, run, problem] = await Promise.all([listBackups(), lastRun(), backupProblem()]);
+  const [files, run, problem, mainFree, copyFree] = await Promise.all([listBackups(), lastRun(), backupProblem(), freeSpace(dir), freeSpace(copy)]);
   const newest = files[0];
   const total = files.reduce((n, f) => n + f.size, 0);
   const restoreName = files.find((f) => f.kind !== "before-restore")?.name ?? "edubotics-one-2026-10-07-1700.dump";
@@ -30,7 +31,7 @@ export default async function BackupsPage() {
     <>
       <PageHeader
         title="Backups"
-        subtitle="A full copy of Orbit every day: all records and every uploaded file (documents, receipts, resumes, photos). Only admins see this."
+        subtitle="A full copy of Orbit every day: all records and every uploaded file (documents, receipts, resumes, photos). Only the superadmin sees this, as it holds every company."
       />
 
       {!dir ? (
@@ -56,7 +57,7 @@ export default async function BackupsPage() {
                   }`}
                 >
                   {problem.text}
-                  {problem.level === "red" && " Open a command window in the edubotics-one folder and run: docker compose up -d"}
+                  {problem.level === "red" && problem.text.includes("helper") && " Open a command window in the edubotics-one folder and run: docker compose up -d"}
                 </div>
               ) : null}
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -87,6 +88,13 @@ export default async function BackupsPage() {
                   <dt className="label">Backups kept</dt>
                   <dd>
                     {files.length} · {formatSize(total)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="label">Free space</dt>
+                  <dd>
+                    {mainFree === null ? "Unknown" : `${formatSize(mainFree)} on this computer's backup drive`}
+                    {copy && copyFree !== null && <div>{formatSize(copyFree)} in the second folder</div>}
                   </dd>
                 </div>
                 <div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { backupProblem } from "@/lib/backups";
-import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
+import { isAdmin, isBackupAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { homeDashboard, isOwner } from "@/lib/permissions";
 import { pendingApprovals } from "@/lib/approvals";
 import { myPendingAcks } from "@/lib/notices";
@@ -42,7 +42,7 @@ function greeting() {
 export default async function Home() {
   const user = await requireUser();
   const admin = isAdmin(user);
-  const backupIssue = admin ? await backupProblem() : null;
+  const backupIssue = isBackupAdmin(user) ? await backupProblem() : null;
   const manager = isManagerOrAdmin(user);
 
   const now = new Date();

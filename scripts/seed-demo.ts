@@ -602,8 +602,8 @@ async function main(db: Tx) {
   await db.notice.create({ data: { kind: "ANNOUNCEMENT", title: "SOP v2 starts this month", body: "From this month every school session follows the SOP v2 checklist. Trainers: tick the 'Before the class' list on your phone before each session.", pinned: true, authorId: U("admin.demo"), showUntil: day(25) } });
   await db.notice.create({ data: { kind: "POLICY", title: "Travel claims policy", body: "Claim travel within 7 days with the distance and the school visited. Two-wheeler ₹4 a km, car ₹9 a km.", category: "Finance", requiresAck: true, ackDueDate: day(7), authorId: U("hr.demo") } });
 
-  await db.helpdeskTicket.create({ data: { title: "Laptop for the new internship batch", description: "Need two laptops with Arduino IDE installed for the internship lab.", category: "IT", priority: "HIGH", requesterId: U("trainer.demo"), assigneeId: U("hr.demo"), status: "IN_PROGRESS" } });
-  await db.helpdeskTicket.create({ data: { title: "Visiting card reprint", description: "New designation on my visiting cards, please.", category: "Admin", requesterId: U("sales.demo") } });
+  await db.helpdeskTicket.create({ data: { number: 1, title: "Laptop for the new internship batch", description: "Need two laptops with Arduino IDE installed for the internship lab.", category: "IT", priority: "HIGH", requesterId: U("trainer.demo"), assigneeId: U("hr.demo"), status: "IN_PROGRESS" } });
+  await db.helpdeskTicket.create({ data: { number: 2, title: "Visiting card reprint", description: "New designation on my visiting cards, please.", category: "Admin", requesterId: U("sales.demo") } });
 
   await db.checklistTemplate.create({
     data: {
