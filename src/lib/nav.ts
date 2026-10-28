@@ -12,10 +12,14 @@ export type NavItem = {
   badge?: number;
   tone?: "amber" | "red" | "brand";
   title?: string;
+  /** A small heading in the menu panel above this item and the ones after it, for long sections (HR: For me, Team, Setup). */
+  section?: string;
 };
 
 export type NavGroupData = {
   title: string;
+  /** The name under the icon in the menu rail, when the title is too long for it. */
+  short?: string;
   icon: IconName;
   /** Pages that belong to the group, so it opens (and its tabs show) while you are on one. */
   paths: string[];
@@ -53,17 +57,18 @@ export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean 
   const groups: (NavGroupData | false)[] = [
     {
       title: "Overview",
+      short: "Home",
       icon: "grid",
       paths: ["/", "/inbox", "/calendar", "/dashboard", "/notices", "/recognition", "/guide"],
       items: [
         { href: "/", label: "Home" },
-        // Each role's dashboards: its own first (owner, admin, HR or "My dashboard"), then the others its job needs.
-        ...dashboardsFor(user).map((d) => ({ href: d.href, label: d.label, exact: true })),
-        { href: "/calendar", label: "Calendar" },
         { href: "/inbox", label: "Inbox", badge: c.inbox, tone: "brand", title: "Unread notifications" },
+        { href: "/calendar", label: "Calendar" },
         { href: "/notices", label: "Notice board", badge: c.toAcknowledge, tone: "amber" as const },
         { href: "/recognition", label: "Recognition" },
         { href: "/guide", label: "Getting started" },
+        // Each role's dashboards: its own first (owner, admin, HR or "My dashboard"), then the others its job needs.
+        ...dashboardsFor(user).map((d) => ({ href: d.href, label: d.label, exact: true, section: "Dashboards" })),
       ],
     },
     c.teamwork && {
@@ -92,8 +97,6 @@ export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean 
       paths: ["/work", "/projects", "/timesheets", "/checklists", "/expenses", "/helpdesk", "/approvals"],
       items: [
         { href: "/work", label: "My work" },
-        { href: "/projects/pulse", label: "Daily pulse" },
-        { href: "/projects", label: "Projects", except: ["/projects/pulse"] },
         { href: "/timesheets", label: "Timesheet" },
         {
           href: "/checklists",
@@ -103,9 +106,15 @@ export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean 
           title: c.overdueChecklists ? "Some are overdue" : "To tick off",
         },
         { href: "/expenses", label: "Expenses", exact: true },
-        ...(managerOrAdmin ? [{ href: "/expenses/team", label: "Team expenses" }] : []),
         { href: "/helpdesk", label: "Helpdesk", badge: c.helpdesk, tone: "amber" as const },
-        ...(managerOrAdmin ? [{ href: "/approvals", label: "Approvals", badge: c.approvals, tone: "amber" as const }] : []),
+        { href: "/projects", label: "Projects", except: ["/projects/pulse"], section: "Projects" },
+        { href: "/projects/pulse", label: "Daily pulse", section: "Projects" },
+        ...(managerOrAdmin
+          ? [
+              { href: "/approvals", label: "Approvals", badge: c.approvals, tone: "amber" as const, section: "Team" },
+              { href: "/expenses/team", label: "Team expenses", section: "Team" },
+            ]
+          : []),
       ],
     },
     {
@@ -123,6 +132,7 @@ export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean 
     },
     {
       title: "Operations",
+      short: "Schools",
       icon: "school",
       paths: ["/operations", "/workshops"],
       items: [
@@ -135,6 +145,7 @@ export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean 
     },
     {
       title: "Inventory",
+      short: "Stock",
       icon: "box",
       paths: ["/inventory"],
       items: [
@@ -144,6 +155,7 @@ export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean 
     },
     {
       title: "Purchases",
+      short: "Buying",
       icon: "cart",
       paths: ["/purchases"],
       items: [
@@ -169,24 +181,41 @@ export function buildNav(user: NavUser, c: NavCounts, where: { backups: boolean 
       icon: "users",
       paths: ["/hr", "/recruitment"],
       items: [
-        { href: "/hr", label: "My day", exact: true },
-        ...(user.employee ? [{ href: `/hr/employees/${user.employee.id}`, label: "My profile" }] : []),
-        { href: "/hr/attendance", label: "My attendance", exact: true },
-        { href: "/hr/leave", label: "My leave" },
-        { href: "/hr/employees", label: "People", exact: true },
-        ...(people ? [{ href: "/hr/attendance/register", label: "Attendance register" }] : []),
-        ...(people ? [{ href: "/hr/approvals", label: "Leave approvals" }] : []),
-        ...(people
-          ? [{ href: "/recruitment", label: "Recruitment", except: ["/recruitment/interviews"], badge: c.onlineApplications, tone: "amber" as const, title: "New applications from the careers page" }]
+        { href: "/hr", label: "My day", exact: true, section: "For me" },
+        ...(user.employee ? [{ href: `/hr/employees/${user.employee.id}`, label: "My profile", section: "For me" }] : []),
+        { href: "/hr/attendance", label: "My attendance", exact: true, section: "For me" },
+        { href: "/hr/leave", label: "My leave", section: "For me" },
+        { href: "/hr/reviews", label: "Performance reviews", badge: c.reviewTodos, tone: "amber", section: "For me" },
+        ...(people || c.myInterviews > 0
+          ? [{ href: "/recruitment/interviews", label: "My interviews", badge: c.myInterviews, tone: "brand" as const, section: "For me" }]
           : []),
-        ...(people || c.myInterviews > 0 ? [{ href: "/recruitment/interviews", label: "My interviews", badge: c.myInterviews, tone: "brand" as const }] : []),
-        ...(people ? [{ href: "/hr/onboarding", label: "Onboarding" }, { href: "/hr/training", label: "Training" }] : []),
-        ...(managerOrAdmin ? [{ href: "/hr/exits", label: "Exits" }] : []),
-        { href: "/hr/reviews", label: "Performance reviews", badge: c.reviewTodos, tone: "amber" },
-        ...(hrOrAdmin ? [{ href: "/hr/letters", label: "Letters" }] : []),
-        ...(hrOrAdmin ? [{ href: "/hr/assets", label: "Assets" }] : []),
-        { href: "/hr/holidays", label: "Holidays" },
-        ...(hrOrAdmin ? [{ href: "/hr/departments", label: "Departments" }, { href: "/hr/leave-types", label: "Leave types" }] : []),
+        { href: "/hr/holidays", label: "Holidays", section: "For me" },
+        { href: "/hr/employees", label: "People", exact: true, section: "Team" },
+        ...(people ? [{ href: "/hr/attendance/register", label: "Attendance register", section: "Team" }] : []),
+        ...(people ? [{ href: "/hr/approvals", label: "Leave approvals", section: "Team" }] : []),
+        ...(people
+          ? [
+              {
+                href: "/recruitment",
+                label: "Recruitment",
+                except: ["/recruitment/interviews"],
+                badge: c.onlineApplications,
+                tone: "amber" as const,
+                title: "New applications from the careers page",
+                section: "Team",
+              },
+            ]
+          : []),
+        ...(people ? [{ href: "/hr/onboarding", label: "Onboarding", section: "Team" }, { href: "/hr/training", label: "Training", section: "Team" }] : []),
+        ...(managerOrAdmin ? [{ href: "/hr/exits", label: "Exits", section: "Team" }] : []),
+        ...(hrOrAdmin ? [{ href: "/hr/letters", label: "Letters", section: "Team" }] : []),
+        ...(hrOrAdmin ? [{ href: "/hr/assets", label: "Assets", section: "Team" }] : []),
+        ...(hrOrAdmin
+          ? [
+              { href: "/hr/departments", label: "Departments", section: "Setup" },
+              { href: "/hr/leave-types", label: "Leave types", section: "Setup" },
+            ]
+          : []),
       ],
     },
     (user.employee || admin) && {

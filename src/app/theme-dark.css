@@ -158,7 +158,7 @@
   }
 
   /* Panels that stay teal-navy in both looks keep the light-look colours inside them. */
-  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .brand-mark, .avatar, .recognition-spotlight-avatar, .nav-badge, .sidebar-collapse, .theme-pill, .section-tab[data-active], .sidebar .nav-link[data-active], .sidebar .nav-group[data-here]) {
+  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .brand-mark, .avatar, .recognition-spotlight-avatar, .nav-badge, .theme-pill, .section-tab[data-active], .nav-flyout-card .nav-link[data-active], .menu-rail-item[data-shown]) {
     --color-brand-50: #f0fafa;
     --color-brand-100: #e0f5f4;
     --color-brand-300: #8fe0df;
