@@ -90,7 +90,7 @@ CSS classes: `.card`, `.input`, `.label`, `.btn-primary` (solid teal), `.btn-sec
 
 ## Layout
 
-- Shell: teal-navy icon rail on the left that expands to a grouped menu (choice saved per person); frosted top bar with the page title, Find anything, waiting-on-you chips, messages, bell and user menu. Below 768 px the menu is a drawer.
+- Shell (owner's choice, 28 Oct 2026): a teal-navy rail on the left with one named icon per section, and beside it a white panel with the pages of the section you are on (or the one clicked), under small headings for long sections (`section` on a menu item in `src/lib/nav.ts`). The panel can be hidden to leave the rail (saved per person); pointing at an icon then shows its pages in a card; frosted top bar with the page title, Find anything, waiting-on-you chips, messages, bell and user menu. Below 768 px the menu is a drawer.
 - Every page works at 375 px with no sideways page scroll. Wide tables scroll inside their card.
 - Breakpoints are Tailwind's defaults (640, 768, 1024, 1280).
 

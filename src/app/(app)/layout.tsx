@@ -4,9 +4,7 @@ import { CompanySwitcher } from "@/components/company-switcher";
 import { switchCompany } from "./companies/actions";
 import { canManagePeople } from "@/lib/permissions";
 import Link from "next/link";
-import { NavLink } from "@/components/nav-link";
 import { Sidebar } from "@/components/sidebar";
-import { NavGroup } from "@/components/nav-group";
 import { SectionTabs } from "@/components/section-tabs";
 import { CommandPalette } from "@/components/command-palette";
 import { BackToTop, OfflineNote } from "@/components/page-touches";
@@ -15,7 +13,6 @@ import { DraftOwnerProvider } from "@/components/action-form";
 import { FLASH_COOKIE } from "@/lib/flash";
 import { cookies } from "next/headers";
 import { Icon } from "@/components/icons";
-import { LogoMark } from "@/components/logo";
 import { humanize } from "@/lib/format";
 import { pendingApprovals } from "@/lib/approvals";
 import { lowStockItems } from "@/lib/inventory";
@@ -40,12 +37,6 @@ function initials(name: string) {
     .map((w) => w[0]!.toUpperCase())
     .join("");
 }
-
-const badgeTone = {
-  amber: "rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950",
-  red: "rounded-full bg-red-400 px-1.5 text-[11px] font-semibold text-red-950",
-  brand: "nav-badge",
-};
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
@@ -99,65 +90,22 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar
+        groups={groups}
+        company={company.name}
         defaultCollapsed={user.menuCollapsed}
-        header={
-          <div className="flex items-center">
-            <div className="brand-mark" role="img" aria-label="Edubotics">
-              <LogoMark variant="reverse" />
-            </div>
-            <div className="rail-hide ml-2 leading-tight">
-              <div className="font-display text-sm font-semibold">Orbit</div>
-              <div className="sidebar-muted max-w-[9rem] truncate text-[11px]" title={company.name}>{company.name}</div>
-            </div>
-          </div>
+        account={
+          <>
+            <Link href="/account" className="menu-rail-item" title="My account" aria-label="My account">
+              <Icon name="user" className="h-4 w-4" />
+            </Link>
+            <form action={logout}>
+              <button className="menu-rail-item" title="Sign out" aria-label="Sign out">
+                <Icon name="logout" className="h-4 w-4" />
+              </button>
+            </form>
+          </>
         }
-      >
-        <nav aria-label="Main menu" className="flex-1 space-y-1.5 overflow-y-auto">
-          {groups.map((g) => (
-            <NavGroup
-              key={g.title}
-              title={g.title}
-              icon={g.icon}
-              paths={g.paths}
-              count={g.items.reduce((sum, i) => sum + (i.tone && i.tone !== "red" ? (i.badge ?? 0) : 0), 0)}
-            >
-              {g.items.map((item) => (
-                <NavLink key={item.href} href={item.href} exact={item.exact} except={item.except}>
-                  {item.badge ? (
-                    <span className="flex items-center justify-between">
-                      {item.label}
-                      <span className={badgeTone[item.tone ?? "brand"]} title={item.title}>
-                        {item.badge}
-                      </span>
-                    </span>
-                  ) : (
-                    item.label
-                  )}
-                </NavLink>
-              ))}
-            </NavGroup>
-          ))}
-        </nav>
-        <div className="sidebar-user">
-          <div className="avatar md:hidden">{initials(user.name)}</div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium md:hidden">{user.name}</div>
-            <div className="sidebar-muted text-xs md:hidden">{user.isSuperadmin ? "Superadmin" : humanize(user.role)}</div>
-            <div className="sidebar-links mt-1 flex items-center gap-2">
-              <Link href="/account" className="sidebar-link text-xs" title="My account">
-                <Icon name="user" className="h-4 w-4 shrink-0" />
-                <span className="rail-hide ml-1.5">My account</span>
-              </Link>
-              <form action={logout}>
-                <button className="sidebar-link text-xs" title="Sign out">
-                  <Icon name="logout" className="h-4 w-4 shrink-0" />
-                  <span className="rail-hide ml-1.5">Sign out</span>
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </Sidebar>
+      />
       <main id="main-content" tabIndex={-1} className="app-main min-w-0 flex-1 p-4 md:py-3 md:pr-4 md:pl-1">
         <div className="mx-auto max-w-[1400px]">
           <header className="topbar">
