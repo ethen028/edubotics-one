@@ -24,7 +24,7 @@
   --color-brand-700: #0e7480;
   --color-brand-800: #0f5b66;
   --color-brand-900: #0a3d47;
-  --color-navy: #0a3d47; /* the menu rail, banners and sign-in panel: the logo's deep teal-navy */
+  --color-navy: #06303a; /* the menu rail, banners and sign-in panel: a step deeper than the logo's teal-navy */
   --color-spark: #ff7a30; /* the logo's orange: small marks only (card bars, dots), never text on white */
   --color-mint: #e0f5f4;
   --color-ink: #0a3d47;
@@ -118,7 +118,7 @@ h2 {
   }
   .grid > .stat:first-child {
     @apply border-transparent bg-navy;
-    background-image: linear-gradient(135deg, #0f5b66, var(--color-navy)); /* fixed teal: dark mode lightens brand-800 */
+    background-image: linear-gradient(135deg, #0a4652, var(--color-navy)); /* fixed teal: dark mode lightens brand-800 */
   }
   .grid > .stat:first-child::before {
     @apply bg-spark;
@@ -265,7 +265,7 @@ h2 {
     @apply text-slate-900;
   }
   .menu-rail-item[data-shown] {
-    @apply bg-white text-brand-700 hover:bg-white hover:text-brand-700;
+    @apply bg-brand-300 text-navy hover:bg-brand-300 hover:text-navy;
   }
   .menu-rail-label {
     @apply max-w-full truncate px-0.5 text-[10.5px] leading-tight font-semibold;
@@ -274,7 +274,7 @@ h2 {
     @apply absolute top-0.5 right-2.5 min-w-4 rounded-full bg-white px-1 text-center text-[9px] leading-4 font-semibold text-brand-700;
   }
   .menu-rail-item[data-shown] .menu-rail-count {
-    @apply bg-brand-700 text-white;
+    @apply bg-navy text-white;
   }
   .menu-rail-foot {
     @apply mt-2 flex w-full justify-center gap-0.5 border-t border-[var(--side-line)] pt-2;
@@ -336,13 +336,26 @@ h2 {
     @apply px-3;
   }
   .nav-flyout-card .nav-link[data-active] {
-    @apply bg-white;
+    @apply bg-brand-300 text-navy;
   }
   .nav-icon {
     @apply h-4 w-4 shrink-0 opacity-75;
   }
   .nav-link[data-active] .nav-icon {
     @apply opacity-100;
+  }
+  /* Orange spark: a small mark beside the page you are on, a dot on the open tab, a short bar under page titles,
+     and a thin top edge on tables. Small marks only, as in the logo. */
+  .nav-link[data-active]::before {
+    content: "";
+    @apply absolute top-1/2 -left-0.5 h-4 w-[3px] -translate-y-1/2 rounded-full bg-spark;
+  }
+  .page-title {
+    @apply pb-2;
+    background: linear-gradient(var(--color-spark), var(--color-spark)) left bottom / 28px 3px no-repeat;
+  }
+  .card:has(> .table) {
+    @apply border-t-[3px] border-t-spark;
   }
   .nav-badge {
     @apply rounded-full bg-white px-1.5 text-[11px] font-semibold text-brand-700;
@@ -495,7 +508,11 @@ h2 {
     @apply flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900;
   }
   .section-tab[data-active] {
-    @apply bg-brand-700 font-semibold text-white hover:bg-brand-700 hover:text-white;
+    @apply bg-navy font-semibold text-white hover:bg-navy hover:text-white;
+  }
+  .section-tab[data-active]::before {
+    content: "";
+    @apply h-1.5 w-1.5 rounded-full bg-spark;
   }
   .section-tab-count {
     @apply rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-amber-950;
