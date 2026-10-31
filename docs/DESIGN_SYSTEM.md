@@ -30,12 +30,13 @@ Brand palette from the 24 Oct 2026 files:
 
 | Name | Hex | Where it is used |
 | --- | --- | --- |
-| Deep teal-navy | `#0A3D47` | `--color-navy` and `brand-900`: menu rail, banners, sign-in panel, first number card, app icon, PDF headings, text on pale teal |
+| Deep teal-navy | `#0A3D47` | `brand-900`: app icon, PDF headings, text on pale teal |
+| Deeper navy | `#06303A` | `--color-navy` (31 Oct 2026): menu rail, banners, sign-in panel, first number card, the open tab. White on it is 14:1 |
 | Dark teal | `#0F5B66` | `brand-800`: button hover, menu flyout, start of the first card's gradient |
 | Mid teal | `#0F7C86` | The logo's mid teal. The app uses `#0E7480` (`brand-700`), a touch darker, so white text on buttons (5.5:1) and teal links on the page (5.1:1) pass |
 | Teal | `#14A3A8` | `brand-500`: focus borders, the mark's gradient. Too light for white text (3.1:1); never use it behind text |
 | Light teal | `#8FE0DF` | `brand-300`: the reverse mark, link preview text |
-| Orange spark | `#FF7A30` | `--color-spark`: the short bar on number cards, today's dot in the mini calendar, the email rule. Small marks only: it is 2.6:1 on white, so never text or a button |
+| Orange spark | `#FF7A30` | `--color-spark`: the short bar on number cards, the mark beside the open menu page, the dot on the open tab, the short bar under page titles, the top edge of table cards, today's dot in the mini calendar, the email rule. Small marks only: it is 2.6:1 on white, so never text or a button |
 | Grey text | `#4F6A70` | `slate-500`: secondary text (5.4:1 on the page) |
 | Near-white | `#F4F8F8` | `--page-bg`, the reverse mark |
 
@@ -44,7 +45,7 @@ App tokens (light):
 | Token | Value | Use |
 | --- | --- | --- |
 | `brand-50` … `brand-900` | `#f0fafa` … `#0a3d47` (700 = `#0e7480`) | Teal scale: hovers, selected rows, badges, chart bars |
-| `--color-navy` | `#0a3d47` | The menu rail, hero banners, sign-in panel |
+| `--color-navy` | `#06303a` | The menu rail, hero banners, sign-in panel, open tab |
 | `--color-spark` | `#ff7a30` | Small orange marks (see above) |
 | `--color-mint` | `#e0f5f4` | Selected menu item and chip background |
 | `--color-ink` | `#0a3d47` | Text on pale teal (10:1) |

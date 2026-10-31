@@ -23,7 +23,7 @@ export function PageHeader({
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
         {eyebrow && <div className="eyebrow mb-1 text-brand-700">{eyebrow}</div>}
-        <h1 className="flex flex-wrap items-center gap-1.5 text-2xl font-bold tracking-tight text-slate-900">
+        <h1 className="page-title flex flex-wrap items-center gap-1.5 text-2xl font-bold tracking-tight text-slate-900">
           {title}
           {copy && <CopyButton value={copy} label="Copy number" />}
         </h1>
