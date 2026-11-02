@@ -4,6 +4,7 @@ import { PASSWORD_RULES } from "@/lib/passwords";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { changePassword, logout } from "../actions";
 import { PasswordInput } from "@/components/password-input";
+import { SignOutForm } from "@/components/sign-out-form";
 
 export const metadata = { title: "Choose a new password" };
 
@@ -39,9 +40,9 @@ export default async function ChangePasswordPage() {
           <p className="text-xs text-slate-500">{PASSWORD_RULES}</p>
           <SubmitButton className="btn-primary w-full">Save and continue</SubmitButton>
         </ActionForm>
-        <form action={logout} className="mt-4 text-center">
+        <SignOutForm action={logout} className="mt-4 text-center">
           <button className="text-xs text-slate-500 hover:text-slate-800">Sign out instead</button>
-        </form>
+        </SignOutForm>
       </div>
     </main>
   );

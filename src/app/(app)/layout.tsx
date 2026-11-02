@@ -28,6 +28,7 @@ import { canUseTeamwork } from "@/lib/teamwork";
 import { myPlanTasksToUpdate } from "@/lib/plan";
 import { buildNav } from "@/lib/nav";
 import { logout, setAppearance } from "../actions";
+import { SignOutForm } from "@/components/sign-out-form";
 
 function initials(name: string) {
   return name
@@ -98,11 +99,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <Link href="/account" className="menu-rail-item" title="My account" aria-label="My account">
               <Icon name="user" className="h-4 w-4" />
             </Link>
-            <form action={logout}>
+            <SignOutForm action={logout}>
               <button className="menu-rail-item" title="Sign out" aria-label="Sign out">
                 <Icon name="logout" className="h-4 w-4" />
               </button>
-            </form>
+            </SignOutForm>
           </>
         }
       />

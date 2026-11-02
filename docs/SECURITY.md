@@ -31,11 +31,30 @@ Orbit holds salaries, bank details, ID documents and the company's money records
 - Don't add `NEXT_PUBLIC_` variables holding anything private.
 - `npm run security:secrets` and `npm run security:dependencies` run in CI.
 
+## CI and dependencies
+
+- The CI token is read-only (`permissions: contents: read`). Don't widen it; a job that needs to write gets its own workflow and a reason in the PR.
+- GitHub Actions are pinned to a full commit SHA with the version in a comment. Use only actions from GitHub (`actions/*`) unless the PR says why.
+- Dependabot (`.github/dependabot.yml`) opens monthly update PRs for packages and actions. Major versions are left for a planned upgrade.
+
 ## Web
 
 - Don't weaken `src/proxy.ts` (CSP with nonces, write-origin check, rate limits, careers-only public host) or `src/lib/http-security.ts` without a reason in the PR.
 - No `dangerouslySetInnerHTML` with user content (there is none today).
+- Redirects to a path taken from a form, a query string or a stored link go through `safeAppPath` (`src/lib/http-security.ts`). Checking for a leading `/` is not enough: browsers treat `/\evil.example` as another site.
+- Anything Orbit keeps in the browser (`localStorage`) uses an `orbit:` key so sign-out can clear it (`src/components/sign-out-form.tsx`). Never keep passwords, tokens or pay there.
 - The office copy is plain HTTP on the office Wi-Fi. Anything that needs HTTPS (Google sign-in, secure cookies, the careers page on the internet) stays off there.
+
+## Checklist status
+
+The last full pass against outside checklists (63 security items, 20 legal items and a tools table) is [security-checklists-2026-11.md](security-checklists-2026-11.md), 2 November 2026. Open items that need the owner:
+
+- Optional authenticator-app codes at sign-in: being added (owner chose "optional for everyone").
+- Change the office database password if the database was first created between 3 and 18 October (the old default is in Git history). The port isn't published, so the risk is low.
+- Protect the Vercel demo copy (Deployment Protection) or give every demo login a password nobody can guess.
+- https for the office copy, so passwords, cookies and messages aren't sent in plain text on the Wi-Fi; an encrypted or private backup folder.
+- A legal check of `/privacy` and `/terms` against India's DPDP Act, a retention period for messages and files, who handles deletion requests, and parents' consent if any under-18 students are signed up.
+- Outside alerting (an uptime monitor or Sentry) if wanted; both need an account.
 
 ## Reporting a problem
 
