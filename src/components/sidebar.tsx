@@ -53,7 +53,7 @@ function PageLinks({ items }: { items: NavItem[] }) {
 }
 
 /**
- * The menu: a teal-navy rail with one icon per section (Home, Work, CRM, HR…), and beside it a white panel with
+ * The menu: a navy rail with one icon per section (Home, Work, CRM, HR…), and beside it a white panel with
  * the pages of the section you are in, or the one you clicked on the rail. The panel can be hidden to leave just the
  * rail (remembered per person); then pointing at an icon shows its pages in a small card, and clicking it brings the
  * panel back. On phones both sit in a

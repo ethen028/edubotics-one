@@ -56,7 +56,7 @@ These are business decisions, not code choices. Don't change them without the ow
 - Staff messages are readable only by the people in the conversation; admins cannot read them. Channels are open to all staff by design. Files folders can be for chosen people, but admins can open every folder.
 - Teamwork can be limited to logins on the company email domain (Admin > Settings > Teamwork), like a company Teams workspace. Video calls, one-to-one and group (decided by Ethen, 2 Nov 2026), start from any chat or come with a meeting. They run on Jitsi in a new tab (https, so camera and mic work from the http office copy); Orbit makes the room link and does not carry the video itself. A pasted Google Meet, Zoom or Teams link still works for meetings.
 - Automatic payment reminders are off until switched on; at most one per school per 7 days, three per invoice.
-- The look: one teal accent on a pale teal-grey page with a deep teal-navy menu, and only the main Edubotics logo ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)).
+- The look: the Edubotics blue and orange from the robot logo (2 Nov 2026): one blue accent on a pale blue-grey page with white cards, a deep blue-navy menu and the robot's orange for small marks only, and only the main Edubotics logo ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)).
 
 ## Not built, on purpose or not yet
 

@@ -101,7 +101,7 @@ Domain in their name, transfer repo, hosting on their card, payments to their ac
 | Sitemap/robots | Only configured public careers/legal paths; private workspace excluded/noindex |
 | Alt text/image compression | Existing icons are SVG; no new photographic images added. Private user attachments are not automatically recompressed or altered |
 | Load speed | Local fonts, lightweight shared UI, Caddy compression option and production build; no public real-user performance measurement claimed |
-| Color contrast/mobile | Existing accessible teal/white design and keyboard/mobile checks; all 122 screens are not independently WCAG-certified |
+| Color contrast/mobile | Existing accessible blue/white design (brand contrast checked in tests/brand-colours.test.ts) and keyboard/mobile checks; all 122 screens are not independently WCAG-certified |
 | Custom 404/broken links | Branded recovery page and static-route smoke check; every dynamic record link is not exhaustively crawled |
 | Form validation/spam protection | Server validation, streamed body limits, honeypot, shared counters, optional/enforced Turnstile |
 | Analytics | Local aggregate health page, no cross-site tracking |

@@ -18,7 +18,7 @@ const LEGEND: { cell: HeatCell; label: string }[] = [
 /**
  * A square for every day of the last six months, shaded by how much of the daily target was worked, so a run
  * of short days or a patch of absences shows at a glance. Modelled on the activity calendars on spaceui.one and
- * componentry.dev, in the one teal: deeper means more. Each square names its day and hours when pointed at;
+ * componentry.dev, in the one blue: deeper means more. Each square names its day and hours when pointed at;
  * the month names open that month below.
  */
 export function AttendanceChart({ days, today, target }: { days: Map<string, DayDetail>; today: Date; target: number }) {

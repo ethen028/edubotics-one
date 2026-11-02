@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { GOOGLE_ERRORS, googleSetup } from "@/lib/google-sign-in";
 import { ActionForm, SubmitButton } from "@/components/action-form";
-import { LogoMark } from "@/components/logo";
+import { LogoLockup, LogoMark } from "@/components/logo";
 import { login } from "../actions";
 import Link from "next/link";
 import { PasswordInput } from "@/components/password-input";
@@ -70,8 +70,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           </div>
         </div>
         <div className="auth-panel hidden flex-col justify-between p-10 text-white md:flex">
-          {/* eslint-disable-next-line @next/next/no-img-element -- a fixed vector file, nothing to optimise */}
-          <img src="/brand/edubotics-logo-horizontal-reverse.svg" alt="Edubotics. Learn, build, innovate." className="h-16 w-auto self-start" />
+          <div role="img" aria-label="Edubotics. Leading way to the future." className="self-start">
+            <LogoLockup variant="reverse" className="h-32 w-auto" />
+          </div>
           <div>
             <p className="text-4xl leading-tight font-semibold tracking-tight">
               Welcome
