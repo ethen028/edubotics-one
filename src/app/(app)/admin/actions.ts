@@ -144,6 +144,16 @@ export async function signOutEverywhere(id: string) {
   revalidatePath("/admin/users");
 }
 
+/** For a lost phone with no backup codes left: the person signs in with their password alone and can set codes up again. */
+export async function turnOffUserCodes(id: string) {
+  const me = await requireUser(["ADMIN"]);
+  const user = await guardOwner(me, id);
+  if (!user.totpEnabledAt) return;
+  await db.user.update({ where: { id }, data: { totpSecret: null, totpEnabledAt: null, totpLastStep: null, totpBackupCodes: [] } });
+  await logActivity(me, "LOGINS", "sign-in-codes.admin-off", `Turned off sign-in codes for ${user.name}`);
+  revalidatePath("/admin/users");
+}
+
 /** The owner hands the company over to another active admin: the owner mark moves, both stay admins. */
 export async function makeOwner(id: string) {
   const me = await requireUser(["ADMIN"]);

@@ -2,7 +2,7 @@
 
 The owner shared five checklists from social posts: "Security Maxxxxing your AI built website" parts 1 to 3 (63 items), "20 things to have Claude do so your app doesn't get sued" and a "Vibe coding? Save these" tools table. Every item was checked against `main` at `b9ca924`, the 28 October audit and the earlier [security-and-launch.md](security-and-launch.md) checklist pass.
 
-Status: **Held** (already true, with where), **Fixed** (changed in the pull request that added this file), **MFA PR** (built in the follow-up pull request), **N/A** (doesn't apply to Orbit), **Owner** (needs the owner's account, wording or decision).
+Status: **Held** (already true, with where), **Fixed** (changed in the pull request that added this file), **N/A** (doesn't apply to Orbit), **Owner** (needs the owner's account, wording or decision).
 
 ## Security, part 1
 
@@ -32,7 +32,7 @@ Status: **Held** (already true, with where), **Fixed** (changed in the pull requ
 
 | # | Item | Status | Where / what |
 |---|---|---|---|
-| 20 | Missing MFA | MFA PR | Owner chose authenticator-app codes, optional for everyone, with backup codes |
+| 20 | Missing MFA | **Fixed** | Optional authenticator-app codes for everyone (owner's choice), ten one-time backup codes, admin turn-off for a lost phone (`src/lib/totp.ts`, `src/lib/sign-in-codes.ts`, `/login/code`, `tests/totp.test.ts`) |
 | 21 | Business logic flaws | Held | Nobody approves their own leave, timesheet or claim; HR can't see pay; money rules tested (`tests/business-rules.test.ts`, `tests/permissions.test.ts`) |
 | 22 | Race conditions | Held | Document numbers taken under a lock; tokens used atomically; sign-in, reset and password change serialised |
 | 23 | Webhook replays | N/A | No webhooks. Each reminder round claims its day, so a repeated cron call sends nothing |
@@ -110,6 +110,6 @@ Status: **Held** (already true, with where), **Fixed** (changed in the pull requ
 | Vibe-coded UI | Watermelon UI, Impeccable | N/A: Orbit has its own design system and a no-UI-kit rule ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)) |
 | Untested website | Playwright | Held: 180+ tests, the live role test across 110 pages, browser screenshots in audits |
 | Slow-loading site | Lighthouse, Bundlephobia | Held: ten runtime packages, local fonts, no chart or icon libraries |
-| No authentication | Clerk | N/A: Orbit has its own sign-in with lockout, resets, device list and (MFA PR) codes. Clerk would send staff logins to an outside service |
+| No authentication | Clerk | N/A: Orbit has its own sign-in with lockout, resets, device list and optional authenticator codes. Clerk would send staff logins to an outside service |
 | Bugs slipping through | TypeScript, Sentry | TypeScript held (strict, checked in CI). Sentry: **Owner** account, and it sends error data abroad |
 | Re-explaining your codebase | Graphify | N/A: `AGENTS.md` and the `docs/` folder do this |

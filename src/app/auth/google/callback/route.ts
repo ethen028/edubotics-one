@@ -6,6 +6,7 @@ import { jwtVerify } from "jose";
 import { db, rawDb } from "@/lib/db";
 import { createSession, sessionSecret } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
+import { startCodeChallenge } from "@/lib/sign-in-codes";
 import {
   FLOW_COOKIE,
   GoogleSignInError,
@@ -30,6 +31,11 @@ export async function GET(request: NextRequest) {
     if (!(e instanceof GoogleSignInError)) reportServerError(e, { path: "/auth/google/callback" });
   }
   if (typeof outcome === "string") redirect(`/login?google=${outcome}`);
+  const user = await rawDb.user.findUnique({ where: { id: outcome.userId }, select: { totpEnabledAt: true, passwordHash: true } });
+  if (user?.totpEnabledAt) {
+    await startCodeChallenge(outcome.userId, "GOOGLE", user.passwordHash);
+    redirect("/login/code");
+  }
   if (!(await createSession(outcome.userId, "GOOGLE"))) redirect("/login?google=disabled");
   redirect("/");
 }

@@ -18,6 +18,7 @@ import { passwordProblem } from "@/lib/passwords";
 import { emailLock, ipBlocked, minutesUntil, recordAttempt } from "@/lib/sign-in";
 import type { FormState } from "@/components/action-form";
 import { allowRequest } from "@/lib/rate-limit";
+import { challengeMatches, clearCodeChallenge, readCodeChallenge, redeemSignInCode, startCodeChallenge } from "@/lib/sign-in-codes";
 
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().max(254).email(),
@@ -63,12 +64,44 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
   if (!user.mustChangePassword && passwordProblem(password, user)) {
     await rawDb.user.updateMany({ where: { id: user.id, passwordHash: user.passwordHash }, data: { mustChangePassword: true } });
   }
+  // Codes switched on: the password was right, now the code from their app (src/lib/sign-in-codes.ts).
+  if (user.totpEnabledAt) {
+    await startCodeChallenge(user.id, "PASSWORD", user.passwordHash);
+    redirect("/login/code");
+  }
   if (!(await createSession(user.id, "PASSWORD", user.passwordHash))) {
     await recordAttempt(email, ip, false);
     return { error: "Email or password is incorrect." };
   }
   await recordAttempt(email, ip, true);
   await logActivity(user, "SIGN_IN", "sign-in", `${user.name} signed in with a password`);
+  redirect("/");
+}
+
+/** The second sign-in step: a code from the authenticator app, or one of the backup codes. */
+export async function verifyLoginCode(_: FormState, formData: FormData): Promise<FormState> {
+  const challenge = await readCodeChallenge();
+  if (!challenge) redirect("/login");
+  if (!(await allowRequest("sign-in-code", challenge.userId, 5, 900000))) {
+    return { error: "Too many wrong codes. Wait 15 minutes, then try again." };
+  }
+  const user = await rawDb.user.findUnique({ where: { id: challenge.userId } });
+  if (!user || !user.active || user.closedAt || !user.totpEnabledAt || !challengeMatches(user.passwordHash, challenge.fingerprint)) {
+    await clearCodeChallenge();
+    redirect("/login");
+  }
+  const used = await redeemSignInCode(user, String(formData.get("code") ?? ""));
+  if (!used) {
+    await logActivity(user, "SIGN_IN", "sign-in.code-failed", `Wrong sign-in code for ${user.email}`);
+    return { error: "That code didn't work. Type the newest code from your app, or one of your backup codes." };
+  }
+  await clearCodeChallenge();
+  if (!(await createSession(user.id, challenge.method, challenge.method === "PASSWORD" ? user.passwordHash : undefined))) redirect("/login");
+  if (challenge.method === "PASSWORD") await recordAttempt(user.email, await requestIp(), true);
+  const how = challenge.method === "GOOGLE" ? "Google" : "a password";
+  await logActivity(user, "SIGN_IN", "sign-in", used === "backup"
+    ? `${user.name} signed in with ${how} and a backup code (${user.totpBackupCodes.length - 1} left)`
+    : `${user.name} signed in with ${how} and an app code`);
   redirect("/");
 }
 
