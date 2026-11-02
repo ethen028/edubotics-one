@@ -1,63 +1,62 @@
 # Design system
 
-Orbit should feel calm and flat: one teal accent on a pale teal-grey page with white cards and a deep teal-navy menu, so the numbers and the next action stand out. The layout (icon rail, flat number cards, pill buttons, frosted top bar) was the owner's choice in October 2026 (PRs #36 and #38). The colours follow the Edubotics brand files the owner sent on 24 Oct 2026, which replaced the purple of PR #45.
+Orbit should feel calm and flat: one blue accent on a pale blue-grey page with white cards and a deep blue-navy menu, so the numbers and the next action stand out. The layout (icon rail, flat number cards, pill buttons, frosted top bar) was the owner's choice in October 2026 (PRs #36 and #38). The colours follow the Edubotics robot logo the owner sent on 2 Nov 2026, which replaced the teal brand of PR #50.
 
-Tokens live at the top of `src/app/globals.css`, dark mode in `src/app/theme-dark.css`. Use the tokens and shared classes; don't put hex values in components.
+**Palette in one place.** `src/lib/brand.ts` (`BRAND`) holds the brand colours for code that can't read CSS: PDFs, emails, the link preview, the logo and the app icon. The page uses the matching tokens at the top of `src/app/globals.css`, dark mode in `src/app/theme-dark.css`. `tests/brand-colours.test.ts` fails if the two lists drift apart or if text on a brand colour drops below WCAG AA (4.5:1). Use the tokens and shared classes; don't put hex values in components.
 
 ## Brand
 
 The company is Edubotics Global; the app is **Orbit** (a name for internal use only; ORBIT is a registered trade mark of another company in software, so don't use it on anything sold or published).
 
-The logo is a two-swoosh "E" with a four-point orange spark. Tagline: Learn. Build. Innovate. The owner's vector files (mark, horizontal and stacked wordmarks in colour, one-colour and reverse, and the sub-brand lockups) are in the project's brand folder, `brand/2026-10-24-teal-brand/`, with a preview sheet.
+The logo is a smiling robot head: an orange outline with ears and an antenna, a blue face with white eyes, an eye band and a smile, and faint maths and science marks on the face. Below it, the EDUBOTICS wordmark in blue and the tagline "Leading way to the future." in dark grey. The owner's files (PNG, 2 Nov 2026) are in the project's brand folder, `brand/2026-11-02-robot-brand/`. Only this main logo is used in the app; no sub-brand lockups.
 
 | In the code | What it is |
 | --- | --- |
-| `src/lib/logo.ts` | The mark as three SVG paths (`LOGO_TOP`, `LOGO_BOTTOM`, `LOGO_SPARK`), its colours and `logoSvg()` |
-| `src/components/logo.tsx` | `<LogoMark variant>`: `auto` (colour mark, reverse in dark mode) on pages and documents, `reverse` on the teal-navy menu |
-| `public/brand/` | Horizontal wordmark, colour and reverse. The reverse one is on the sign-in panel |
-| `src/app/icon.svg`, `favicon.ico`, `apple-icon.png` | Teal-navy app icon with the reverse mark |
-| `src/app/opengraph-image.tsx` | Link preview: teal-navy background, reverse mark, "Orbit", tagline in light teal, short orange bar |
-| `src/lib/pdf/layout.tsx` | `BRAND = #0a3d47` and `<PdfLogo />`, the colour mark at the top of every PDF |
-| `src/lib/mail.ts` | Emails: teal-navy header with an orange rule |
+| `src/lib/brand.ts` | `BRAND`: every brand colour with where it goes |
+| `src/lib/logo.ts` | The logo traced to SVG paths (`LOGO_RING`, `LOGO_FACE`, `LOGO_DECOR`, `LOGO_FEATURES`, `LOGO_WORD`, `LOGO_TAGLINE`), `MARK_VIEWBOX` (head only) and `LOCKUP_VIEWBOX` (head, wordmark, tagline), `LOGO_COLOURS` and `logoSvg()` |
+| `src/components/logo.tsx` | `<LogoMark>` (the head, same colours on white and on navy) and `<LogoLockup variant>`: `auto` (blue wordmark, white in dark mode), `reverse` (white wordmark on navy) |
+| `public/brand/` | `edubotics-logo.svg` (colour lockup), `edubotics-logo-reverse.svg` (for navy) and `edubotics-mark.svg` (head), made from `logoSvg()` |
+| `src/app/icon.svg`, `favicon.ico`, `apple-icon.png` | Navy rounded tile with the robot head |
+| `src/app/opengraph-image.tsx` | Link preview: navy background, reverse lockup, "Orbit", the tagline, a short orange bar |
+| `src/lib/pdf/layout.tsx` | `BRAND` (blue headings and rules), `NAVY`, `SPARK` and `<PdfLogo />`, the robot head at the top of every PDF |
+| `src/lib/mail.ts` | Emails: navy header with an orange rule |
 
-The mark is on the sign-in page, the menu, careers, every PDF (invoice, quote, credit note, receipt, payslip, certificate, every HR letter and the ID card, from `src/lib/pdf/letter.tsx`) and the printable pages (invoice, quote, purchase order, payslip, programme report).
-
-Sub-brand lockups exist but are not used in the app: Edubotics Kids, Edubotics Future, Edubotics Career Accelerator, Edubotics for Schools, and the parent-group lockup ("A division of Hindusthan Group"). Ask the owner before putting one on a document or page.
+The robot head is on the sign-in page, the menu, careers, every PDF (invoice, quote, credit note, receipt, payslip, certificate, every HR letter and the ID card, from `src/lib/pdf/letter.tsx`) and the printable pages (invoice, quote, purchase order, payslip, programme report). The full lockup is on the sign-in panel and the link preview.
 
 ## Colour
 
-Brand palette from the 24 Oct 2026 files:
+Sampled from the 2 Nov 2026 logo:
 
 | Name | Hex | Where it is used |
 | --- | --- | --- |
-| Deep teal-navy | `#0A3D47` | `brand-900`: app icon, PDF headings, text on pale teal |
-| Deeper navy | `#06303A` | `--color-navy` (31 Oct 2026): menu rail, banners, sign-in panel, first number card, the open tab. White on it is 14:1 |
-| Dark teal | `#0F5B66` | `brand-800`: button hover, menu flyout, start of the first card's gradient |
-| Mid teal | `#0F7C86` | The logo's mid teal. The app uses `#0E7480` (`brand-700`), a touch darker, so white text on buttons (5.5:1) and teal links on the page (5.1:1) pass |
-| Teal | `#14A3A8` | `brand-500`: focus borders, the mark's gradient. Too light for white text (3.1:1); never use it behind text |
-| Light teal | `#8FE0DF` | `brand-300`: the reverse mark, link preview text |
-| Orange spark | `#FF7A30` | `--color-spark`: the short bar on number cards, the mark beside the open menu page, the dot on the open tab, the short bar under page titles, the top edge of table cards, today's dot in the mini calendar, the email rule. Small marks only: it is 2.6:1 on white, so never text or a button |
-| Grey text | `#4F6A70` | `slate-500`: secondary text (5.4:1 on the page) |
-| Near-white | `#F4F8F8` | `--page-bg`, the reverse mark |
+| Wordmark blue | `#2563AE` | `brand-700` / `BRAND.blue`: buttons, links, the open tab, PDF headings and rules. White on it is 6.0:1, on the page 5.6:1 |
+| Face light blue | `#1D7EC2` | `brand-500` / `BRAND.blueLight`: focus borders and accents. 4.4:1 with white, so never behind text |
+| Deep blue-navy | `#0F2D57` | `--color-navy` / `BRAND.navy`: menu rail, banners, sign-in panel, first number card, app icon tile, email header, ID card band. White on it is 13.7:1 |
+| Dark blue | `#1D4F93` | `brand-800`: button hover, menu flyout |
+| Robot orange | `#EE6C23` | `--color-spark` / `BRAND.orange` (the logo runs `#E96324` to `#F07922`): the short bar on number cards, the mark beside the open menu page, the dot on the open tab, the short bar under page titles, the top edge of table cards, today's dot in the mini calendar, the email rule, the ID card rule. Small marks only: 3.2:1 on white, so never text or a button |
+| Blue-grey text | `#4A5B71` | `slate-500` / `BRAND.muted`: secondary text (6.5:1 on the page) |
+| Page | `#F4F7FB` | `--page-bg` / `BRAND.page` |
+| Logo grey | `#3E3E3F` | The tagline in the colour logo only |
 
 App tokens (light):
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `brand-50` … `brand-900` | `#f0fafa` … `#0a3d47` (700 = `#0e7480`) | Teal scale: hovers, selected rows, badges, chart bars |
-| `--color-navy` | `#06303a` | The menu rail, hero banners, sign-in panel, open tab |
-| `--color-spark` | `#ff7a30` | Small orange marks (see above) |
-| `--color-mint` | `#e0f5f4` | Selected menu item and chip background |
-| `--color-ink` | `#0a3d47` | Text on pale teal (10:1) |
-| `slate-900` | `#132a30` | Main text |
-| `slate-500` / `slate-400` | `#4f6a70` / `#587176` | Secondary and helper text (both pass 4.5:1 on the page) |
-| `--page-bg` | `#f4f8f8` | Page background |
+| `brand-50` … `brand-900` | `#f1f6fc` … `#173d73` (500 = `#1d7ec2`, 700 = `#2563ae`) | Blue scale: hovers, selected rows, badges, chart bars |
+| `--color-navy` | `#0f2d57` | The menu rail, hero banners, sign-in panel, open tab |
+| `--color-spark` | `#ee6c23` | Small orange marks (see above) |
+| `--color-mint` | `#e2edf9` | Selected menu item and chip background (pale blue) |
+| `--color-ink` | `#173d73` | Text on pale blue (9.6:1) |
+| `slate-900` | `#14233a` | Main text |
+| `slate-500` / `slate-400` | `#4a5b71` / `#56677d` | Secondary and helper text (both pass 4.5:1 on the page) |
+| `--page-bg` | `#f4f7fb` | Page background |
 | `--color-surface` | `#fff` | Cards, menus, inputs |
-| `--line` / `slate-200` | `#dde8e9` | Borders |
+| `--line` / `slate-200` | `#dce4ee` | Borders |
+| `--tint-2` … `--tint-4` | `#e9f1fb`, `#e8f5fb`, `#fff1e6` | Number card fills: pale blue, pale sky, sand |
 
-Status colours come from `<Badge color>`: gray, blue (teal tint), green, amber, red, purple. **Amber** means waiting on someone, **red** means overdue or blocked, **green** means done or paid; purple is kept for "in review". Don't use colour alone; the badge always has a word.
+Status colours come from `<Badge color>`: gray, blue, green, amber, red, purple. **Amber** means waiting on someone, **red** means overdue or blocked, **green** means done or paid; purple is kept for "in review". Don't use colour alone; the badge always has a word.
 
-Dark mode (Light / Dark / System per person, `User.theme`) swaps the scales underneath: greys flip (with a slight teal tint), tints darken, link teal lightens to `#6fd6d4` (9.6:1 on cards), the button teal stays `#0e7480` with white text, and the logo switches to the reverse colours. Pages need no `dark:` classes. Printed pages and PDFs are always light.
+Dark mode (Light / Dark / System per person, `User.theme`) swaps the scales underneath: greys flip (with a slight blue tint), tints darken, link blue lightens to `#8cc0ef` (9.0:1 on cards), the button blue stays `#2563ae` with white text, and the wordmark turns white. The robot head keeps its colours. Pages need no `dark:` classes. Printed pages and PDFs are always light.
 
 ## Type
 
@@ -77,7 +76,7 @@ Use these before writing new markup:
 | Need | Use |
 | --- | --- |
 | Page title, subtitle, buttons on the right | `<PageHeader>` (`src/components/ui.tsx`) |
-| Number card (clickable if it has `href`) | `<Stat>` inside a `.grid`; the first one becomes the filled teal-navy tile |
+| Number card (clickable if it has `href`) | `<Stat>` inside a `.grid`; the first one becomes the filled navy tile |
 | Status word | `<Badge color>` |
 | Label + input | `<Field label>` wrapping an `.input` |
 | Nothing to show | `<Empty>` with one line saying what to do next |
@@ -87,11 +86,11 @@ Use these before writing new markup:
 | Toast after saving | returned `{ ok: "..." }` from the action; `ActionForm` shows it |
 | Icons | `<Icon name>` from `src/components/icons.tsx` (24 px line icons; add a path there, no icon library) |
 
-CSS classes: `.card`, `.input`, `.label`, `.btn-primary` (solid teal), `.btn-secondary` (soft grey, no border), `.btn-danger`, `.btn-sm`, `.table`, `.link`, `.hero-card`.
+CSS classes: `.card`, `.input`, `.label`, `.btn-primary` (solid blue), `.btn-secondary` (soft grey, no border), `.btn-danger`, `.btn-sm`, `.table`, `.link`, `.hero-card`.
 
 ## Layout
 
-- Shell (owner's choice, 28 Oct 2026): a teal-navy rail on the left with one named icon per section, and beside it a white panel with the pages of the section you are on (or the one clicked), under small headings for long sections (`section` on a menu item in `src/lib/nav.ts`). The panel can be hidden to leave the rail (saved per person); pointing at an icon then shows its pages in a card; frosted top bar with the page title, Find anything, waiting-on-you chips, messages, bell and user menu. Below 768 px the menu is a drawer.
+- Shell (owner's choice, 28 Oct 2026): a navy rail on the left with one named icon per section, and beside it a white panel with the pages of the section you are on (or the one clicked), under small headings for long sections (`section` on a menu item in `src/lib/nav.ts`). The panel can be hidden to leave the rail (saved per person); pointing at an icon then shows its pages in a card; frosted top bar with the page title, Find anything, waiting-on-you chips, messages, bell and user menu. Below 768 px the menu is a drawer.
 - Every page works at 375 px with no sideways page scroll. Wide tables scroll inside their card.
 - Breakpoints are Tailwind's defaults (640, 768, 1024, 1280).
 

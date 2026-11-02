@@ -4,7 +4,7 @@ Scope requested on 17 October 2026: analyse and rebuild both the interface and e
 
 ## Design
 
-Keep Next.js, React, Prisma, PostgreSQL, existing routes, permissions, and business records. Improve the shared application shell rather than replace working modules. Retain the Edubotics teal identity with a quieter white workspace, stronger headings, consistent controls, and accessible interaction states. Navigation must remain role-aware and become searchable. Preserve all existing actions.
+Keep Next.js, React, Prisma, PostgreSQL, existing routes, permissions, and business records. Improve the shared application shell rather than replace working modules. Retain the Edubotics blue and orange identity with a quieter white workspace, stronger headings, consistent controls, and accessible interaction states. Navigation must remain role-aware and become searchable. Preserve all existing actions.
 
 ## Implementation and acceptance
 

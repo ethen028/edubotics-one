@@ -3,7 +3,8 @@ import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Settings } from "../settings";
 import { formatDate } from "../format";
 import type { LetterBody, Table } from "../letter-rules";
-import { BRAND, LINE, MUTED, PageNumbers, PdfLogo, s } from "./layout";
+import { BRAND, LINE, MUTED, NAVY, PageNumbers, PdfLogo, SPARK, s } from "./layout";
+import { BRAND as COLOURS } from "../brand";
 
 type SignatureImage = { data: Buffer; type: string } | null;
 const pdfImage = (img: SignatureImage) => (img ? { data: img.data, format: img.type === "image/png" ? ("png" as const) : ("jpg" as const) } : null);
@@ -34,7 +35,7 @@ function LetterTable({ t }: { t: Table }) {
   return (
     <View style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: LINE, width: wide ? "100%" : t.head && t.head.length > 2 ? "85%" : "65%" }}>
       {t.head && (
-        <View style={[s.tr, { backgroundColor: "#f4f8f8" }]}>
+        <View style={[s.tr, { backgroundColor: COLOURS.page }]}>
           {t.head.map((h, i) => (
             <Text key={i} style={[...cell(i), s.bold, { color: MUTED, fontSize: wide ? 7.5 : 8.5 }]}>
               {h}
@@ -175,14 +176,14 @@ export function IdCardPdf({
         <View style={s.row}>
           <View style={[card, { marginRight: 18 }]}>
             {watermark && <Text style={[s.watermark, { top: 50, fontSize: 30 }]}>{watermark}</Text>}
-            <View style={[s.row, { backgroundColor: BRAND, paddingHorizontal: 8, paddingVertical: 5, alignItems: "center", borderBottomWidth: 2, borderBottomColor: "#ff7a30" }]}>
+            <View style={[s.row, { backgroundColor: NAVY, paddingHorizontal: 8, paddingVertical: 5, alignItems: "center", borderBottomWidth: 2, borderBottomColor: SPARK }]}>
               <View style={{ backgroundColor: "#ffffff", borderRadius: 3, padding: 2 }}>
                 <PdfLogo height={14} />
               </View>
               <Text style={{ marginLeft: 6, color: "#ffffff", fontSize: 9, fontWeight: 600 }}>{settings.companyName}</Text>
             </View>
             <View style={[s.row, { padding: 8, flex: 1 }]}>
-              <View style={{ width: mm(20), height: mm(25), borderWidth: 0.5, borderColor: LINE, alignItems: "center", justifyContent: "center", backgroundColor: "#f4f8f8" }}>
+              <View style={{ width: mm(20), height: mm(25), borderWidth: 0.5, borderColor: LINE, alignItems: "center", justifyContent: "center", backgroundColor: COLOURS.page }}>
                 {/* eslint-disable-next-line jsx-a11y/alt-text -- a PDF image, not an HTML one */}
                 {photo ? <Image src={photo} style={{ width: mm(20), height: mm(25), objectFit: "cover" }} /> : <Text style={[s.muted, { fontSize: 6, textAlign: "center" }]}>Paste photo</Text>}
               </View>

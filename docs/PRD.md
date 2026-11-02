@@ -56,7 +56,7 @@ These are business decisions, not code choices. Don't change them without the ow
 - Staff messages are readable only by the people in the conversation; admins cannot read them. Channels are open to all staff by design. Files folders can be for chosen people, but admins can open every folder.
 - Teamwork can be limited to logins on the company email domain (Admin > Settings > Teamwork), like a company Teams workspace. Calls run in Google Meet, Zoom or Teams; Orbit stores the link, it does not host video.
 - Automatic payment reminders are off until switched on; at most one per school per 7 days, three per invoice.
-- The look: one purple accent on a pale lavender page ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)).
+- The look: the Edubotics blue and orange from the robot logo (2 Nov 2026): one blue accent on a pale blue-grey page with white cards, a deep blue-navy menu and the robot's orange for small marks only ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)).
 
 ## Not built, on purpose or not yet
 
