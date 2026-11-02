@@ -190,7 +190,7 @@ export default async function BackupsPage() {
               <h2 className="mb-3 font-semibold">Daily backup</h2>
               <ActionForm action={updateBackupSettings} className="space-y-4">
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="backupsEnabled" defaultChecked={s.backupsEnabled} />
+                  <input type="checkbox" role="switch" className="switch" name="backupsEnabled" defaultChecked={s.backupsEnabled} />
                   Back up every day
                 </label>
                 <Field label="At (India time)">

@@ -94,7 +94,7 @@ export default async function SettingsPage() {
                 ] as const
               ).map(([name, label, checked]) => (
                 <label key={name} className="flex items-center gap-2">
-                  <input type="checkbox" name={name} defaultChecked={checked} />
+                  <input type="checkbox" role="switch" className="switch" name={name} defaultChecked={checked} />
                   {label}
                 </label>
               ))}
@@ -214,7 +214,7 @@ export default async function SettingsPage() {
               </Field>
             </div>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="gstEnabled" defaultChecked={s.gstEnabled} />
+              <input type="checkbox" role="switch" className="switch" name="gstEnabled" defaultChecked={s.gstEnabled} />
               Charge GST on invoices (switch off if Edubotics isn&apos;t GST registered)
             </label>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -340,7 +340,7 @@ export default async function SettingsPage() {
               <input name="mailReplyTo" type="email" defaultValue={s.mailReplyTo ?? ""} className="input" placeholder="Same as the send-from address" />
             </Field>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="mailBccSelf" defaultChecked={s.mailBccSelf} />
+              <input type="checkbox" role="switch" className="switch" name="mailBccSelf" defaultChecked={s.mailBccSelf} />
               Keep a copy of every email in the send-from inbox
             </label>
             {s.smtpPassword && (
@@ -394,7 +394,7 @@ export default async function SettingsPage() {
           </p>
           <ActionForm action={updateReminderSettings} className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-medium">
-              <input type="checkbox" name="autoRemindersEnabled" defaultChecked={s.autoRemindersEnabled} />
+              <input type="checkbox" role="switch" className="switch" name="autoRemindersEnabled" defaultChecked={s.autoRemindersEnabled} />
               Send payment reminders automatically
             </label>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -519,7 +519,7 @@ export default async function SettingsPage() {
           </p>
           <ActionForm action={updateCareersSettings} className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-medium">
-              <input type="checkbox" name="careersEnabled" defaultChecked={s.careersEnabled} /> Careers page is on
+              <input type="checkbox" role="switch" className="switch" name="careersEnabled" defaultChecked={s.careersEnabled} /> Careers page is on
             </label>
             <Field label="Welcome text at the top">
               <textarea
@@ -636,7 +636,7 @@ export default async function SettingsPage() {
               <span className="mt-1 block text-xs text-slate-500">Leave blank to allow any Google account (including gmail.com) whose email has a login here.</span>
             </Field>
             <label className="flex items-center gap-2 text-sm font-medium">
-              <input type="checkbox" name="googleEnabled" defaultChecked={s.googleEnabled} /> Google sign-in is on
+              <input type="checkbox" role="switch" className="switch" name="googleEnabled" defaultChecked={s.googleEnabled} /> Google sign-in is on
             </label>
             <SubmitButton>Save Google sign-in</SubmitButton>
           </ActionForm>
