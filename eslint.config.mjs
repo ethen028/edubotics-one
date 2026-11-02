@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Code skills and OMC state (third-party scripts, not app code)
+    ".claude/**",
+    ".omc/**",
     // The phone app has its own tooling (Expo); see mobile-app/README.md.
     "mobile-app/**",
   ]),
