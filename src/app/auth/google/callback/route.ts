@@ -46,10 +46,11 @@ async function signIn(flowToken: string | undefined, params: URLSearchParams): P
   if (!setup) return "off";
   if (params.get("error")) return params.get("error") === "access_denied" ? "cancelled" : "failed";
 
-  let flow: { state?: unknown; nonce?: unknown; verifier?: unknown };
+  type Flow = { state?: unknown; nonce?: unknown; verifier?: unknown };
+  let flow: Flow;
   try {
     if (!flowToken) return "expired";
-    ({ payload: flow } = await jwtVerify(flowToken, sessionSecret()));
+    ({ payload: flow } = await jwtVerify<Flow>(flowToken, sessionSecret()));
   } catch {
     return "expired";
   }
