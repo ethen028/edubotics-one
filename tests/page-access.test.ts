@@ -74,8 +74,10 @@ test("every server action checks who is signed in before it touches the database
 });
 
 // Downloads open to the public on purpose: health check, the cron call (it checks CRON_SECRET),
-// Google sign-in, the careers application form and browser error reports (which check sign-in themselves).
-const PUBLIC_ROUTES = new Set(["api/health/route.ts", "api/cron/payment-reminders/route.ts", "auth/google/route.ts", "auth/google/callback/route.ts", "careers/[id]/apply/route.ts"]);
+// Google sign-in, the phone app's sign-in (it checks the password itself, with the same lockout as the web
+// sign-in), the phone app's sign-out (it only ends the caller's own session, and must work before a temporary
+// password is replaced), the careers application form and browser error reports (which check sign-in themselves).
+const PUBLIC_ROUTES = new Set(["api/health/route.ts", "api/cron/payment-reminders/route.ts", "auth/google/route.ts", "auth/google/callback/route.ts", "api/mobile/auth/login/route.ts", "api/mobile/auth/logout/route.ts", "careers/[id]/apply/route.ts"]);
 
 test("every download and export checks sign-in, including a finished password setup", () => {
   for (const f of all.filter((x) => x.endsWith("/route.ts"))) {
