@@ -10,6 +10,8 @@ import { allowRequest } from "@/lib/rate-limit";
 import { MAX_CHANNEL_ABOUT, MAX_GROUP_TITLE, MAX_MESSAGE, directKey, loadMyConversation } from "@/lib/messages";
 import type { FormState } from "@/components/action-form";
 import { flash } from "@/lib/flash";
+import { notify } from "@/lib/notifications";
+import { callLinkFor, newCallUrl } from "@/lib/teamwork-rules";
 
 function refresh(id?: string) {
   revalidatePath("/messages");
@@ -111,6 +113,31 @@ export async function sendMessage(conversationId: string, _: FormState, formData
   ]);
   refresh(conversationId);
   return { ok: "sent" };
+}
+
+/**
+ * Starts a video call in a one-to-one chat, group or channel: Orbit makes a fresh call room, posts it in the chat with
+ * a Join button, and tells the others in their Inbox. Returns the starter's own link so their call opens straight away.
+ */
+export async function startCall(conversationId: string): Promise<{ url: string } | { error: string }> {
+  const user = await requireTeamwork();
+  const c = await mine(user.id, conversationId);
+  if (!c.isGroup && !c.others.some((m) => m.user.active)) return { error: "This person no longer has a login, so they can't join a call." };
+  if (!(await allowRequest("chat-call", user.id, 10, 10 * 60_000))) return { error: "That's a lot of calls at once. Wait a few minutes and try again." };
+  const callUrl = newCallUrl(crypto.getRandomValues(new Uint8Array(24)));
+  const now = new Date();
+  await db.$transaction([
+    db.chatMessage.create({ data: { conversationId, senderId: user.id, body: "Started a video call", callUrl, createdAt: now } }),
+    db.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: now } }),
+    db.conversationMember.update({ where: { conversationId_userId: { conversationId, userId: user.id } }, data: { lastReadAt: now } }),
+  ]);
+  await notify(
+    c.others.map((m) => m.userId),
+    user.id,
+    { kind: "call.started", title: `${user.name} started a video call`, body: c.isGroup ? c.name : null, href: `/messages/${conversationId}` },
+  );
+  refresh(conversationId);
+  return { url: callLinkFor(callUrl, user.name) };
 }
 
 /** The sender takes back one of their own messages; the others see "Message removed". */

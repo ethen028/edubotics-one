@@ -1421,6 +1421,14 @@ main .grid > * {
   .chat-picked {
     @apply inline-flex max-w-48 items-center gap-1 truncate rounded-full bg-brand-50 px-2 py-0.5 text-brand-800;
   }
+  /* A video call card: same light card for everyone, so the Join button reads the same in your bubble and theirs. */
+  .chat-bubble.chat-call,
+  .chat-mine .chat-bubble.chat-call {
+    @apply border border-brand-200 bg-white text-slate-900;
+  }
+  .chat-call-error {
+    @apply absolute top-full right-0 z-20 mt-1 w-60 p-2 text-xs text-red-700;
+  }
 }
 @media (pointer: coarse) {
   .chat-remove {

@@ -20,6 +20,7 @@ export const NOTIFICATION_KINDS = {
   "meeting.invited": "Meeting",
   "meeting.changed": "Meeting changed",
   "meeting.cancelled": "Meeting cancelled",
+  "call.started": "Video call",
 } as const;
 
 export type NotificationKind = keyof typeof NOTIFICATION_KINDS;

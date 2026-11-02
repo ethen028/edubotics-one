@@ -101,3 +101,31 @@ export function meetingStatus(m: { startsAt: Date; minutes: number; cancelledAt:
   if (now.getTime() >= start - 15 * 60_000) return "soon" as const;
   return "upcoming" as const;
 }
+
+// ─── Video calls ───────────────────────────────────────────────────────────
+
+/** Calls run on Jitsi: free, no sign-up for the people joining, and on https so camera and mic work even from the office copy. */
+export const DEFAULT_CALL_SERVER = "meet.jit.si";
+/** A call message shows its Join button for this long after it was started. */
+export const CALL_OPEN_HOURS = 3;
+
+/** The Jitsi server to use: CALL_SERVER (a self-hosted one, e.g. "meet.eduboticsglobal.com") or the free public one. */
+export function callServer(env: string | undefined = process.env.CALL_SERVER) {
+  const d = cleanDomain(env);
+  return d && isDomain(d) ? d : DEFAULT_CALL_SERVER;
+}
+
+/** A new call room that nobody can guess: the server plus 24 random letters and digits. */
+export function newCallUrl(random: Uint8Array, server = callServer()) {
+  const alphabet = "abcdefghijkmnpqrstuvwxyz23456789";
+  const code = Array.from(random.slice(0, 24), (b) => alphabet[b % alphabet.length]).join("");
+  return `https://${server}/Orbit-${code}`;
+}
+
+/** The link one person taps: on a Jitsi call their name is filled in, so others see who joined. */
+export function callLinkFor(url: string, name: string) {
+  if (callService(url) !== "Jitsi" && !url.startsWith(`https://${callServer()}/`)) return url;
+  return `${url.split("#")[0]}#userInfo.displayName=${encodeURIComponent(JSON.stringify(name))}`;
+}
+
+export const callStillOpen = (startedAt: Date, now = new Date()) => now.getTime() - startedAt.getTime() < CALL_OPEN_HOURS * 3_600_000;

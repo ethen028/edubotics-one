@@ -1343,6 +1343,8 @@ model ChatMessage {
   body           String
   /// A line like "Anu added Rahul" rather than something a person wrote.
   event          Boolean          @default(false)
+  /// A video call someone started from the chat (a Jitsi room made by Orbit); shown as a call card with Join.
+  callUrl        String?
   removedAt      DateTime?
   createdAt      DateTime         @default(now())
   attachments    ChatAttachment[]

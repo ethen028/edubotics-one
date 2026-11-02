@@ -9,7 +9,8 @@ import { conversationFiles, conversationVersion, dayHeading, dayKey, loadMyConve
 import { formatSize } from "@/lib/project-files";
 import { addMembers, describeChannel, joinChannel, leaveGroup, removeMessage, renameGroup, sendMessage } from "../actions";
 import { Attachment, Avatar, ConversationList, MessagesShell } from "../ui";
-import { Composer, LiveUpdates, ReadAndScroll } from "../client";
+import { CallButton, Composer, LiveUpdates, ReadAndScroll } from "../client";
+import { callLinkFor, callStillOpen } from "@/lib/teamwork-rules";
 
 export const metadata = { title: "Messages" };
 
@@ -91,6 +92,9 @@ export default async function ConversationPage({ params, searchParams }: PagePro
             <h1 className="truncate font-semibold text-slate-900">{c.name}</h1>
             <p className="truncate text-xs text-slate-500">{subtitle}</p>
           </div>
+          {(c.isGroup || other?.user.active) && (
+            <CallButton conversationId={id} label={c.isGroup ? `Start a video call with everyone in ${c.name}` : `Video call ${other?.user.name ?? ""}`} />
+          )}
           <nav className="chat-tabs" aria-label="Conversation">
             <Link href={tab(false)} aria-current={!showFiles ? "page" : undefined}>
               Chat
@@ -218,6 +222,22 @@ export default async function ConversationPage({ params, searchParams }: PagePro
                 ) : (
                   <div id={`m-${m.id}`} className={`chat-msg ${mine ? "chat-mine" : ""} ${grouped ? "mt-0.5" : "mt-3"}`}>
                     {c.isGroup && !mine && !grouped && <div className="mb-0.5 px-1 text-xs font-medium text-slate-500">{m.sender.name}</div>}
+                    {m.callUrl && !m.removedAt ? (
+                      <div className="chat-bubble chat-call">
+                        <span className="flex items-center gap-2 font-medium">
+                          <Icon name="video" className="h-4 w-4" />
+                          {mine ? "You started a video call" : `${m.sender.name.split(" ")[0]} started a video call`}
+                        </span>
+                        {callStillOpen(m.createdAt) ? (
+                          <a href={callLinkFor(m.callUrl, user.name)} target="_blank" rel="noreferrer" className="btn-primary btn-sm mt-2">
+                            Join call
+                          </a>
+                        ) : (
+                          <span className="mt-1 block text-xs text-slate-500">This call has ended.</span>
+                        )}
+                        <span className="chat-time">{timeOf(m.createdAt)}</span>
+                      </div>
+                    ) : (
                     <div className={`chat-bubble ${m.removedAt ? "chat-removed" : ""}`}>
                       {m.removedAt ? "Message removed" : m.body}
                       {!m.removedAt && m.attachments.length > 0 && (
@@ -229,6 +249,7 @@ export default async function ConversationPage({ params, searchParams }: PagePro
                       )}
                       <span className="chat-time">{timeOf(m.createdAt)}</span>
                     </div>
+                    )}
                     {mine && !m.removedAt && (
                       <form action={removeMessage.bind(null, m.id)} className="chat-remove">
                         <ConfirmButton className="text-[11px] text-slate-400 hover:text-red-600" message="Remove this message for everyone?">
