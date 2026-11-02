@@ -3,7 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  callLinkFor,
+  callServer,
   callService,
+  callStillOpen,
   canDeleteFile,
   canManageFolder,
   canOpenFolder,
@@ -12,6 +15,7 @@ import {
   emailInDomain,
   isDomain,
   meetingStatus,
+  newCallUrl,
   storageLimitBytes,
 } from "../src/lib/teamwork-rules";
 
@@ -105,4 +109,26 @@ test("a meeting is upcoming, soon (15 minutes before), live, then ended", () => 
   assert.equal(meetingStatus(m, t(29)), "live");
   assert.equal(meetingStatus(m, t(30)), "ended");
   assert.equal(meetingStatus({ ...m, cancelledAt: t(-60) }, t(0)), "cancelled");
+});
+
+test("call rooms are on https, hard to guess, and on the chosen server", () => {
+  const bytes = new Uint8Array(24).map((_, i) => i * 11);
+  const url = newCallUrl(bytes, "meet.jit.si");
+  assert.match(url, /^https:\/\/meet\.jit\.si\/Orbit-[a-z2-9]{24}$/);
+  assert.notEqual(newCallUrl(bytes.map((b) => b + 1), "meet.jit.si"), url);
+  assert.equal(callServer(undefined), "meet.jit.si");
+  assert.equal(callServer(" Meet.EduboticsGlobal.com "), "meet.eduboticsglobal.com");
+  assert.equal(callServer("not a server/x"), "meet.jit.si");
+  assert.equal(callService(url), "Jitsi");
+});
+
+test("a call link carries the person's name into Jitsi, and leaves other services alone", () => {
+  assert.equal(callLinkFor("https://meet.jit.si/Orbit-abc", 'Anu "K"'), "https://meet.jit.si/Orbit-abc#userInfo.displayName=%22Anu%20%5C%22K%5C%22%22");
+  assert.equal(callLinkFor("https://zoom.us/j/1", "Anu"), "https://zoom.us/j/1");
+});
+
+test("a chat call offers Join for three hours", () => {
+  const at = new Date("2026-11-02T05:00:00Z");
+  assert.equal(callStillOpen(at, new Date("2026-11-02T07:59:00Z")), true);
+  assert.equal(callStillOpen(at, new Date("2026-11-02T08:00:00Z")), false);
 });

@@ -50,12 +50,18 @@ export function MeetingForm({
             </select>
           </Field>
         </div>
-        <Field label="Call link (optional)" className="block">
-          <input name="joinUrl" inputMode="url" autoComplete="off" maxLength={500} defaultValue={values.joinUrl ?? ""} placeholder="https://meet.google.com/abc-defg-hij" className="input" />
-          <span className="mt-1 block text-xs text-slate-500">
-            Make the call in Google Meet, Zoom or Teams and paste its link here. People get a Join button 15 minutes before.
-          </span>
-        </Field>
+        <fieldset className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" name="makeCall" defaultChecked={!values.joinUrl} /> Video call in Orbit
+          </label>
+          <p className="text-xs text-slate-500">
+            Orbit makes a call link when this is ticked and no link is pasted below. Everyone invited gets a Join button 15 minutes before; it opens in a
+            new tab and works on phones too. The first person to join signs in to Jitsi once with Google.
+          </p>
+          <Field label="Or paste a Google Meet, Zoom or Teams link (optional)" className="block">
+            <input name="joinUrl" inputMode="url" autoComplete="off" maxLength={500} defaultValue={values.joinUrl ?? ""} placeholder="https://meet.google.com/abc-defg-hij" className="input" />
+          </Field>
+        </fieldset>
         <Field label="Place (optional)" className="block">
           <input name="location" maxLength={120} defaultValue={values.location ?? ""} placeholder="e.g. Office meeting room" className="input" />
         </Field>

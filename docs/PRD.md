@@ -54,7 +54,7 @@ These are business decisions, not code choices. Don't change them without the ow
 - Group of companies (Oct 2026): each company is fully separate (own staff, records, settings, letterhead, signatories, numbering). The superadmin is a mark on a login, not a sixth role; it acts as owner in whichever company it picks.
 - Recognition has no points, prizes or anything worth money.
 - Staff messages are readable only by the people in the conversation; admins cannot read them. Channels are open to all staff by design. Files folders can be for chosen people, but admins can open every folder.
-- Teamwork can be limited to logins on the company email domain (Admin > Settings > Teamwork), like a company Teams workspace. Calls run in Google Meet, Zoom or Teams; Orbit stores the link, it does not host video.
+- Teamwork can be limited to logins on the company email domain (Admin > Settings > Teamwork), like a company Teams workspace. Video calls, one-to-one and group (decided by Ethen, 2 Nov 2026), start from any chat or come with a meeting. They run on Jitsi in a new tab (https, so camera and mic work from the http office copy); Orbit makes the room link and does not carry the video itself. A pasted Google Meet, Zoom or Teams link still works for meetings.
 - Automatic payment reminders are off until switched on; at most one per school per 7 days, three per invoice.
 - The look: one purple accent on a pale lavender page ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)).
 

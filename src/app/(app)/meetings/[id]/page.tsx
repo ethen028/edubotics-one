@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireTeamwork } from "@/lib/teamwork";
 import { loadMeeting, meetingWhen } from "@/lib/meetings";
-import { callService, meetingStatus } from "@/lib/teamwork-rules";
+import { callLinkFor, callService, meetingStatus } from "@/lib/teamwork-rules";
 import { ActionForm, ConfirmButton, SubmitButton } from "@/components/action-form";
 import { Badge, PageHeader } from "@/components/ui";
 import { Icon } from "@/components/icons";
@@ -70,7 +70,7 @@ export default async function MeetingPage({ params }: PageProps<"/meetings/[id]"
                 {m.location && <div className="text-xs text-slate-500">Place: {m.location}</div>}
               </div>
               {m.joinUrl && status !== "ended" && (
-                <a href={m.joinUrl} target="_blank" rel="noreferrer" className={status === "live" || status === "soon" ? "btn-primary" : "btn-secondary"}>
+                <a href={callLinkFor(m.joinUrl, user.name)} target="_blank" rel="noreferrer" className={status === "live" || status === "soon" ? "btn-primary" : "btn-secondary"}>
                   Join{service !== "the call" ? ` on ${service}` : ""}
                 </a>
               )}

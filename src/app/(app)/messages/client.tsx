@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SubmitButton, type FormState } from "@/components/action-form";
 import { Icon } from "@/components/icons";
-import { markRead } from "./actions";
+import { markRead, startCall } from "./actions";
 
 const POLL_MS = 5000;
 
@@ -154,5 +154,44 @@ export function Composer({
         </SubmitButton>
       </div>
     </form>
+  );
+}
+
+/**
+ * "Video call" in a chat's header. The call opens in a new tab straight away (opened before the server answers, so phones
+ * don't block it as a pop-up), and the others get a Join card in the chat and a line in their Inbox.
+ */
+export function CallButton({ conversationId, label }: { conversationId: string; label: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  async function start() {
+    setBusy(true);
+    setError(null);
+    const tab = window.open("", "_blank");
+    const result = await startCall(conversationId).catch(() => ({ error: "The call couldn't be started. Check the connection and try again." }));
+    setBusy(false);
+    if ("error" in result) {
+      tab?.close();
+      setError(result.error);
+      return;
+    }
+    if (tab) {
+      tab.opener = null;
+      tab.location.href = result.url;
+    } else window.location.href = result.url;
+    router.refresh();
+  }
+  return (
+    <span className="relative">
+      <button type="button" onClick={start} disabled={busy} className="icon-btn" aria-label={label} title={label}>
+        <Icon name="video" className="h-4 w-4" />
+      </button>
+      {error && (
+        <span role="alert" className="chat-call-error card">
+          {error}
+        </span>
+      )}
+    </span>
   );
 }
