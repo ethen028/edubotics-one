@@ -46,7 +46,7 @@ Internal operations software for **Edubotics Global** (Kochi, Kerala). One app f
 | People | Directory; admins add and edit employee records and can create a login at the same time |
 | My leave | Balances per leave type and requests. Sundays and company holidays are not counted |
 | Leave approvals | Managers approve their direct reports; admins can approve anyone |
-| Admin → Users | Create logins, set roles, reset passwords, disable access |
+| Admin → Users | Create logins, set roles, reset passwords, disable access, turn off sign-in codes after a lost phone |
 | Group → Companies | Superadmin only: every company in the group, add a company, open one to work in it |
 
 **Roles**: `ADMIN` (HR records, assets, document verification and settings), `MANAGER` (approves their team's leave and attendance fixes, runs their onboarding and training), `EMPLOYEE`. Everyone can use the CRM; only admins delete CRM records.
@@ -57,7 +57,7 @@ Start with [AGENTS.md](AGENTS.md). It links the product brief ([docs/PRD.md](doc
 
 ## Tech
 
-Next.js 16 (App Router, server actions) · TypeScript · Tailwind CSS 4 · PostgreSQL · Prisma 6. Sign-in is email + password with a signed, HTTP-only session cookie.
+Next.js 16 (App Router, server actions) · TypeScript · Tailwind CSS 4 · PostgreSQL · Prisma 6. Sign-in is email + password with a signed, HTTP-only session cookie, plus an optional 6-digit code from an authenticator app (My account → Sign-in codes, with ten one-time backup codes).
 
 ## Run it in the office without hosting
 

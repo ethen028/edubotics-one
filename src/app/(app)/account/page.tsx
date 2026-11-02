@@ -18,6 +18,9 @@ const THEMES = [
 ] as const;
 import { requestEmailVerification } from "../../account-actions";
 import { PasswordInput } from "@/components/password-input";
+import { pendingSecret } from "@/lib/sign-in-codes";
+import { groupedSecret, otpauthUri } from "@/lib/totp";
+import { SignInCodes } from "./sign-in-codes";
 
 export const metadata = { title: "My account" };
 
@@ -33,12 +36,15 @@ export default async function AccountPage() {
   const here = companyOfSession(current);
   const googleOn = !!settings && !!googleSetup(settings);
   const others = sessions.filter((s) => s.id !== session.id).length;
+  const codes = await db.user.findUniqueOrThrow({ where: { id: user.id }, select: { totpSecret: true, totpEnabledAt: true, totpBackupCodes: true } });
+  const setupKey = pendingSecret(codes);
 
   return (
     <>
       <PageHeader title="My account" subtitle={`${user.name} · ${user.email}`} />
       <div className="grid gap-6 xl:grid-cols-2">
-        <ActionForm action={changePassword} className="card space-y-3 self-start">
+        <div className="space-y-6 self-start">
+        <ActionForm action={changePassword} className="card space-y-3">
           <h2 className="font-semibold">Change password</h2>
           <Field label="Current password" className="block">
             <PasswordInput name="current" required autoComplete="current-password" className="input" />
@@ -53,6 +59,14 @@ export default async function AccountPage() {
           <SubmitButton>Change password</SubmitButton>
           {user.passwordChangedAt && <p className="text-xs text-slate-500">Last changed {formatDateTime(user.passwordChangedAt)}.</p>}
         </ActionForm>
+
+        <SignInCodes
+          on={!!codes.totpEnabledAt}
+          enabledOn={codes.totpEnabledAt ? formatDateTime(codes.totpEnabledAt) : null}
+          backupLeft={codes.totpBackupCodes.length}
+          setup={setupKey ? { key: groupedSecret(setupKey), link: otpauthUri(setupKey, user.email) } : null}
+        />
+        </div>
 
         <div className="space-y-6">
           {companies.length > 0 && (

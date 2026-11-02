@@ -11,13 +11,8 @@ import { addStarterData } from "@/lib/company-starter";
 import { INDIAN_STATES } from "@/lib/invoices";
 import { logActivity } from "@/lib/activity";
 import { passwordProblem } from "@/lib/passwords";
+import { safeAppPath } from "@/lib/http-security";
 import type { FormState } from "@/components/action-form";
-
-/** Pages a switch may land on: inside the app only. */
-const safeNext = (v: FormDataEntryValue | null) => {
-  const s = typeof v === "string" ? v : "";
-  return s.startsWith("/") && !s.startsWith("//") ? s : "/";
-};
 
 /** A superadmin picks the company to work in. Kept on this browser's session, so other devices are unaffected. */
 export async function switchCompany(formData: FormData) {
@@ -30,7 +25,7 @@ export async function switchCompany(formData: FormData) {
   await rawDb.session.update({ where: { id: current.session.id }, data: { activeCompanyId: home ? null : company.id } });
   await inCompany(company.id, () => logActivity(me, "SIGN_IN", "company.switched", `${me.name} (superadmin) opened ${company.name}`));
   revalidatePath("/", "layout");
-  redirect(safeNext(formData.get("next")));
+  redirect(safeAppPath(formData.get("next")));
 }
 
 const newCompany = z.object({

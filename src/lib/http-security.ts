@@ -25,3 +25,20 @@ export function visibleRequestOrigin(host: string | null, secure: boolean) {
   try { return new URL(`${secure ? "https" : "http"}://${host}`).origin; }
   catch { return null; }
 }
+
+/**
+ * A path inside this app to send someone back to after a form, or `fallback` when it isn't one.
+ * Browsers read `/\evil.example` and `/%5Cevil.example`-style tricks as another site, so anything
+ * with a backslash, a control character or a second leading slash is refused.
+ */
+export function safeAppPath(value: unknown, fallback = "/") {
+  if (typeof value !== "string" || value.length > 2000) return fallback;
+  if (!value.startsWith("/") || value.startsWith("//")) return fallback;
+  if (/[\\\u0000-\u001f\u007f]/.test(value)) return fallback;
+  try {
+    const url = new URL(value, "http://orbit.invalid");
+    return url.origin === "http://orbit.invalid" ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}

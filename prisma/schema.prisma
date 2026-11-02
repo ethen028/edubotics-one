@@ -157,6 +157,11 @@ model User {
   accountTokens      AccountToken[]
   lastLoginAt        DateTime?
   googleSub          String?        @unique // the Google account linked on first Google sign-in
+  // Optional second sign-in step: a code from an authenticator app (src/lib/sign-in-codes.ts)
+  totpSecret         String? // the app key, sealed with src/lib/secret-box.ts; set while setting up and once on
+  totpEnabledAt      DateTime? // codes are asked for at sign-in only when this is set
+  totpLastStep       Int? // the last 30-second step used, so a code can't be used twice
+  totpBackupCodes    String[]       @default([]) // SHA-256 of the unused backup codes
   theme              Theme          @default(LIGHT) // picked in My account
   menuCollapsed      Boolean        @default(true) // side menu shown as the slim violet icon rail (the default); widened from the menu itself
   sessions           Session[]
