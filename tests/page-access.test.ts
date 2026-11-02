@@ -87,6 +87,14 @@ test("every download and export checks sign-in, including a finished password se
   }
 });
 
+// The phone app can't ask for an authenticator code yet, so it must not become a way round sign-in codes.
+test("the phone app's sign-in refuses accounts with sign-in codes on", () => {
+  const src = read("api/mobile/auth/login/route.ts");
+  const codeCheck = src.search(/if \(user\.totpEnabledAt\)/);
+  assert.ok(codeCheck > 0, "api/mobile/auth/login/route.ts must refuse accounts with sign-in codes on");
+  assert.ok(codeCheck < src.indexOf("createSessionRecord(user.id"), "the code check must come before the session is made");
+});
+
 const PEOPLE = {
   superadmin: { role: "ADMIN", isOwner: true, isSuperadmin: true },
   owner: { role: "ADMIN", isOwner: true },
