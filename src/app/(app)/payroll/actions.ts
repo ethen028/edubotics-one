@@ -11,6 +11,7 @@ import { claimsDueFor, draftSlip } from "@/lib/payroll-data";
 import { payableOf } from "@/lib/expenses";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const money = z.coerce.number().min(0, "Amounts can't be negative").max(10_000_000);
 
@@ -84,11 +85,12 @@ export async function startRun(_: FormState, formData: FormData): Promise<FormSt
   } catch {
     return { error: "Pick a month." };
   }
-  if (await db.payrollRun.findUnique({ where: { month } })) redirect(`/payroll/${month}`);
+  if (await db.payrollRun.findFirst({ where: { month } })) redirect(`/payroll/${month}`);
   const run = await db.payrollRun.create({ data: { month, createdById: user.id } });
   for (const e of await employeesFor(month)) await createSlip(run.id, month, e);
   revalidatePath("/payroll");
   revalidatePath("/expenses", "layout");
+  await flash("Payroll run started.");
   redirect(`/payroll/${month}`);
 }
 
@@ -114,7 +116,6 @@ export async function recalculateRun(runId: string) {
       {
         manual: old && {
           otherEarnings: Number(old.otherEarnings),
-          professionalTax: Number(old.professionalTax),
           tds: Number(old.tds),
           otherDeductions: Number(old.otherDeductions),
         },
@@ -127,6 +128,7 @@ export async function recalculateRun(runId: string) {
 }
 
 export async function updateSlip(slipId: string, _: FormState, formData: FormData): Promise<FormState> {
+  await requireUser(["ADMIN"]);
   const slip = await db.payslip.findUniqueOrThrow({
     where: { id: slipId },
     include: { employee: true, expenseClaims: { select: { amount: true, approvedAmount: true } } },
@@ -136,7 +138,6 @@ export async function updateSlip(slipId: string, _: FormState, formData: FormDat
     .object({
       lopDays: z.coerce.number().min(0).max(31).multipleOf(0.5, "LOP days go in half days"),
       otherEarnings: money,
-      professionalTax: money.optional(),
       tds: money.optional(),
       otherDeductions: money,
       note: z.string().trim().transform((v) => v || null),
@@ -146,7 +147,7 @@ export async function updateSlip(slipId: string, _: FormState, formData: FormDat
   const { lopDays, note, ...manual } = parsed.data;
   const next = await draftSlip(slip.employee, run.month, {
     lopDays,
-    manual: { ...manual, professionalTax: manual.professionalTax ?? 0, tds: manual.tds ?? 0 },
+    manual: { ...manual, tds: manual.tds ?? 0 },
     reimbursements: slip.expenseClaims.reduce((s, c) => s + payableOf(c), 0),
   });
   if (!next) return { error: "This person has no salary for the month." };
@@ -156,6 +157,7 @@ export async function updateSlip(slipId: string, _: FormState, formData: FormDat
 }
 
 export async function removeSlip(slipId: string) {
+  await requireUser(["ADMIN"]);
   const slip = await db.payslip.findUniqueOrThrow({ where: { id: slipId } });
   const run = await draftRun(slip.runId);
   // Its expense claims go back to waiting for the next payroll.
@@ -202,5 +204,6 @@ export async function deleteRun(runId: string) {
   await logActivity(await requireUser(["ADMIN"]), "PAYROLL", "payroll.deleted", `Deleted the draft payroll for ${run.month}`);
   revalidatePath("/payroll");
   revalidatePath("/expenses", "layout");
+  await flash("Payroll run deleted.");
   redirect("/payroll");
 }

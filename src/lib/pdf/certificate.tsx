@@ -2,7 +2,7 @@ import "server-only";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Settings } from "../settings";
 import { formatDate } from "../format";
-import { BRAND, MUTED, s } from "./layout";
+import { BRAND, MUTED, PdfLogo, s } from "./layout";
 
 export type CertificateFacts = {
   number: string;
@@ -39,6 +39,9 @@ export function CertificatePdf({
                   cancelled
                 </Text>
               )}
+              <View style={{ marginBottom: 8 }}>
+                <PdfLogo height={36} />
+              </View>
               <Text style={{ fontSize: 13, fontWeight: 600, color: BRAND, letterSpacing: 2, textTransform: "uppercase" }}>{settings.companyName}</Text>
               {settings.companyAddress && <Text style={[s.muted, { fontSize: 8.5, marginTop: 2 }]}>{settings.companyAddress.replace(/\s*\n\s*/g, ", ")}</Text>}
 

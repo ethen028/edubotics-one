@@ -7,7 +7,7 @@ import { FLOW_COOKIE, FLOW_MAX_AGE, authorizationUrl, googleSetup, newFlow } fro
 
 /** "Sign in with Google": remembers this round trip in a short-lived cookie and sends the browser to Google. */
 export async function GET() {
-  const settings = await db.companySettings.findUnique({ where: { id: 1 } });
+  const settings = await db.companySettings.findFirst();
   const setup = settings && googleSetup(settings);
   if (!setup) redirect("/login?google=off");
   const flow = newFlow();

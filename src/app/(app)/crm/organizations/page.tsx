@@ -47,7 +47,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps<"/cr
       />
       <form className="mb-4 flex flex-wrap gap-2">
         <input name="q" defaultValue={q} placeholder="Search name, city, district" className="input max-w-xs" />
-        <select name="type" defaultValue={type} className="input w-auto">
+        <select name="type" aria-label="Type" defaultValue={type} className="input w-auto">
           <option value="">All types</option>
           <Options values={ORG_TYPES} labels={humanize} />
         </select>

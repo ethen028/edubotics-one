@@ -6,6 +6,7 @@ import { formatDate, toDateInput } from "@/lib/format";
 import { parseDateOnly } from "@/lib/leave";
 import { todayIST } from "@/lib/time";
 import { PrintButton } from "../../../../payroll/payslip/[id]/print-button";
+import { LogoMark } from "@/components/logo";
 
 export const metadata = { title: "School report" };
 
@@ -82,6 +83,7 @@ export default async function ProgrammeReportPage({ params, searchParams }: Page
       <article className="card mx-auto max-w-4xl space-y-6 print:border-0 print:shadow-none">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
+            <LogoMark className="mb-2 h-9 w-auto" />
             <div className="text-xs font-semibold tracking-wider text-brand-700 uppercase">Edubotics Global · Programme report</div>
             <h1 className="mt-1 text-2xl font-semibold">{programme.organization.name}</h1>
             <p className="text-sm text-slate-600">

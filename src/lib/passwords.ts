@@ -15,7 +15,7 @@ const COMMON_DIGITS = /^(?:0123|1234|2345|3456|4567|5678|6789|1111|0000|1212|112
 /** Why this password can't be used, or null if it's fine. */
 export function passwordProblem(password: string, who: { email?: string | null; name?: string | null } = {}): string | null {
   if (password.length < 8) return "Use at least 8 characters.";
-  if (password.length > 200) return "Use at most 200 characters.";
+  if (new TextEncoder().encode(password).length > 72) return "Use a password of at most 72 bytes (fewer characters when using accented letters or emoji).";
   if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) return "Use at least one letter and one number.";
   const lower = password.toLowerCase();
   const stem = lower.replace(/[^a-z]+$/, "").replace(/^[^a-z]+/, "");

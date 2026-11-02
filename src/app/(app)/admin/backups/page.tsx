@@ -1,10 +1,11 @@
-import { requireUser } from "@/lib/auth";
+import { requireBackupAdmin } from "@/lib/auth";
+import { firstCompanyId, inCompany } from "@/lib/company";
 import { getSettings } from "@/lib/settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, Field, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
 import { formatSize } from "@/lib/project-files";
-import { backupDir, backupProblem, copyDir, folderLabels, lastRun, listBackups, nextScheduledTime, type BackupKind } from "@/lib/backups";
+import { backupDir, backupProblem, copyDir, folderLabels, freeSpace, lastRun, listBackups, nextScheduledTime, type BackupKind } from "@/lib/backups";
 import { backUpNow, updateBackupSettings } from "./actions";
 
 export const metadata = { title: "Backups" };
@@ -16,12 +17,12 @@ function hourLabel(h: number) {
 }
 
 export default async function BackupsPage() {
-  await requireUser(["ADMIN"]);
-  const s = await getSettings();
+  await requireBackupAdmin();
+  const s = await inCompany(await firstCompanyId(), getSettings); // backup settings live in the first company
   const dir = backupDir();
   const copy = copyDir();
   const folders = folderLabels();
-  const [files, run, problem] = await Promise.all([listBackups(), lastRun(), backupProblem()]);
+  const [files, run, problem, mainFree, copyFree] = await Promise.all([listBackups(), lastRun(), backupProblem(), freeSpace(dir), freeSpace(copy)]);
   const newest = files[0];
   const total = files.reduce((n, f) => n + f.size, 0);
   const restoreName = files.find((f) => f.kind !== "before-restore")?.name ?? "edubotics-one-2026-10-07-1700.dump";
@@ -30,7 +31,7 @@ export default async function BackupsPage() {
     <>
       <PageHeader
         title="Backups"
-        subtitle="A full copy of Edubotics One every day: all records and every uploaded file (documents, receipts, resumes, photos). Only admins see this."
+        subtitle="A full copy of Orbit every day: all records and every uploaded file (documents, receipts, resumes, photos). Only the superadmin sees this, as it holds every company."
       />
 
       {!dir ? (
@@ -56,7 +57,7 @@ export default async function BackupsPage() {
                   }`}
                 >
                   {problem.text}
-                  {problem.level === "red" && " Open a command window in the Edubotics One folder and run: docker compose up -d"}
+                  {problem.level === "red" && problem.text.includes("helper") && " Open a command window in the edubotics-one folder and run: docker compose up -d"}
                 </div>
               ) : null}
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -87,6 +88,13 @@ export default async function BackupsPage() {
                   <dt className="label">Backups kept</dt>
                   <dd>
                     {files.length} · {formatSize(total)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="label">Free space</dt>
+                  <dd>
+                    {mainFree === null ? "Unknown" : `${formatSize(mainFree)} on this computer's backup drive`}
+                    {copy && copyFree !== null && <div>{formatSize(copyFree)} in the second folder</div>}
                   </dd>
                 </div>
                 <div>
@@ -173,7 +181,7 @@ export default async function BackupsPage() {
                   Start the app again: <code className="rounded bg-slate-100 px-1.5 py-0.5">docker compose start app</code>
                 </li>
               </ol>
-              <p className="text-slate-600">Everyone signs in again afterwards. The full guide is docs/backups.md in the Edubotics One folder.</p>
+              <p className="text-slate-600">Everyone signs in again afterwards. The full guide is docs/backups.md in the edubotics-one folder.</p>
             </section>
           </div>
 
@@ -182,7 +190,7 @@ export default async function BackupsPage() {
               <h2 className="mb-3 font-semibold">Daily backup</h2>
               <ActionForm action={updateBackupSettings} className="space-y-4">
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="backupsEnabled" defaultChecked={s.backupsEnabled} />
+                  <input type="checkbox" role="switch" className="switch" name="backupsEnabled" defaultChecked={s.backupsEnabled} />
                   Back up every day
                 </label>
                 <Field label="At (India time)">

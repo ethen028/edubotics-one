@@ -15,11 +15,11 @@ import {
   INTERVIEW_MODES,
   INTERVIEW_ROUNDS,
   canOffer,
-  canRecruit,
   parseISTDateTime,
 } from "@/lib/recruitment";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const optional = z
   .string()
@@ -40,17 +40,9 @@ function firstError(error: z.ZodError) {
   return `${issue.path.join(".") || "Form"}: ${issue.message}`;
 }
 
-async function requireRecruiter() {
-  const user = await requireUser();
-  if (!canRecruit(user)) redirect("/?denied=1");
-  return user;
-}
-
-async function requireOfferMaker() {
-  const user = await requireUser();
-  if (!canOffer(user)) redirect("/?denied=1");
-  return user;
-}
+// The same roles as canRecruit and canOffer in src/lib/recruitment.ts.
+const requireRecruiter = () => requireUser(["ADMIN", "HR", "MANAGER"]);
+const requireOfferMaker = () => requireUser(["ADMIN"]);
 
 function refresh(candidateId?: string, jobId?: string) {
   revalidatePath("/recruitment", "layout");
@@ -87,6 +79,7 @@ export async function createJob(_: FormState, formData: FormData): Promise<FormS
   if (!parsed.success) return { error: firstError(parsed.error) };
   const job = await db.jobOpening.create({ data: { ...parsed.data, createdById: user.id } });
   refresh();
+  await flash("Job opening added.");
   redirect(`/recruitment/jobs/${job.id}`);
 }
 
@@ -158,6 +151,7 @@ export async function createCandidate(_: FormState, formData: FormData): Promise
     },
   });
   refresh(undefined, candidate.jobId);
+  await flash("Candidate added.");
   redirect(`/recruitment/candidates/${candidate.id}`);
 }
 
@@ -207,6 +201,7 @@ export async function deleteCandidate(id: string) {
   await db.candidate.delete({ where: { id } });
   await logActivity(user, "DELETED", "candidate.deleted", `Deleted candidate ${candidate.name} and their files`);
   refresh(undefined, candidate.jobId);
+  await flash("Candidate deleted.");
   redirect(`/recruitment/jobs/${candidate.jobId}`);
 }
 
@@ -377,7 +372,7 @@ export async function hireCandidate(candidateId: string, _: FormState, formData:
   if (!parsed.success) return { error: firstError(parsed.error) };
   const withLogin = formData.get("withLogin") === "on";
   const password = String(formData.get("password") ?? "");
-  const role = z.enum(["ADMIN", "MANAGER", "EMPLOYEE"]).catch("EMPLOYEE").parse(formData.get("role"));
+  const role = z.enum(["ADMIN", "HR", "MANAGER", "EMPLOYEE"]).catch("EMPLOYEE").parse(formData.get("role"));
   const weak = withLogin ? passwordProblem(password, { email: parsed.data.workEmail, name: `${parsed.data.firstName} ${parsed.data.lastName}` }) : null;
   if (weak) return { error: `Temporary password: ${weak}` };
 
@@ -414,6 +409,8 @@ export async function hireCandidate(candidateId: string, _: FormState, formData:
         },
       });
       await tx.onboardingTask.createMany({ data: checklistRows(employee.id, employee.dateOfJoining) });
+      // Their offer letters move onto their HR record, beside the letters issued later.
+      await tx.hrLetter.updateMany({ where: { offer: { candidateId } }, data: { employeeId: employee.id } });
       await tx.salaryStructure.create({
         data: {
           employeeId: employee.id,
@@ -461,5 +458,6 @@ export async function hireCandidate(candidateId: string, _: FormState, formData:
   refresh(candidateId, candidate.jobId);
   revalidatePath("/hr/employees");
   revalidatePath("/hr/onboarding");
+  await flash("Hired. Onboarding has started.");
   redirect(`/hr/employees/${employeeId}`);
 }

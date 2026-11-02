@@ -91,7 +91,7 @@ export default async function AccountsPage({ searchParams }: PageProps<"/account
             <div className="pt-1 text-xs font-semibold tracking-wider text-slate-400 uppercase">Income</div>
             <Line label="Invoiced to schools and colleges" value={t.sales} href="/invoices" />
             <Line label="Less credit notes" value={t.credited} minus href="/credit-notes" />
-            <Line label="Workshop fees received" value={t.workshopFees} note="Per-person fees, as received" href="/workshops" />
+            <Line label="Workshop fees received" value={t.workshopFees} note="Per-person fees, before the GST in them" href="/workshops" />
             <Line label="Total income" value={t.income} strong />
             <div className="pt-3 text-xs font-semibold tracking-wider text-slate-400 uppercase">Spending</div>
             <Line label="Bought from vendors" value={t.purchases} minus href={admin ? "/purchases/payables" : undefined} />
@@ -133,7 +133,7 @@ export default async function AccountsPage({ searchParams }: PageProps<"/account
 
       <section className="mb-6">
         <h2 className="mb-3 font-semibold">Month by month</h2>
-        <div className="card overflow-x-auto p-0">
+        <div className="card overflow-x-auto p-0" tabIndex={0}>
           <table className="table">
             <thead>
               <tr>
@@ -200,10 +200,10 @@ export default async function AccountsPage({ searchParams }: PageProps<"/account
         <h2 className="font-semibold">GST collected and paid</h2>
         <p className="mb-3 text-xs text-slate-500">
           {a.gstEnabled
-            ? "Collected on invoices less credit notes, against GST on vendor bills. A guide for the monthly return; the invoice and credit note spreadsheets carry the detail your accountant files from."
+            ? "Collected on invoices and workshop fee receipts less credit notes, against GST on vendor bills. A guide for the monthly return; the invoice and credit note spreadsheets and workshop receipts carry the detail your accountant files from."
             : "GST is switched off in Admin → Settings → Invoices, so new invoices carry no GST."}
         </p>
-        <div className="card overflow-x-auto p-0">
+        <div className="card overflow-x-auto p-0" tabIndex={0}>
           <table className="table">
             <thead>
               <tr>
@@ -267,7 +267,10 @@ export default async function AccountsPage({ searchParams }: PageProps<"/account
             A credit note lowers income and GST in the month it is dated. Past 30 November after the invoice&apos;s financial year GST can no longer be
             reduced, so the whole credit, tax included, comes off income instead.
           </li>
-          <li>Workshop fees paid by each person count when received, as entered. Workshops the host college pays for are billed with a normal invoice.</li>
+          <li>
+            Workshop fees paid by each person count when received. Each payment has a receipt, and the GST inside the fee is counted with GST collected.
+            Workshops the host college pays for are billed with a normal invoice.
+          </li>
           <li>Vendor bills count on the bill date, before GST, whether the goods went into stock or were used up.</li>
           <li>Salaries count once a month&apos;s payroll is finalised: earned pay after loss of pay and recoveries. Employer PF and ESI are not tracked.</li>
           <li>Expense claims count once approved, on the day the money was spent. Rejected and waiting claims are left out.</li>

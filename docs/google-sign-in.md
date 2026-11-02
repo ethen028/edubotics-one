@@ -24,13 +24,13 @@ This adds a "Sign in with Google" button for people whose Google email matches t
 ### Steps (about 15 minutes)
 
 1. Go to <https://console.cloud.google.com> and sign in with the company Google account.
-2. Create a project (top bar → project picker → **New project**), name it "Edubotics One".
-3. Open **APIs & Services → OAuth consent screen** (or "Google Auth Platform → Branding"). Fill in the app name "Edubotics One" and your email. For **Audience**, choose **Internal** if the company uses Google Workspace (only company accounts can sign in), otherwise **External** and add staff emails as test users.
+2. Create a project (top bar → project picker → **New project**), name it "Orbit".
+3. Open **APIs & Services → OAuth consent screen** (or "Google Auth Platform → Branding"). Fill in the app name "Orbit" and your email. For **Audience**, choose **Internal** if the company uses Google Workspace (only company accounts can sign in), otherwise **External** and add staff emails as test users.
 4. Open **APIs & Services → Credentials → Create credentials → OAuth client ID**.
-   - Application type: **Web application**, name "Edubotics One".
-   - **Authorised redirect URIs**: copy the address shown in Admin → Settings → Google sign-in, after you've saved the app address there. It looks like `https://one.eduboticsglobal.com/auth/google/callback`.
+   - Application type: **Web application**, name "Orbit".
+   - **Authorised redirect URIs**: copy the address shown in Admin → Settings → Google sign-in, after you've saved the app address there. It looks like `https://orbit.eduboticsglobal.com/auth/google/callback`.
    - Click **Create**. Google shows a **Client ID** and a **Client secret**.
-5. In Edubotics One, Admin → Settings → Google sign-in:
+5. In Orbit, Admin → Settings → Google sign-in:
    - **App address**: the https address people open the app at.
    - **Client ID** and **Client secret**: paste from step 4. The secret is stored encrypted and never shown again.
    - **Only allow Google accounts on this domain**: `eduboticsglobal.com` if everyone has a company Google account; leave blank to also allow personal Gmail accounts whose email matches a login.

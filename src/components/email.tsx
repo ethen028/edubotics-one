@@ -91,11 +91,12 @@ export function EmailComposer({
   );
 }
 
-type LogRow = Pick<EmailLog, "id" | "kind" | "status" | "to" | "cc" | "subject" | "error" | "createdAt" | "attachments"> & {
-  sentBy: { name: string };
+type LogRow = Pick<EmailLog, "id" | "kind" | "status" | "to" | "cc" | "subject" | "error" | "createdAt" | "attachments" | "automatic"> & {
+  sentBy: { name: string } | null;
 };
 
 const KIND: Record<EmailLog["kind"], string> = {
+  ACCOUNT_SECURITY: "Account security",
   TEST: "Test",
   INVOICE: "Invoice",
   PAYMENT_REMINDER: "Reminder",
@@ -104,7 +105,9 @@ const KIND: Record<EmailLog["kind"], string> = {
   INTERVIEW_INVITE: "Invite",
   CREDIT_NOTE: "Credit note",
   CERTIFICATE: "Certificate",
+  RECEIPT: "Receipt",
   EXIT_LETTER: "Relieving letter",
+  HR_LETTER: "HR letter",
 };
 
 /** What was emailed, to whom and by whom; failures show the mail server's reason. */
@@ -119,11 +122,12 @@ export function EmailHistory({ emails, title = "Emails", showKind = false }: { e
             <div className="flex flex-wrap items-center gap-1.5">
               {e.status === "SENT" ? <Badge color="green">Sent</Badge> : <Badge color="red">Failed</Badge>}
               {showKind && <Badge>{KIND[e.kind]}</Badge>}
+              {e.automatic && <Badge color="blue">Automatic</Badge>}
               <span className="text-xs text-slate-500">{formatDateTime(e.createdAt)}</span>
             </div>
             <div className="mt-1 break-all">To {e.to}{e.cc && <span className="text-slate-500">, copy to {e.cc}</span>}</div>
             <div className="text-xs text-slate-500">
-              {e.subject} · by {e.sentBy.name}
+              {e.subject} · {e.automatic ? "sent automatically" : `by ${e.sentBy?.name ?? "the app"}`}
             </div>
             {e.error && <div className="mt-1 text-xs text-red-700">{e.error}</div>}
           </li>
@@ -143,5 +147,6 @@ export const emailLogSelect = {
   error: true,
   createdAt: true,
   attachments: true,
+  automatic: true,
   sentBy: { select: { name: true } },
 } as const;

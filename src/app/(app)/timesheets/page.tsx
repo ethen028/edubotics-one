@@ -10,6 +10,7 @@ import { projectScope } from "@/lib/projects";
 import { addEntry, deleteEntry, submitWeek, updateEntry } from "./actions";
 import { DailyStatusBadge, EditedNote, TimesheetBadge } from "./badge";
 import { DailyLogForm } from "./daily-log-form";
+import { ConfirmButton } from "@/components/action-form";
 
 export const metadata = { title: "Timesheet" };
 
@@ -222,7 +223,7 @@ export default async function TimesheetPage({ searchParams }: PageProps<"/timesh
                         Edit
                       </Link>
                       <form action={deleteEntry.bind(null, e.id)}>
-                        <button className="text-xs text-slate-400 hover:text-red-600">Remove</button>
+                        <ConfirmButton message={"Remove this time entry?"} className="text-xs text-slate-400 hover:text-red-600">Remove</ConfirmButton>
                       </form>
                     </div>
                   )}

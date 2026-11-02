@@ -13,6 +13,7 @@ import { PAYMENT_METHODS, financialYear } from "@/lib/invoices";
 import {
   CERTIFICATE_TITLES,
   WORKSHOP_AUDIENCES,
+  WORKSHOP_KINDS,
   WORKSHOP_FEE_TYPES,
   WORKSHOP_MODES,
   WORKSHOP_STATUSES,
@@ -20,11 +21,14 @@ import {
   canMarkAttendance,
   certificateNumber,
   parsePastedRegistrations,
+  receiptNumber,
+  receiptPlaceOfSupply,
   standing,
   workshopDays,
 } from "@/lib/workshops";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const optional = z
   .string()
@@ -58,6 +62,7 @@ async function workshopFor(user: CurrentUser, id: string, need: "manage" | "atte
 const workshopSchema = z.object({
   title: z.string().trim().min(1, "give it a title").max(200),
   description: optional,
+  kind: z.enum(WORKSHOP_KINDS).default("WORKSHOP"),
   audience: z.enum(WORKSHOP_AUDIENCES),
   mode: z.enum(WORKSHOP_MODES),
   venue: optional,
@@ -118,6 +123,7 @@ export async function createWorkshop(_: FormState, formData: FormData): Promise<
     },
   });
   refresh();
+  await flash("Workshop added.");
   redirect(`/workshops/${w.id}`);
 }
 
@@ -160,6 +166,7 @@ export async function deleteWorkshop(id: string) {
   const workshop = await db.workshop.delete({ where: { id } });
   await logActivity(user, "DELETED", "workshop.deleted", `Deleted workshop ${workshop.title}`);
   refresh();
+  await flash("Workshop deleted.");
   redirect("/workshops");
 }
 
@@ -308,6 +315,7 @@ export async function deleteRegistration(id: string) {
   if (payments || marks || cert) throw new Error("This person has payments, attendance or a certificate. Cancel the registration instead.");
   await db.workshopRegistration.delete({ where: { id } });
   refresh(r.workshopId);
+  await flash("Participant removed.");
   redirect(`/workshops/${r.workshopId}`);
 }
 
@@ -331,13 +339,12 @@ export async function recordPayment(registrationId: string, _: FormState, formDa
   const parsed = paymentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   if (parsed.data.paidOn > todayIST()) return { error: "The payment date is in the future." };
-  const paid = Number((await db.workshopPayment.aggregate({ where: { registrationId }, _sum: { amount: true } }))._sum.amount ?? 0);
-  const due = Math.round((Number(r.fee) - paid) * 100) / 100;
+  const due = await feeDue(registrationId, r.fee);
   if (parsed.data.amount > due + 0.005) return { error: due > 0 ? `Only ${due.toFixed(2)} is due from ${r.name}.` : `${r.name} has already paid in full.` };
-  await db.workshopPayment.create({ data: { registrationId, ...parsed.data, recordedById: user.id } });
+  const number = await createReceipt(w.id, { registrationId, ...parsed.data, recordedById: user.id });
   refresh(r.workshopId);
   revalidatePath(`/workshops/registrations/${registrationId}`);
-  return { ok: "Payment recorded." };
+  return { ok: `Payment recorded, receipt ${number}.` };
 }
 
 /** The quick "Paid in full" button on the registrations list. */
@@ -345,21 +352,63 @@ export async function markPaidInFull(registrationId: string, formData: FormData)
   const user = await requireUser(["ADMIN", "MANAGER"]);
   const { r, w } = await registrationFor(user, registrationId);
   if (w.feeType !== "PER_PERSON") return;
-  const paid = Number((await db.workshopPayment.aggregate({ where: { registrationId }, _sum: { amount: true } }))._sum.amount ?? 0);
-  const due = Math.round((Number(r.fee) - paid) * 100) / 100;
+  const due = await feeDue(registrationId, r.fee);
   if (due <= 0) return;
   const method = z.enum(PAYMENT_METHODS).catch("UPI").parse(formData.get("method"));
-  await db.workshopPayment.create({ data: { registrationId, amount: due, paidOn: todayIST(), method, recordedById: user.id } });
+  await createReceipt(w.id, { registrationId, amount: due, paidOn: todayIST(), method, reference: null, recordedById: user.id });
   refresh(r.workshopId);
 }
 
-export async function removePayment(paymentId: string) {
+async function feeDue(registrationId: string, fee: Prisma.Decimal) {
+  const paid = await db.workshopPayment.aggregate({ where: { registrationId, cancelledAt: null }, _sum: { amount: true } });
+  return Math.round((Number(fee) - Number(paid._sum.amount ?? 0)) * 100) / 100;
+}
+
+/**
+ * Records a payment with the next receipt number of the financial year it was paid in. The GST rate and
+ * place of supply are fixed now, so the receipt reads the same if Settings change later.
+ */
+async function createReceipt(
+  workshopId: string,
+  data: { registrationId: string; amount: number; paidOn: Date; method: (typeof PAYMENT_METHODS)[number]; reference: string | null; recordedById: string },
+) {
+  const [settings, w] = await Promise.all([
+    getSettings(),
+    db.workshop.findUniqueOrThrow({ where: { id: workshopId }, select: { mode: true, organization: { select: { state: true } } } }),
+  ]);
+  const fy = financialYear(data.paidOn);
+  const gstRate = settings.gstEnabled ? settings.defaultGstRate : 0;
+  const placeOfSupply = receiptPlaceOfSupply(w, settings.companyState);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await db.$transaction(async (tx) => {
+        const last = await tx.workshopPayment.aggregate({ where: { fy }, _max: { seq: true } });
+        const seq = (last._max.seq ?? 0) + 1;
+        const number = receiptNumber(settings.invoicePrefix, fy, seq);
+        await tx.workshopPayment.create({ data: { ...data, fy, seq, number, gstRate, placeOfSupply } });
+        return number;
+      });
+    } catch (e) {
+      // Someone else recorded a payment at the same moment and took the number: try again.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && attempt < 2) continue;
+      throw e;
+    }
+  }
+}
+
+/** For a payment entered by mistake: the receipt keeps its number, shows as cancelled, and no longer counts as paid. */
+export async function cancelReceipt(paymentId: string, _: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser(["ADMIN"]);
   const p = await db.workshopPayment.findUniqueOrThrow({ where: { id: paymentId }, include: { registration: true } });
   await registrationFor(user, p.registrationId);
-  await db.workshopPayment.delete({ where: { id: paymentId } });
+  if (p.cancelledAt) return { error: "This receipt is already cancelled." };
+  const reason = z.string().trim().min(1, "say why").max(300).safeParse(formData.get("reason") ?? "");
+  if (!reason.success) return { error: reason.error.issues[0].message };
+  await db.workshopPayment.update({ where: { id: paymentId }, data: { cancelledAt: new Date(), cancelReason: reason.data } });
+  await logActivity(user, "MONEY", "workshop.receipt.cancelled", `Cancelled receipt ${p.number} (${p.registration.name}): ${reason.data}`);
   refresh(p.registration.workshopId);
   revalidatePath(`/workshops/registrations/${p.registrationId}`);
+  return { ok: `Receipt ${p.number} cancelled.` };
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────
@@ -394,7 +443,7 @@ async function issue(workshopId: string, registrationIds: string[] | null, userI
   const today = todayIST();
   const regs = await db.workshopRegistration.findMany({
     where: { workshopId, certificate: null, ...(registrationIds ? { id: { in: registrationIds } } : {}) },
-    include: { payments: { select: { amount: true } }, attendance: { select: { present: true } } },
+    include: { payments: { where: { cancelledAt: null }, select: { amount: true } }, attendance: { select: { present: true } } },
     orderBy: { name: "asc" },
   });
   const eligible = regs.filter((r) => !standing(w, r, today).blocker);

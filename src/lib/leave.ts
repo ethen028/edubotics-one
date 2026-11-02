@@ -2,7 +2,9 @@
 
 export function parseDateOnly(value: string): Date {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("Invalid date");
-  return new Date(`${value}T00:00:00.000Z`);
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value || value.startsWith("0000")) throw new Error("Invalid date");
+  return date;
 }
 
 const key = (d: Date) => d.toISOString().slice(0, 10);
@@ -31,4 +33,12 @@ export function countLeaveDays(
 
 export function yearBounds(year: number) {
   return { gte: new Date(Date.UTC(year, 0, 1)), lt: new Date(Date.UTC(year + 1, 0, 1)) };
+}
+
+/** Keep saved single-year totals; allocate a crossing request to the working days in this year. */
+export function leaveDaysInYear(request: { startDate: Date; endDate: Date; days: number; halfDay: boolean }, year: number, holidays: Date[], weeklyOffDays: number[]) {
+  if (request.startDate.getUTCFullYear() === request.endDate.getUTCFullYear()) return request.startDate.getUTCFullYear() === year ? request.days : 0;
+  const from = new Date(Math.max(request.startDate.getTime(), Date.UTC(year, 0, 1)));
+  const to = new Date(Math.min(request.endDate.getTime(), Date.UTC(year, 11, 31)));
+  return countLeaveDays(from, to, holidays, false, weeklyOffDays);
 }

@@ -5,20 +5,20 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { mailSetup, MAIL_NOT_READY, parseAddresses, sendEmail, type Attachment } from "@/lib/mail";
-import { certificatePdf, creditNotePdf, exitLetterPdf, invoicePdf, payslipPdf, quotePdf } from "@/lib/pdf";
+import { mailSetup, MAIL_NOT_READY, parseAddresses, sendEmail } from "@/lib/mail";
+import { sendSchoolReminder } from "@/lib/payment-reminders";
+import { logActivity } from "@/lib/activity";
+import { certificatePdf, creditNotePdf, invoicePdf, letterPdf, payslipPdf, quotePdf, receiptPdf } from "@/lib/pdf";
+import { canIssueKind } from "@/lib/letter-rules";
 import { markQuoteSent } from "@/lib/quote-send";
 import { calendarInvite } from "@/lib/ics";
 import { canRecruit } from "@/lib/recruitment";
-import { settledAmount } from "@/lib/invoices";
-import { invoiceMoney } from "@/lib/credit-notes";
 import { monthLabel } from "@/lib/payroll";
-import { todayIST } from "@/lib/time";
-import { certificateEmail, payslipEmail, reminderEmail } from "@/lib/email-templates";
+import { certificateEmail, payslipEmail } from "@/lib/email-templates";
 import { canManageWorkshop, dateSpan } from "@/lib/workshops";
 import type { FormState } from "@/components/action-form";
 
-// Every email here goes out because someone pressed Send. Each one is recorded in the email history.
+// Every email here goes out because someone pressed Send (the automatic reminder round is in src/lib/payment-reminders.ts). Each one is recorded in the email history.
 
 const composer = z.object({
   subject: z.string().trim().min(1, "Enter a subject.").max(200),
@@ -71,32 +71,22 @@ export async function remindSchool(organizationId: string): Promise<FormState> {
   const user = await requireUser(["ADMIN", "MANAGER"]);
   const ready = await readySettings();
   if ("error" in ready) return { error: ready.error };
-  const today = todayIST();
-  const [org, invoices] = await Promise.all([
-    db.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { email: true } }),
-    db.invoice.findMany({
-      where: { organizationId, status: "ISSUED", dueDate: { lt: today } },
-      include: { payments: true, creditNotes: true, contact: { select: { name: true, email: true } } },
-      orderBy: { dueDate: "asc" },
-    }),
-  ]);
-  const overdue = invoices
-    .map((i) => ({ ...i, number: i.number!, balance: invoiceMoney(i.total, settledAmount(i.payments), i.creditNotes).balance }))
-    .filter((i) => i.balance > 0)
-    .map((i) => ({ ...i, daysLate: Math.round((today.getTime() - i.dueDate.getTime()) / 86400000) }));
-  if (overdue.length === 0) return { error: "Nothing from this school is overdue now." };
-  const contact = overdue.find((i) => i.contact?.email)?.contact ?? null;
-  const to = contact?.email ?? org.email;
-  if (!to) return { error: "There's no email address for this school or its invoice contact. Add one in CRM first." };
-  const draft = reminderEmail(overdue, contact?.name ?? null, user.name, ready.settings);
-  const attachments = (await Promise.all(overdue.map((i) => invoicePdf(i.id)))).filter((a): a is Attachment => !!a);
-  const result = await sendEmail(
-    { kind: "PAYMENT_REMINDER", to: [to], ...draft, attachments, links: { invoiceIds: overdue.map((i) => i.id) } },
-    ready.settings,
-    user.id,
-  );
+  const result = await sendSchoolReminder(organizationId, ready.settings, { userId: user.id, name: user.name });
   revalidatePath("/invoices", "layout");
-  return "error" in result ? { error: result.error } : { ok: `Reminder sent to ${to}.` };
+  return result;
+}
+
+/** Stop, or start again, automatic payment reminders to one school. Reminders by hand still work. */
+export async function setSchoolAutoReminders(organizationId: string, paused: boolean): Promise<FormState> {
+  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const org = await db.organization.update({
+    where: { id: organizationId },
+    data: { autoRemindersPausedAt: paused ? new Date() : null },
+    select: { name: true },
+  });
+  await logActivity(user, "MONEY", "reminders.school", `${paused ? "Stopped" : "Restarted"} automatic payment reminders to ${org.name}`);
+  revalidatePath("/invoices", "layout");
+  return { ok: paused ? `${org.name} won't get automatic reminders.` : `Automatic reminders to ${org.name} are back on.` };
 }
 
 // ─── Credit notes ──────────────────────────────────────────────────────────
@@ -277,6 +267,22 @@ export async function emailCertificate(id: string, _: FormState, formData: FormD
   return "error" in result ? { error: result.error } : { ok: sentTo(form.to) };
 }
 
+/** Email a participant the receipt for one fee payment, from their registration page. */
+export async function emailReceipt(id: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const p = await db.workshopPayment.findUnique({ where: { id }, include: { registration: { include: { workshop: true } } } });
+  if (!p || !canManageWorkshop(user, p.registration.workshop)) return { error: "Only admins and managers can send fee receipts." };
+  if (p.cancelledAt) return { error: "This receipt was cancelled." };
+  const ready = await readySettings();
+  if ("error" in ready) return { error: ready.error };
+  const form = readComposer(formData);
+  if ("error" in form) return { error: form.error };
+  const pdf = (await receiptPdf(id))!;
+  const result = await sendEmail({ kind: "RECEIPT", ...form, attachments: [pdf], links: { receiptId: id } }, ready.settings, user.id);
+  revalidatePath(`/workshops/registrations/${p.registrationId}`);
+  return "error" in result ? { error: result.error } : { ok: sentTo(form.to) };
+}
+
 /** Email every issued certificate of a workshop that hasn't gone out yet, to each participant's own address. */
 export async function emailWorkshopCertificates(workshopId: string): Promise<FormState> {
   const user = await requireUser();
@@ -322,22 +328,23 @@ export async function emailWorkshopCertificates(workshopId: string): Promise<For
   return { ok: `Certificates sent to ${sent} ${sent === 1 ? "person" : "people"}.${missing}` };
 }
 
-// ─── Relieving letters ─────────────────────────────────────────────────────
+// ─── HR letters ────────────────────────────────────────────────────────────
 
-/** Email the relieving and experience letter to someone who has left. */
-export async function emailExitLetter(exitId: string, _: FormState, formData: FormData): Promise<FormState> {
-  const user = await requireUser(["ADMIN"]);
-  const exit = await db.employeeExit.findUnique({ where: { id: exitId }, select: { stage: true, employeeId: true } });
-  if (!exit || exit.stage !== "LEFT") return { error: "Mark them as left before sending the letter." };
-  if (exit.employeeId === user.employee?.id) return { error: "Ask another admin to send your own letter." };
+/** Email an issued HR letter, offer letter or ID card, with the PDF attached. */
+export async function emailLetter(letterId: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser(["ADMIN", "HR"]);
+  const letter = await db.hrLetter.findUnique({ where: { id: letterId }, select: { kind: true, status: true, employeeId: true, sourceId: true } });
+  if (!letter || !canIssueKind(user.role, letter.kind)) return { error: "Letter not found." };
+  if (letter.status !== "ISSUED") return { error: "Only the current copy of a letter can be emailed." };
+  if (letter.employeeId && letter.employeeId === user.employee?.id) return { error: "Ask someone else to send your own letter." };
   const ready = await readySettings();
   if ("error" in ready) return { error: ready.error };
   const form = readComposer(formData);
   if ("error" in form) return { error: form.error };
-  const pdf = (await exitLetterPdf(exitId))!;
-  const result = await sendEmail({ kind: "EXIT_LETTER", ...form, attachments: [pdf], links: { exitId } }, ready.settings, user.id);
-  if (!("error" in result))
-    await db.exitTask.updateMany({ where: { exitId, title: "Relieving and experience letter given", doneAt: null }, data: { doneAt: new Date(), doneById: user.id } });
-  revalidatePath(`/hr/exits/${exitId}`);
+  const pdf = (await letterPdf(letterId))!;
+  const result = await sendEmail({ kind: "HR_LETTER", ...form, attachments: [pdf], links: { letterId } }, ready.settings, user.id);
+  if (!("error" in result) && letter.kind === "RELIEVING" && letter.sourceId)
+    await db.exitTask.updateMany({ where: { exitId: letter.sourceId, title: "Relieving and experience letter given", doneAt: null }, data: { doneAt: new Date(), doneById: user.id } });
+  revalidatePath(`/hr/letters/${letterId}`);
   return "error" in result ? { error: result.error } : { ok: sentTo(form.to) };
 }

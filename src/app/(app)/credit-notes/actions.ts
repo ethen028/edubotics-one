@@ -14,6 +14,7 @@ import { CREDIT_REASONS, creditNoteNumber } from "@/lib/credit-notes";
 import type { FormState } from "@/components/action-form";
 import { invoiceForCredit } from "./data";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -151,6 +152,7 @@ export async function createCreditNote(invoiceId: string, _: FormState, formData
     }
   }
   refresh(invoiceId, id);
+  await flash("Credit note saved.");
   redirect(`/credit-notes/${id}`);
 }
 

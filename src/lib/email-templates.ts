@@ -111,7 +111,7 @@ export function payslipEmail(p: PayslipFacts, s: Settings): Draft {
     message: paragraphs(
       `Dear ${p.firstName},`,
       `Your payslip for ${p.monthLabel} is attached. Net pay: ${formatMoney(Number(p.net))}${p.paidOn ? `, paid on ${formatDate(p.paidOn)}` : ""}.`,
-      "You can see all your payslips in Edubotics One under Payroll → My payslips. If anything looks wrong, reply to this email.",
+      "You can see all your payslips in Orbit under Payroll → My payslips. If anything looks wrong, reply to this email.",
       `Regards,\n${s.companyName}`,
     ),
   };
@@ -150,6 +150,18 @@ export function certificateEmail(c: CertificateFacts, sender: string, s: Setting
   };
 }
 
+/** A workshop fee receipt, sent to the participant who paid. */
+export function receiptEmail(r: { name: string; workshop: string; dates: string; number: string; amount: string }, sender: string, s: Settings): Draft {
+  return {
+    subject: `Receipt ${r.number}: ${r.workshop}`,
+    message: paragraphs(
+      `Dear ${r.name},`,
+      `Thank you for your payment of ${r.amount} for “${r.workshop}” (${r.dates}). Your receipt ${r.number} is attached.`,
+      signOff(sender, s),
+    ),
+  };
+}
+
 /** The relieving and experience letter, sent after someone leaves. */
 export function exitLetterEmail(p: { firstName: string }, sender: string, s: Settings): Draft {
   return {
@@ -160,6 +172,23 @@ export function exitLetterEmail(p: { firstName: string }, sender: string, s: Set
       "Thank you for your time with us, and all the best for what comes next. If you need anything else, such as a salary certificate, just reply to this email.",
       signOff(sender, s),
     ),
+  };
+}
+
+/** Any HR letter, sent to the person it was issued to. The relieving letter keeps its own wording. */
+export function letterEmail(l: { kind: string; label: string; number: string | null; firstName: string }, sender: string, s: Settings): Draft {
+  if (l.kind === "RELIEVING") return exitLetterEmail(l, sender, s);
+  const label = l.label.charAt(0).toLowerCase() + l.label.slice(1);
+  const extra: Record<string, string> = {
+    OFFER: "Please read it, and reply to this email to accept or if you have any questions.",
+    APPOINTMENT: "Please read it, sign a printed copy and hand it to HR.",
+    WARNING: "Please read it carefully. If you would like to talk about it, speak to HR.",
+    SHOW_CAUSE: "Please read it carefully and send your reply in writing by the date in the notice.",
+    ID_CARD: "Print it at actual size, cut it out and laminate it, or ask HR to do it for you.",
+  };
+  return {
+    subject: `Your ${label} from ${s.companyName}`,
+    message: paragraphs(`Dear ${l.firstName},`, `Your ${label}${l.number ? ` (${l.number})` : ""} is attached.`, extra[l.kind], signOff(sender, s)),
   };
 }
 

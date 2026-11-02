@@ -5,20 +5,48 @@ on:
   push:
     branches: [main]
 
+# The checks only read the code. The token GitHub hands this job can't push, comment or change settings.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci_test
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U ci -d ci_test" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_test
       SESSION_SECRET: ci-only-secret-not-used-for-anything-real
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Actions are pinned to an exact commit, so a moved tag can't change what runs here. Dependabot keeps them current.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - run: npm rebuild @prisma/engines esbuild
+      - run: npx prisma generate
+      - run: npm run security:secrets
+      - run: npm run security:dependencies
       - run: npx prisma validate
+      - run: npm run db:deploy
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm test
+      - run: npm run test:security
       - run: npm run build

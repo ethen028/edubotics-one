@@ -1,8 +1,5 @@
 /** Purchase maths and labels, shared by the server and the purchase order form. No database access here. */
 
-/** The company's own state. A vendor in another state charges IGST instead of CGST + SGST. */
-export const COMPANY_STATE = "Kerala";
-
 /** States and union territories, for where a vendor is registered. Same list as invoices use. */
 export { INDIAN_STATES } from "./invoices";
 
@@ -67,9 +64,4 @@ export function ageBucket(dueDate: Date, today: Date) {
   return 4;
 }
 
-/** A CSV cell. Leading = + - @ are escaped so spreadsheets don't run them as formulas. */
-export function csvCell(v: string | number) {
-  let s = String(v);
-  if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return `"${s.replace(/"/g, '""')}"`;
-}
+export { csvCell } from "./csv";

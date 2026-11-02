@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { startTransition, useActionState, useState } from "react";
 import type { FormState } from "@/components/action-form";
-import { COMPANY_STATE, GST_RATES, orderTotals } from "@/lib/purchase-math";
+import { GST_RATES, orderTotals } from "@/lib/purchase-math";
 import { TotalsTable } from "./ui";
 
 type Vendor = { id: string; name: string; state: string };
@@ -35,6 +35,7 @@ export function OrderForm({
   projects,
   initial,
   submitLabel,
+  companyState,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   vendors: Vendor[];
@@ -42,6 +43,8 @@ export function OrderForm({
   projects: { id: string; name: string }[];
   initial: { vendorId?: string; itemId?: string; quantity?: number; projectId?: string };
   submitLabel: string;
+  /** The company's own state (Admin → Settings): a vendor in another state charges IGST instead of CGST + SGST. */
+  companyState: string;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const byId = new Map(items.map((i) => [i.id, i]));
@@ -54,7 +57,7 @@ export function OrderForm({
   });
   const categories = [...new Set(items.map((i) => i.category))];
   const vendor = vendors.find((v) => v.id === vendorId);
-  const interState = !!vendor && vendor.state !== COMPANY_STATE;
+  const interState = !!vendor && vendor.state !== companyState;
 
   const set = (key: number, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const totals = orderTotals(

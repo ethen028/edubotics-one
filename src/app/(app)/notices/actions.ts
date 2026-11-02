@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/auth";
 import { MAX_DOCUMENT_BYTES, sniffMime } from "@/lib/hr-constants";
 import { canEditNotice } from "@/lib/notices";
 import type { FormState } from "@/components/action-form";
+import { flash } from "@/lib/flash";
 
 const optionalDate = z
   .string()
@@ -48,7 +49,7 @@ async function readAttachment(formData: FormData) {
 }
 
 export async function createNotice(_: FormState, formData: FormData): Promise<FormState> {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   const parsed = noticeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const file = await readAttachment(formData);
@@ -69,11 +70,12 @@ export async function createNotice(_: FormState, formData: FormData): Promise<Fo
     },
   });
   refresh();
+  await flash("Notice posted.");
   redirect(`/notices/${notice.id}`);
 }
 
 export async function updateNotice(id: string, _: FormState, formData: FormData): Promise<FormState> {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   const notice = await db.notice.findUniqueOrThrow({ where: { id } });
   if (!canEditNotice(user, notice)) return { error: "Only the person who posted this or an admin can change it." };
   const parsed = noticeSchema.safeParse({ ...Object.fromEntries(formData), kind: notice.kind });
@@ -109,6 +111,7 @@ export async function updateNotice(id: string, _: FormState, formData: FormData)
       : []),
   ]);
   refresh(id);
+  await flash("Notice updated.");
   redirect(`/notices/${id}`);
 }
 
@@ -125,7 +128,7 @@ export async function acknowledgeNotice(id: string) {
 }
 
 export async function togglePinned(id: string) {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   const notice = await db.notice.findUniqueOrThrow({ where: { id } });
   if (!canEditNotice(user, notice)) throw new Error("Not allowed");
   await db.notice.update({ where: { id }, data: { pinned: !notice.pinned } });
@@ -134,7 +137,7 @@ export async function togglePinned(id: string) {
 
 /** Archived notices leave Home and the board, and stop asking for acknowledgement. History is kept. */
 export async function toggleArchived(id: string) {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   const notice = await db.notice.findUniqueOrThrow({ where: { id } });
   if (!canEditNotice(user, notice)) throw new Error("Not allowed");
   await db.notice.update({ where: { id }, data: { archivedAt: notice.archivedAt ? null : new Date() } });

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { careersSettings, publicJob } from "@/lib/careers";
 import { formatDate, humanize } from "@/lib/format";
 import { ApplyForm } from "./apply-form";
+import { headers } from "next/headers";
+import { captchaConfig } from "@/lib/captcha";
 
 export async function generateMetadata({ params }: PageProps<"/careers/[id]">) {
   const { id } = await params;
@@ -17,6 +19,8 @@ export default async function CareersJobPage({ params, searchParams }: PageProps
   const settings = await careersSettings();
   const job = settings.enabled ? await publicJob(id) : null;
   if (!job) notFound();
+  const captcha = captchaConfig();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <>
@@ -33,7 +37,8 @@ export default async function CareersJobPage({ params, searchParams }: PageProps
 
       <section id="apply" className="mt-8 scroll-mt-6">
         <h2 className="mb-3 text-lg font-semibold">Apply for this job</h2>
-        <ApplyForm jobId={job.id} initialError={error?.slice(0, 200)} companyName={settings.companyName} />
+        {captcha.required && !captcha.ready ? <p className="card text-sm">Online applications are temporarily unavailable. Contact the recruitment team using the address below.</p> :
+          <ApplyForm jobId={job.id} initialError={error?.slice(0, 200)} companyName={settings.companyName} siteKey={captcha.ready ? captcha.siteKey : null} nonce={nonce} />}
       </section>
     </>
   );

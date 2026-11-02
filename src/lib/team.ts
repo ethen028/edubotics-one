@@ -1,4 +1,5 @@
 import "server-only";
+import { isHrOrAdmin } from "./permissions";
 import { db } from "./db";
 import { isAdmin, type CurrentUser } from "./auth";
 
@@ -20,4 +21,12 @@ export async function canManage(user: CurrentUser, employeeId: string) {
   if (user.role !== "MANAGER" || !user.employee) return false;
   const e = await db.employee.findUnique({ where: { id: employeeId }, select: { managerId: true } });
   return e?.managerId === user.employee.id;
+}
+
+/** Organization-wide people operations for HR; original team scope for managers. */
+export function peopleEmployees(user: CurrentUser) {
+  return managedEmployees(isHrOrAdmin(user) ? { ...user, role: "ADMIN" } : user);
+}
+export async function canManageHrEmployee(user: CurrentUser, employeeId: string) {
+  return isHrOrAdmin(user) || canManage(user, employeeId);
 }

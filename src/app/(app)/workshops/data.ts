@@ -22,7 +22,7 @@ export function loadWorkshop(id: string) {
       trainers: { include: { user: { select: { id: true, name: true } } }, orderBy: { createdAt: "asc" } },
       registrations: {
         include: {
-          payments: { select: { amount: true } },
+          payments: { where: { cancelledAt: null }, select: { amount: true } },
           attendance: { select: { date: true, present: true } },
           certificate: { include: { emails: { where: { status: "SENT" }, select: { id: true }, take: 1 } } },
         },

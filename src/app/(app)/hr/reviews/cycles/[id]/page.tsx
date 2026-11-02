@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Empty, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { RATING_LABEL } from "@/lib/hr-constants";
@@ -213,7 +213,7 @@ export default async function CyclePage({ params }: PageProps<"/hr/reviews/cycle
                   <td>
                     {open && !r.selfSubmittedAt && !r.managerSubmittedAt && (
                       <form action={removeFromCycle.bind(null, r.id)}>
-                        <button className="text-xs text-red-600 hover:underline">Remove</button>
+                        <ConfirmButton message={"Remove this person from the review cycle? Their goals and ratings in it are deleted."} className="text-xs text-red-600 hover:underline">Remove</ConfirmButton>
                       </form>
                     )}
                   </td>

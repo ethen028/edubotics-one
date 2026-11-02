@@ -1,12 +1,12 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
-import { db } from "./db";
+import { db, type Tx } from "./db";
 import { getSettings } from "./settings";
 import { computeTotals, financialYear, formatMoney } from "./invoices";
 import { quoteNumber } from "./quotes";
 
 /** A note on the deal's timeline, written inside the same transaction as the quote change. */
-export function dealNote(tx: Prisma.TransactionClient, dealId: string | null, userId: string, subject: string, body?: string | null) {
+export function dealNote(tx: Tx, dealId: string | null, userId: string, subject: string, body?: string | null) {
   if (!dealId) return Promise.resolve();
   return tx.activity.create({ data: { type: "NOTE", subject, body, done: true, dealId, createdById: userId } }).then(() => undefined);
 }

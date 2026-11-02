@@ -1,7 +1,7 @@
 #!/bin/sh
 # Puts a backup back: every record and uploaded file returns to how it was when the backup was made.
 #
-# On the office computer, in the Edubotics One folder (see docs/backups.md):
+# On the office computer, in the edubotics-one folder (see docs/backups.md):
 #   docker compose stop app
 #   docker compose run --rm backup restore edubotics-one-2026-10-07-1700.dump
 #   docker compose start app
@@ -36,14 +36,14 @@ done
 [ -n "$FILE" ] || fail "there is no file named $NAME in the backups folder. Put the file there (copy it from your USB drive or second folder) and try again."
 
 echo "Checking $NAME ..."
-pg_restore --list "$FILE" > /dev/null 2>&1 || fail "$NAME is not a complete Edubotics One backup (it may be damaged, or only partly copied)."
+pg_restore --list "$FILE" > /dev/null 2>&1 || fail "$NAME is not a complete Orbit backup (it may be damaged, or only partly copied)."
 
 # Other connections mean the app is still running and would keep writing during the restore.
 OTHERS="$(psql -XAtq -c "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND backend_type = 'client backend' AND pid <> pg_backend_pid()")"
 [ "$OTHERS" = "0" ] || fail "the app is still running. Stop it first with: docker compose stop app"
 
 echo ""
-echo "This replaces everything in Edubotics One with the backup $NAME."
+echo "This replaces everything in Orbit with the backup $NAME."
 echo "Anything entered after that backup was made will be gone (a copy of how things are now is saved first)."
 if [ "${RESTORE_YES:-}" != "yes" ]; then
   printf "Type yes to restore: "

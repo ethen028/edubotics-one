@@ -5,6 +5,7 @@ import { Empty, PageHeader } from "@/components/ui";
 import { OPEN_PROJECT_STAGES, projectScope } from "@/lib/projects";
 import { createOrder } from "../actions";
 import { OrderForm } from "../order-form";
+import { getSettings } from "@/lib/settings";
 
 export const metadata = { title: "New purchase order" };
 
@@ -53,6 +54,7 @@ export default async function NewOrderPage({ searchParams }: PageProps<"/purchas
       ) : (
         <div className="card max-w-5xl">
           <OrderForm
+            companyState={(await getSettings()).companyState}
             action={createOrder}
             vendors={vendors}
             items={items.map((i) => ({

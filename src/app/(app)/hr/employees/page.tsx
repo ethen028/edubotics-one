@@ -1,7 +1,8 @@
+import { isHrOrAdmin } from "@/lib/permissions";
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { isAdmin, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { Badge, Empty, PageHeader } from "@/components/ui";
 import { formatDate, humanize } from "@/lib/format";
 
@@ -9,7 +10,10 @@ export const metadata = { title: "People" };
 
 export default async function EmployeesPage({ searchParams }: PageProps<"/hr/employees">) {
   const user = await requireUser();
-  const { q = "", dept = "", status = "CURRENT" } = (await searchParams) as Record<string, string | undefined>;
+  const params = await searchParams;
+  const q = typeof params.q === "string" ? params.q.trim().slice(0, 120) : "";
+  const dept = typeof params.dept === "string" ? params.dept : "";
+  const status = typeof params.status === "string" && ["CURRENT", "ALL", "ONBOARDING", "ACTIVE", "ON_NOTICE", "EXITED"].includes(params.status) ? params.status : "CURRENT";
 
   const where: Prisma.EmployeeWhereInput = {
     // "Current" covers everyone still on the rolls, including new joiners who are onboarding.
@@ -43,18 +47,20 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/hr/emp
     <>
       <PageHeader
         title="People"
+        eyebrow="People & culture"
+        icon="hr"
         subtitle={`${employees.length} ${employees.length === 1 ? "person" : "people"}`}
         actions={
-          isAdmin(user) && (
+          isHrOrAdmin(user) && (
             <Link href="/hr/employees/new" className="btn-primary">
               Add employee
             </Link>
           )
         }
       />
-      <form className="mb-4 flex flex-wrap gap-2">
-        <input name="q" defaultValue={q} placeholder="Search name, role or code" className="input max-w-xs" />
-        <select name="dept" defaultValue={dept} className="input w-auto">
+      <form aria-label="People filters" className="filter-surface mb-6 flex flex-wrap gap-3">
+        <input aria-label="Search people" name="q" defaultValue={q} placeholder="Search name, role or code" className="input max-w-xs" />
+        <select aria-label="Department" name="dept" defaultValue={dept} className="input w-auto">
           <option value="">All departments</option>
           {departments.map((d) => (
             <option key={d.id} value={d.id}>
@@ -62,7 +68,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/hr/emp
             </option>
           ))}
         </select>
-        <select name="status" defaultValue={status} className="input w-auto">
+        <select aria-label="Employment status" name="status" defaultValue={status} className="input w-auto">
           <option value="CURRENT">Current</option>
           <option value="ONBOARDING">Onboarding</option>
           <option value="ACTIVE">Active</option>
@@ -72,11 +78,13 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/hr/emp
         </select>
         <button className="btn-secondary">Filter</button>
       </form>
+      <div className="directory-heading"><h2>Team directory</h2><span>{status === "CURRENT" ? "Current team" : status === "ALL" ? "All employment statuses" : humanize(status)}</span></div>
       {employees.length === 0 ? (
-        <Empty>No one matches. {isAdmin(user) && "Add your first employee to get started."}</Empty>
+        <Empty>No one matches. {isHrOrAdmin(user) && "Add your first employee to get started."}</Empty>
       ) : (
         <div className="card overflow-x-auto p-0">
           <table className="table">
+            <caption className="sr-only">People matching the selected filters</caption>
             <thead>
               <tr>
                 <th>Name</th>

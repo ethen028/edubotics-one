@@ -7,6 +7,8 @@ import { ContactForm } from "../../forms";
 import { deleteContact, updateContact } from "../../actions";
 import { activeUsers, orgOptions } from "../../data";
 import { ActivityPanel, activityInclude } from "../../activity-panel";
+import { ConfirmButton } from "@/components/action-form";
+import { ContactValue } from "@/components/copy-button";
 
 export default async function ContactPage({ params }: PageProps<"/crm/contacts/[id]">) {
   const user = await requireUser();
@@ -36,12 +38,18 @@ export default async function ContactPage({ params }: PageProps<"/crm/contacts/[
                 </Link>
               </>
             )}
+            {(contact.phone || contact.email) && (
+              <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                {contact.phone && <ContactValue value={contact.phone} kind="phone" />}
+                {contact.email && <ContactValue value={contact.email} kind="email" />}
+              </span>
+            )}
           </>
         }
         actions={
           isAdmin(user) && (
             <form action={deleteContact.bind(null, contact.id)}>
-              <button className="btn-danger">Delete</button>
+              <ConfirmButton message={`Delete the contact ${contact.name}?`} className="btn-danger">Delete</ConfirmButton>
             </form>
           )
         }

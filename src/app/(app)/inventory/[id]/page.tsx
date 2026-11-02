@@ -6,7 +6,7 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, Field, Options, PageHeader, Stat } from "@/components/ui";
 import { formatDate, formatDateTime, formatINR, humanize } from "@/lib/format";
 import { todayIST } from "@/lib/time";
-import { INVENTORY_CATEGORIES, STOCK_UNITS, outstanding, requestNo, reservedByItem } from "@/lib/inventory";
+import { INVENTORY_CATEGORIES, STOCK_UNITS, outstanding, requestNo, reservedByItem, requestScope } from "@/lib/inventory";
 import { onOrderByItem } from "@/lib/purchases";
 import { recordMovement, toggleItemActive, updateItem } from "../actions";
 import { StockLevel } from "../ui";
@@ -21,12 +21,13 @@ export default async function ItemPage({ params }: PageProps<"/inventory/[id]">)
     where: { id },
     include: {
       movements: {
+        where: admin ? {} : { request: requestScope(user) },
         include: { by: { select: { name: true } }, request: { select: { id: true, number: true } }, project: { select: { id: true, name: true } } },
         orderBy: { createdAt: "desc" },
         take: 100,
       },
       requestLines: {
-        where: { request: { status: "ISSUED" } },
+        where: { request: { ...requestScope(user), status: "ISSUED" } },
         include: {
           item: { select: { returnable: true } },
           request: { include: { requester: { select: { name: true } }, project: { select: { id: true, name: true } } } },

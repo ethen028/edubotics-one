@@ -3,8 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { RATING_LABEL } from "@/lib/hr-constants";
 import { reviewStatus, scoreOf } from "@/lib/reviews";
-
-const csv = (v: string | number | null | undefined) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+import { csvCell as csv } from "@/lib/csv";
 
 /** One row per person in the cycle: status, scores, final rating and the written summary. */
 export async function GET(_: Request, { params }: RouteContext<"/hr/reviews/cycles/[id]/export">) {

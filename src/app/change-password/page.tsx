@@ -3,6 +3,8 @@ import { getCurrentSession } from "@/lib/auth";
 import { PASSWORD_RULES } from "@/lib/passwords";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { changePassword, logout } from "../actions";
+import { PasswordInput } from "@/components/password-input";
+import { SignOutForm } from "@/components/sign-out-form";
 
 export const metadata = { title: "Choose a new password" };
 
@@ -12,10 +14,10 @@ export default async function ChangePasswordPage() {
   if (!current) redirect("/login");
   if (!current.user.mustChangePassword || current.session.method !== "PASSWORD") redirect("/");
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main id="main-content" tabIndex={-1} className="auth-bg flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <h1 className="text-xl font-semibold">Choose a new password</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Choose a new password</h1>
           <p className="mt-1 text-sm text-slate-500">
             Hi {current.user.name.split(" ")[0]}. Your password was set by someone else or is too easy to guess, so pick your own
             before carrying on.
@@ -25,22 +27,22 @@ export default async function ChangePasswordPage() {
           <input type="hidden" name="then" value="home" />
           <label className="block">
             <span className="label">Current password</span>
-            <input name="current" type="password" required autoComplete="current-password" className="input" />
+            <PasswordInput name="current" required autoComplete="current-password" className="input" />
           </label>
           <label className="block">
             <span className="label">New password</span>
-            <input name="password" type="password" required minLength={8} autoComplete="new-password" className="input" />
+            <PasswordInput name="password" required minLength={8} autoComplete="new-password" className="input" />
           </label>
           <label className="block">
             <span className="label">New password again</span>
-            <input name="confirm" type="password" required minLength={8} autoComplete="new-password" className="input" />
+            <PasswordInput name="confirm" required minLength={8} autoComplete="new-password" className="input" />
           </label>
           <p className="text-xs text-slate-500">{PASSWORD_RULES}</p>
           <SubmitButton className="btn-primary w-full">Save and continue</SubmitButton>
         </ActionForm>
-        <form action={logout} className="mt-4 text-center">
+        <SignOutForm action={logout} className="mt-4 text-center">
           <button className="text-xs text-slate-500 hover:text-slate-800">Sign out instead</button>
-        </form>
+        </SignOutForm>
       </div>
     </main>
   );

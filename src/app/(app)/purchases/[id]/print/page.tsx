@@ -9,6 +9,7 @@ import { poNo, round2 } from "@/lib/purchase-math";
 import { getSettings } from "@/lib/settings";
 import { PrintButton } from "../../../payroll/payslip/[id]/print-button";
 import { TotalsTable, formatINR2 } from "../../ui";
+import { LogoMark } from "@/components/logo";
 
 export const metadata = { title: "Purchase order" };
 
@@ -34,6 +35,7 @@ export default async function PrintOrderPage({ params }: PageProps<"/purchases/[
       <article className="card mx-auto max-w-3xl print:border-0 print:shadow-none">
         <header className="mb-6 flex items-start justify-between border-b border-slate-200 pb-4">
           <div className="text-sm">
+            <LogoMark className="mb-2 h-9 w-auto" />
             <div className="text-lg font-semibold">{settings.companyName}</div>
             <div className="whitespace-pre-line text-slate-500">{settings.companyAddress}</div>
             {(settings.companyPhone || settings.companyEmail) && (

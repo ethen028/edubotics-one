@@ -1,6 +1,6 @@
 # Careers page
 
-Edubotics One has a public jobs page at `/careers`. Candidates read the open jobs and apply with their resume; each application arrives in **Recruitment** as a new candidate (source "Careers page"), and the Recruitment menu item shows a count until someone moves them on.
+Orbit has a public jobs page at `/careers`. Candidates read the open jobs and apply with their resume; each application arrives in **Recruitment** as a new candidate (source "Careers page"), and the Recruitment menu item shows a count until someone moves them on.
 
 ## Turning it on
 
@@ -37,7 +37,7 @@ A free Cloudflare Tunnel publishes one address, such as `jobs.eduboticsglobal.co
 
 Anything arriving through Cloudflare is treated as public even if it uses another name, so the office address stays private. The page is only up while the office computer is on.
 
-### Option B: when Edubotics One moves to a hosted server
+### Option B: when Orbit moves to a hosted server
 
 Set `PUBLIC_CAREERS_HOST` to the public jobs address on the server and point that address at the same app. Staff keep using their own address with sign-in; the jobs address serves only the careers page.
 

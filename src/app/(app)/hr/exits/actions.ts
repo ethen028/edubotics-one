@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser, type CurrentUser } from "@/lib/auth";
 import { canManage } from "@/lib/team";
-import { parseDateOnly } from "@/lib/leave";
+import { dateOnlyInput } from "@/lib/date-input";
 import { getSettings } from "@/lib/settings";
 import { todayIST } from "@/lib/time";
 import { exitFor, openExitOf } from "@/lib/exits";
@@ -14,8 +14,10 @@ import { EXIT_REASONS, EXIT_TASK_CATEGORIES, EXIT_TASK_TEMPLATE } from "@/lib/ex
 import { OPEN_PROJECT_STAGES } from "@/lib/projects";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
+import { issueLetter } from "@/lib/letters";
 
-const date = z.string().trim().min(1, "Pick a date.").transform(parseDateOnly);
+const date = dateOnlyInput;
 const text = (max: number) =>
   z
     .string()
@@ -87,6 +89,7 @@ export async function submitResignation(_: FormState, formData: FormData): Promi
     },
   });
   refresh(exit.id, employee.id);
+  await flash("Resignation sent for approval.");
   redirect(`/hr/exits/${exit.id}`);
 }
 
@@ -124,6 +127,7 @@ export async function startExit(_: FormState, formData: FormData): Promise<FormS
   });
   await putOnNotice(exit.id, employee.id, d.lastWorkingDay, user.id);
   refresh(exit.id, employee.id);
+  await flash("Exit started.");
   redirect(`/hr/exits/${exit.id}`);
 }
 
@@ -186,8 +190,11 @@ export async function markLeft(id: string): Promise<FormState> {
     ...(exit.employee.userId ? [db.user.update({ where: { id: exit.employee.userId }, data: { active: false } })] : []),
   ]);
   await logActivity(user, "HR", "exit.left", `Marked ${exit.employee.firstName} ${exit.employee.lastName} as left; their login is switched off`);
+  // The relieving letter is due on the last day, so it is issued (and numbered) straight away.
+  const issued = await issueLetter("RELIEVING", exit.employeeId, {}, user.id);
   refresh(exit.id, exit.employeeId);
-  return { ok: "Marked as left. Their login is switched off." };
+  revalidatePath("/hr/letters");
+  return { ok: `Marked as left. Their login is switched off${"letter" in issued && issued.letter ? `, and relieving letter ${issued.letter.number} is ready to send` : ""}.` };
 }
 
 export async function setRehire(id: string, formData: FormData) {
@@ -401,7 +408,7 @@ export async function reopenSettlement(exitId: string) {
   const user = await requireUser(["ADMIN"]);
   const exit = await runnable(user, exitId);
   if (exit.lastWorkingDay) {
-    const run = await db.payrollRun.findUnique({ where: { month: exit.lastWorkingDay.toISOString().slice(0, 7) }, select: { status: true } });
+    const run = await db.payrollRun.findFirst({ where: { month: exit.lastWorkingDay.toISOString().slice(0, 7) }, select: { status: true } });
     if (run?.status === "PAID") throw new Error("That month's payroll is already paid");
   }
   await db.employeeExit.update({ where: { id: exitId }, data: { settlementAgreedAt: null } });

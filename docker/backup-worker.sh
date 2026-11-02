@@ -1,5 +1,5 @@
 #!/bin/sh
-# Makes the database backups Edubotics One asks for.
+# Makes the database backups Orbit asks for.
 #
 # The app (src/lib/backups.ts) drops an empty file named after the backup it wants into
 # /backups/.queue. This dumps the database to that name, checks the file opens, and leaves

@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Field, PageHeader, Stat } from "@/components/ui";
 import { formatDate, formatDateTime, toDateInput } from "@/lib/format";
 import { todayIST } from "@/lib/time";
-import { COMPANY_STATE, PAYMENT_METHODS, billState, methodLabel, poNo, round2 } from "@/lib/purchase-math";
+import { getSettings } from "@/lib/settings";
+import { PAYMENT_METHODS, billState, methodLabel, poNo, round2 } from "@/lib/purchase-math";
 import { cancelBill, deletePayment, recordPayment } from "../../actions";
 import { BillBadge, TotalsTable, formatINR2 } from "../../ui";
 
@@ -34,6 +35,7 @@ export default async function BillPage({ params }: PageProps<"/purchases/bills/[
     <>
       <PageHeader
         title={`Bill ${bill.billNo} · ${bill.vendor.name}`}
+        copy={bill.billNo}
         subtitle={<>Entered by {bill.by.name}, {formatDateTime(bill.createdAt)}</>}
         actions={
           <Link href="/purchases/payables" className="btn-secondary">
@@ -80,7 +82,7 @@ export default async function BillPage({ params }: PageProps<"/purchases/bills/[
                       <td className="text-right text-sm">{Number(p.tds) > 0 ? formatINR2(p.tds) : "—"}</td>
                       <td className="text-right">
                         <form action={deletePayment.bind(null, p.id)}>
-                          <button className="text-xs text-slate-500 hover:text-red-600">Remove</button>
+                          <ConfirmButton message={"Remove this payment from the bill? It goes back to unpaid."} className="text-xs text-slate-500 hover:text-red-600">Remove</ConfirmButton>
                         </form>
                       </td>
                     </tr>
@@ -168,7 +170,7 @@ export default async function BillPage({ params }: PageProps<"/purchases/bills/[
                 subtotal={Number(bill.subtotal)}
                 tax={Number(bill.tax)}
                 total={Number(bill.total)}
-                interState={bill.vendor.state !== COMPANY_STATE}
+                interState={bill.vendor.state !== (await getSettings()).companyState}
               />
             </div>
             {bill.vendor.bankDetails && (
@@ -180,7 +182,7 @@ export default async function BillPage({ params }: PageProps<"/purchases/bills/[
           </section>
           {bill.status === "OPEN" && bill.payments.length === 0 && (
             <form action={cancelBill.bind(null, bill.id)}>
-              <button className="text-sm text-slate-500 hover:text-red-600 hover:underline">Cancel this bill (entered by mistake)</button>
+              <ConfirmButton message={"Cancel this bill? It stops counting as money owed to the vendor."} className="text-sm text-slate-500 hover:text-red-600 hover:underline">Cancel this bill (entered by mistake)</ConfirmButton>
             </form>
           )}
         </div>

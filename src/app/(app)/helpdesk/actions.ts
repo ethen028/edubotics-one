@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { TicketStatus } from "@prisma/client";
 import { z } from "zod";
+import { withNextNumber } from "@/lib/company-numbers";
 import { db } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { humanize } from "@/lib/format";
@@ -60,14 +61,15 @@ export async function createTicket(_: FormState, formData: FormData): Promise<Fo
   const upload = await readFile(formData);
   if (upload.error) return { error: upload.error };
 
-  const ticket = await db.helpdeskTicket.create({
+  const ticket = await withNextNumber(async () => (await db.helpdeskTicket.aggregate({ _max: { number: true } }))._max.number, (number) => db.helpdeskTicket.create({
     data: {
+      number,
       ...data,
       assetId,
       requesterId: user.id,
       ...(upload.file ? { attachments: { create: { ...upload.file, uploadedById: user.id } } } : {}),
     },
-  });
+  }));
   refresh();
   redirect(`/helpdesk/${ticket.id}?created=1`);
 }

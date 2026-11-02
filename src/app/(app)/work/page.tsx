@@ -5,7 +5,7 @@ import { Empty, PageHeader } from "@/components/ui";
 import { formatDate, humanize } from "@/lib/format";
 import { daysFromNow, todayIST } from "@/lib/time";
 import { setTaskStatus } from "../projects/actions";
-import { PriorityBadge, ProgressBar, WORK_STATUSES } from "../projects/ui";
+import { BlockedBadge, ChecklistCount, PriorityBadge, ProgressBar, WORK_STATUSES, WaitingBadge } from "../projects/ui";
 
 export const metadata = { title: "My work" };
 
@@ -19,7 +19,11 @@ export default async function MyWorkPage() {
   const [open, recentlyDone] = await Promise.all([
     db.projectTask.findMany({
       where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" } } },
-      include: { project: { select: { id: true, name: true, onHold: true } } },
+      include: {
+        project: { select: { id: true, name: true, onHold: true } },
+        dependsOn: { select: { title: true, status: true } },
+        checklist: { select: { doneAt: true } },
+      },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     }),
     db.projectTask.findMany({
@@ -75,7 +79,10 @@ export default async function MyWorkPage() {
                       <div className="min-w-0 flex-1 basis-full sm:basis-0">
                         <Link href={`/projects/${t.project.id}/tasks/${t.id}`} className="font-medium hover:underline">
                           {t.title}
-                        </Link>
+                        </Link>{" "}
+                        {t.blockedAt && <BlockedBadge reason={t.blockedReason} />}{" "}
+                        {t.dependsOn && t.dependsOn.status !== "DONE" && <WaitingBadge on={t.dependsOn.title} />}{" "}
+                        <ChecklistCount done={t.checklist.filter((c) => c.doneAt).length} total={t.checklist.length} />
                         <div>
                           <Link href={`/projects/${t.project.id}`} className="text-xs text-slate-500 hover:underline">
                             {t.project.name}

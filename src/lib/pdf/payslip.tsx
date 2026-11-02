@@ -2,7 +2,7 @@ import "server-only";
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import type { Settings } from "../settings";
 import { formatDate, formatINR } from "../format";
-import { LINE, PageNumbers, s } from "./layout";
+import { LINE, PageNumbers, PdfLogo, s } from "./layout";
 
 type Money = { toString(): string };
 export type PayslipPdfData = {
@@ -17,6 +17,7 @@ export type PayslipPdfData = {
   paidOn: Date | null;
   earnings: [string, Money][];
   deductions: [string, Money][];
+  companyPays: [string, Money][];
   gross: Money;
   totalDeductions: Money;
   claims: [string, Money][];
@@ -66,6 +67,9 @@ export function PayslipPdf({ p, settings }: { p: PayslipPdfData; settings: Setti
       <Page size="A4" style={s.page}>
         <View style={[s.between, s.section, { paddingTop: 0 }]}>
           <View>
+            <View style={{ marginBottom: 6 }}>
+              <PdfLogo />
+            </View>
             <Text style={s.h1}>{settings.companyName}</Text>
             <Text style={s.muted}>{settings.companyAddress}</Text>
           </View>
@@ -99,6 +103,11 @@ export function PayslipPdf({ p, settings }: { p: PayslipPdfData; settings: Setti
           <Text style={[s.bold, { fontSize: 16 }]}>{formatINR(p.net)}</Text>
         </View>
         {p.note && <Text style={[s.muted, { marginTop: 8 }]}>Note: {p.note}</Text>}
+        {p.companyPays.length > 0 && (
+          <View style={{ marginTop: 14 }}>
+            <Table head="Paid by the company on top of salary (not taken from pay)" rows={p.companyPays} />
+          </View>
+        )}
         <PageNumbers note="This is a computer-generated payslip and needs no signature." />
       </Page>
     </Document>

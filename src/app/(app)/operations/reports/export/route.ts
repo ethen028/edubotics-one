@@ -1,8 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { dateKey } from "@/lib/attendance";
 import { monthSessions } from "../month";
-
-const csv = (v: string | number | null) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+import { csvCell as csv } from "@/lib/csv";
 
 /** One row per session in the month, for invoicing schools or checking trainer hours. */
 export async function GET(request: Request) {

@@ -75,16 +75,20 @@ export function serviceYears(joined: Date, lastDay: Date) {
   return { years, months, rounded: years + (months >= 6 ? 1 : 0) };
 }
 
-export const GRATUITY_CAP = 2_000_000;
+/** Payment of Gratuity Act: 15 days' wages per year of service, a month counted as 26 days, from 5 years, up to ₹20 lakh. Editable in Settings. */
+export type GratuityRules = { days: number; divisor: number; minYears: number; cap: number };
+export const GRATUITY_DEFAULTS: GratuityRules = { days: 15, divisor: 26, minYears: 5, cap: 2_000_000 };
 
-/**
- * Gratuity under the Payment of Gratuity Act, for five or more years of service:
- * 15 days' basic for each year (basic × 15 ÷ 26 × years), up to ₹20 lakh. Zero below five years.
- */
-export function suggestedGratuity(monthlyBasic: number, joined: Date, lastDay: Date) {
+/** Gratuity earned for the service so far (basic × 15 ÷ 26 × years), whether or not it is payable yet. */
+export function gratuityEarned(monthlyBasic: number, joined: Date, lastDay: Date, rules: GratuityRules = GRATUITY_DEFAULTS) {
   const s = serviceYears(joined, lastDay);
-  if (s.years < 5) return 0;
-  return Math.min(GRATUITY_CAP, Math.round((monthlyBasic * 15 * s.rounded) / 26));
+  return Math.min(rules.cap, Math.round((monthlyBasic * rules.days * Math.max(0, s.rounded)) / rules.divisor));
+}
+
+/** Gratuity payable on leaving: what has been earned, once the service reaches the minimum years. Zero before that. */
+export function suggestedGratuity(monthlyBasic: number, joined: Date, lastDay: Date, rules: GratuityRules = GRATUITY_DEFAULTS) {
+  if (serviceYears(joined, lastDay).years < rules.minYears) return 0;
+  return gratuityEarned(monthlyBasic, joined, lastDay, rules);
 }
 
 type SettlementInput = {

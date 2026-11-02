@@ -18,7 +18,7 @@ const COLOR: Record<AssetStatus, "green" | "blue" | "amber" | "gray"> = {
 };
 
 export default async function AssetsPage({ searchParams }: PageProps<"/hr/assets">) {
-  await requireUser(["ADMIN"]);
+  await requireUser(["ADMIN", "HR"]);
   const sp = (await searchParams) as Record<string, string | undefined>;
   const filter = ["AVAILABLE", "ASSIGNED", "REPAIR", "RETIRED"].includes(sp.status ?? "") ? (sp.status as AssetStatus) : undefined;
   const [assets, employees, counts] = await Promise.all([

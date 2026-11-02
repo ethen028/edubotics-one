@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { dateOnlyInput, optionalDateOnlyInput } from "@/lib/date-input";
 import { db } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { defaultReviewer, reviewFor } from "@/lib/reviews";
 import type { FormState } from "@/components/action-form";
+import { flash } from "@/lib/flash";
 
 function refresh(reviewId?: string, cycleId?: string, employeeId?: string) {
   revalidatePath("/hr/reviews");
@@ -22,10 +24,7 @@ const text = z
   .trim()
   .max(4000, "Keep it under 4000 characters")
   .transform((v) => v || null);
-const optionalDate = z
-  .string()
-  .trim()
-  .transform((v) => (v ? new Date(v) : null));
+const optionalDate = optionalDateOnlyInput;
 
 // ─── Cycles (admins) ──────────────────────────────────────────────────────
 
@@ -33,8 +32,8 @@ const cycleSchema = z
   .object({
     name: z.string().trim().min(3, "Give the cycle a name"),
     kind: z.enum(["ANNUAL", "HALF_YEARLY"]),
-    periodStart: z.string().min(1, "Pick the start of the period").transform((v) => new Date(v)),
-    periodEnd: z.string().min(1, "Pick the end of the period").transform((v) => new Date(v)),
+    periodStart: dateOnlyInput,
+    periodEnd: dateOnlyInput,
     goalsDue: optionalDate,
     selfDue: optionalDate,
     managerDue: optionalDate,
@@ -73,6 +72,7 @@ export async function createCycle(_: FormState, formData: FormData): Promise<For
     throw e;
   }
   refresh();
+  await flash("Review cycle started.");
   redirect(`/hr/reviews/cycles/${id}`);
 }
 

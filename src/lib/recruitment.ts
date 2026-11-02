@@ -25,7 +25,7 @@ export const PIPELINE_STAGES = ["APPLIED", "SCREENING", "INTERVIEW", "OFFER", "H
 export const OPEN_STAGES: CandidateStage[] = ["APPLIED", "SCREENING", "INTERVIEW", "OFFER"];
 
 /** Managers and admins run hiring. Everyone else only sees candidates they interview. */
-export const canRecruit = isManagerOrAdmin;
+export const canRecruit = (user: CurrentUser) => user.role === "HR" || isManagerOrAdmin(user);
 /** Offers carry salary, so only admins make them and move hires into HR (like payroll). */
 export const canOffer = isAdmin;
 

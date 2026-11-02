@@ -3,15 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { currentCompanyId, prefixTaken } from "@/lib/company";
 import { requireUser } from "@/lib/auth";
 import type { FormState } from "@/components/action-form";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
-import { getSettings } from "@/lib/settings";
+import { getSettings, thisCompany } from "@/lib/settings";
 import { mailSetup, parseAddresses, sendEmail } from "@/lib/mail";
 import { seal } from "@/lib/secret-box";
 import { sniffMime } from "@/lib/hr-constants";
 import { changedSettings, logActivity } from "@/lib/activity";
 import { appAddressProblem } from "@/lib/google-sign-in";
+import { cleanDomain, emailInDomain, isDomain } from "@/lib/teamwork-rules";
 
 const text = (max: number) =>
   z
@@ -64,6 +66,16 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
       noticePeriodDays: z.coerce.number().int().min(0).max(180),
       twoWheelerRatePerKm: z.coerce.number().min(0).max(100),
       carRatePerKm: z.coerce.number().min(0).max(100),
+      esiEmployeeRate: z.coerce.number().min(0).max(10),
+      esiEmployerRate: z.coerce.number().min(0).max(10),
+      esiWageLimit: z.coerce.number().int().min(0).max(1000000),
+      ptFirstHalfMonth: z.coerce.number().int().min(4).max(9),
+      ptSecondHalfMonth: z.coerce.number().int().refine((m) => [10, 11, 12, 1, 2, 3].includes(m)),
+      ptMinDays: z.coerce.number().int().min(0).max(183),
+      gratuityDays: z.coerce.number().int().min(1).max(60),
+      gratuityDivisor: z.coerce.number().int().min(1).max(31),
+      gratuityMinYears: z.coerce.number().int().min(0).max(10),
+      gratuityCap: z.coerce.number().int().min(0).max(100000000),
     })
     .safeParse({
       hours: formData.get("hours"),
@@ -74,12 +86,35 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
       noticePeriodDays: formData.get("noticePeriodDays") ?? 30,
       twoWheelerRatePerKm: formData.get("twoWheelerRatePerKm") || 0,
       carRatePerKm: formData.get("carRatePerKm") || 0,
+      esiEmployeeRate: formData.get("esiEmployeeRate") ?? 0.75,
+      esiEmployerRate: formData.get("esiEmployerRate") ?? 3.25,
+      esiWageLimit: formData.get("esiWageLimit") ?? 21000,
+      ptFirstHalfMonth: formData.get("ptFirstHalfMonth") ?? 8,
+      ptSecondHalfMonth: formData.get("ptSecondHalfMonth") ?? 2,
+      ptMinDays: formData.get("ptMinDays") ?? 60,
+      gratuityDays: formData.get("gratuityDays") ?? 15,
+      gratuityDivisor: formData.get("gratuityDivisor") ?? 26,
+      gratuityMinYears: formData.get("gratuityMinYears") ?? 5,
+      gratuityCap: formData.get("gratuityCap") ?? 2000000,
     });
-  if (!parsed.success) return { error: "Check the hours, overtime minutes, weekly offs, LOP divisor, notice period and per-km rates." };
-  const { hours, minutes, overtimeAfterMins, weeklyOffDays, lopDivisor, noticePeriodDays, twoWheelerRatePerKm, carRatePerKm } = parsed.data;
+  if (!parsed.success) return { error: "Check the hours, overtime minutes, weekly offs, LOP divisor, notice period, per-km rates, ESI rates and gratuity figures." };
+  const { hours, minutes, overtimeAfterMins, weeklyOffDays, lopDivisor, noticePeriodDays, twoWheelerRatePerKm, carRatePerKm, ...statutory } = parsed.data;
+  const froms = formData.getAll("ptSlabFrom").map(String);
+  const taxes = formData.getAll("ptSlabTax").map(String);
+  const ptSlabs = froms
+    .map((f, i) => ({ from: f.trim(), tax: (taxes[i] ?? "").trim() }))
+    .filter((x) => x.from !== "" || x.tax !== "")
+    .map((x) => ({ from: Number(x.from), tax: Number(x.tax) }));
+  if (ptSlabs.some((x) => !Number.isFinite(x.from) || !Number.isFinite(x.tax) || x.from < 0 || x.tax < 0))
+    return { error: "Each professional tax line needs a half-year salary and a tax, both 0 or more." };
+  ptSlabs.sort((a, b) => a.from - b.from);
   const on = (k: string) => formData.get(k) === "on";
   const invoicing = invoiceSettings.safeParse(Object.fromEntries(formData));
   if (!invoicing.success) return { error: invoicing.error.issues[0].message };
+  const companyId = await currentCompanyId();
+  if (await prefixTaken(invoicing.data.invoicePrefix, companyId)) {
+    return { error: `Another company in the group numbers its invoices ${invoicing.data.invoicePrefix}/…; pick a different prefix.` };
+  }
   const data = {
     workMinutesPerDay: hours * 60 + minutes,
     overtimeAfterMins,
@@ -90,13 +125,16 @@ export async function updateSettings(_: FormState, formData: FormData): Promise<
     esiEnabled: on("esiEnabled"),
     ptEnabled: on("ptEnabled"),
     tdsEnabled: on("tdsEnabled"),
+    gratuityEnabled: on("gratuityEnabled"),
+    ...statutory,
+    ptSlabs,
     twoWheelerRatePerKm,
     carRatePerKm,
     ...invoicing.data,
     gstEnabled: on("gstEnabled"),
   };
   const before = await getSettings();
-  await db.companySettings.upsert({ where: { id: 1 }, update: data, create: { id: 1, ...data } });
+  await db.companySettings.upsert({ where: { companyId }, update: data, create: { companyId, ...data } });
   const changed = changedSettings(before, data);
   if (changed) await logActivity(admin, "SETTINGS", "settings.company", `Changed settings: ${changed}`);
   revalidatePath("/", "layout");
@@ -143,7 +181,7 @@ export async function updateMailSettings(_: FormState, formData: FormData): Prom
     d.mailFromAddress !== before.mailFromAddress ||
     smtpPassword !== before.smtpPassword;
   await db.companySettings.update({
-    where: { id: 1 },
+    where: await thisCompany(),
     data: {
       ...d,
       smtpSecure,
@@ -170,20 +208,47 @@ export async function sendTestEmail(_: FormState, formData: FormData): Promise<F
     {
       kind: "TEST",
       to: to.list,
-      subject: `Test email from ${settings.companyName} (Edubotics One)`,
-      message: `This is a test from Edubotics One, sent by ${user.name}.\n\nIf you can read this, invoices, quotes, payslips, interview invites and payment reminders can now be emailed from the app.`,
+      subject: `Test email from ${settings.companyName} (Orbit)`,
+      message: `This is a test from Orbit, sent by ${user.name}.\n\nIf you can read this, invoices, quotes, payslips, interview invites and payment reminders can now be emailed from the app.`,
     },
     settings,
     user.id,
   );
   if ("error" in result) {
-    await db.companySettings.update({ where: { id: 1 }, data: { mailVerifiedAt: null } });
+    await db.companySettings.update({ where: await thisCompany(), data: { mailVerifiedAt: null } });
     revalidatePath("/", "layout");
     return { error: result.error };
   }
-  await db.companySettings.update({ where: { id: 1 }, data: { mailVerifiedAt: new Date() } });
+  await db.companySettings.update({ where: await thisCompany(), data: { mailVerifiedAt: new Date() } });
   revalidatePath("/", "layout");
   return { ok: `Test email sent to ${to.list.join(", ")}. Check that it arrived (and isn't in spam). Sending is now switched on.` };
+}
+
+const reminderSchema = z.object({
+  autoReminderAfterDays: z.coerce.number().int("Enter whole days.").min(1, "Wait at least 1 day after the due date.").max(90, "Keep the first reminder within 90 days."),
+  autoReminderEveryDays: z.coerce.number().int("Enter whole days.").min(3, "Leave at least 3 days between reminders.").max(60, "Keep it to 60 days or less."),
+  autoReminderMaxPerInvoice: z.coerce.number().int("Enter a whole number.").min(1, "Send at least 1 reminder.").max(10, "Keep it to 10 reminders or fewer."),
+});
+
+/** Automatic payment reminders: on or off, and how soon and how often schools hear from us. */
+export async function updateReminderSettings(_: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireUser(["ADMIN"]);
+  const parsed = reminderSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const autoRemindersEnabled = formData.get("autoRemindersEnabled") === "on";
+  const before = await getSettings();
+  await db.companySettings.update({ where: await thisCompany(), data: { ...parsed.data, autoRemindersEnabled } });
+  const d = parsed.data;
+  if (before.autoRemindersEnabled !== autoRemindersEnabled) {
+    await logActivity(admin, "SETTINGS", "settings.auto-reminders", `Switched automatic payment reminders ${autoRemindersEnabled ? "on" : "off"}`);
+  }
+  const changed = changedSettings(before, d);
+  if (changed) await logActivity(admin, "SETTINGS", "settings.auto-reminders", `Changed automatic payment reminders: first after ${d.autoReminderAfterDays} days late, then every ${d.autoReminderEveryDays} days, at most ${d.autoReminderMaxPerInvoice} per invoice`);
+  revalidatePath("/admin/settings");
+  revalidatePath("/invoices", "layout");
+  if (!autoRemindersEnabled) return { ok: "Saved. Automatic reminders are off; reminders go out only when someone presses Send." };
+  if (mailSetup(before) !== "READY") return { ok: "Saved. Nothing will go out until the mail account above passes a test email." };
+  return { ok: "Saved. Reminders go out on working days from 10 AM. Billing → Payments due shows when each school is next reminded." };
 }
 
 /** The public careers page: on or off, the welcome text and an email for candidates' questions. */
@@ -193,12 +258,27 @@ export async function updateCareersSettings(_: FormState, formData: FormData): P
     .object({
       careersIntro: text(1500),
       careersContactEmail: text(120).pipe(z.string().email("Enter a valid contact email, or leave it blank.").nullable()),
+      applicantRetentionMonths: z.coerce.number().int("Enter whole months.").min(0).max(120, "Keep it to 120 months or less."),
     })
-    .safeParse({ careersIntro: formData.get("careersIntro") ?? "", careersContactEmail: formData.get("careersContactEmail") ?? "" });
+    .safeParse({
+      careersIntro: formData.get("careersIntro") ?? "",
+      careersContactEmail: formData.get("careersContactEmail") ?? "",
+      applicantRetentionMonths: formData.get("applicantRetentionMonths") ?? 12,
+    });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const careersEnabled = formData.get("careersEnabled") === "on";
   const before = await getSettings();
-  await db.companySettings.update({ where: { id: 1 }, data: { ...parsed.data, careersEnabled } });
+  await db.companySettings.update({ where: await thisCompany(), data: { ...parsed.data, careersEnabled } });
+  if (before.applicantRetentionMonths !== parsed.data.applicantRetentionMonths) {
+    await logActivity(
+      admin,
+      "SETTINGS",
+      "settings.applicant-retention",
+      parsed.data.applicantRetentionMonths
+        ? `Turned-down applicants are now deleted after ${parsed.data.applicantRetentionMonths} months`
+        : "Turned-down applicants are now kept with no time limit",
+    );
+  }
   if (before.careersEnabled !== careersEnabled) {
     await logActivity(admin, "SETTINGS", "settings.careers", `Switched the careers page ${careersEnabled ? "on" : "off"}`);
   }
@@ -231,12 +311,74 @@ export async function updateCertificateSettings(_: FormState, formData: FormData
   }
   const remove = formData.get("removeSignature") === "on";
   await db.companySettings.update({
-    where: { id: 1 },
+    where: await thisCompany(),
     data: { ...parsed.data, ...(signature ?? {}), ...(remove && !signature ? { certSignature: null, certSignatureType: null } : {}) },
   });
-  await logActivity(admin, "SETTINGS", "settings.signatory", `Changed the certificate and letter signatory${signature ? " and signature picture" : remove ? " (signature picture removed)" : ""}`);
+  await logActivity(admin, "SETTINGS", "settings.signatory", `Changed the certificate signatory${signature ? " and signature picture" : remove ? " (signature picture removed)" : ""}`);
   revalidatePath("/admin/settings");
   return { ok: "Saved. New and reprinted certificates use this." };
+}
+
+// ─── Teamwork ──────────────────────────────────────────────────────────────
+
+/** Keeps Messages, Channels, Files and Meetings to logins on the company email domain (blank = everyone). */
+export async function updateTeamworkSettings(_: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireUser(["ADMIN"]);
+  const workspaceDomain = cleanDomain(String(formData.get("workspaceDomain") ?? "").slice(0, 100));
+  if (workspaceDomain && !isDomain(workspaceDomain)) return { error: "Enter the company domain like eduboticsglobal.com, without anyone's name." };
+  // Don't let an admin shut themselves out by mistake.
+  if (workspaceDomain && !emailInDomain(admin.email, workspaceDomain)) {
+    return { error: `Your own login (${admin.email}) isn't on @${workspaceDomain}. Change your email under Admin → Users first, so you keep Teamwork.` };
+  }
+  const before = await getSettings();
+  await db.companySettings.update({ where: await thisCompany(), data: { workspaceDomain } });
+  const changed = changedSettings(before, { workspaceDomain });
+  if (changed) await logActivity(admin, "SETTINGS", "settings.teamwork", `Changed Teamwork: ${changed}`);
+  revalidatePath("/", "layout");
+  return { ok: workspaceDomain ? `Saved. Only @${workspaceDomain} logins can use Teamwork now.` : "Saved. Every login can use Teamwork." };
+}
+
+/** Letterhead details, starting terms for appointment letters, and who signs HR letters (with an optional signature scan). */
+export async function updateLetterSettings(_: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireUser(["ADMIN"]);
+  const parsed = z
+    .object({
+      companyWebsite: text(120),
+      companyRegNo: text(120),
+      probationMonths: z.coerce.number().int().min(0).max(24),
+      probationNoticeDays: z.coerce.number().int().min(0).max(180),
+      letterSignatoryName: text(100),
+      letterSignatoryTitle: text(100),
+    })
+    .safeParse({
+      companyWebsite: formData.get("companyWebsite") ?? "",
+      companyRegNo: formData.get("companyRegNo") ?? "",
+      probationMonths: formData.get("probationMonths"),
+      probationNoticeDays: formData.get("probationNoticeDays"),
+      letterSignatoryName: formData.get("letterSignatoryName") ?? "",
+      letterSignatoryTitle: formData.get("letterSignatoryTitle") ?? "",
+    });
+  if (!parsed.success) return { error: "Probation is 0 to 24 months and notice 0 to 180 days." };
+  const file = formData.get("signature");
+  let signature: { letterSignature: Uint8Array<ArrayBuffer>; letterSignatureType: string } | null = null;
+  if (file instanceof File && file.size > 0) {
+    if (file.size > MAX_SIGNATURE_BYTES) return { error: "The signature image must be under 1 MB." };
+    const data = new Uint8Array(await file.arrayBuffer());
+    const type = sniffMime(data);
+    if (type !== "image/png" && type !== "image/jpeg") return { error: "Upload the signature as a PNG or JPG picture." };
+    signature = { letterSignature: data, letterSignatureType: type };
+  }
+  const remove = formData.get("removeSignature") === "on";
+  const before = await getSettings();
+  await db.companySettings.update({
+    where: await thisCompany(),
+    data: { ...parsed.data, ...(signature ?? {}), ...(remove && !signature ? { letterSignature: null, letterSignatureType: null } : {}) },
+  });
+  const changed = changedSettings(before, parsed.data);
+  if (changed || signature || remove)
+    await logActivity(admin, "SETTINGS", "settings.letters", `Changed HR letter settings${changed ? `: ${changed}` : ""}${signature ? ", new signature picture" : remove ? ", signature picture removed" : ""}`);
+  revalidatePath("/admin/settings");
+  return { ok: "Saved. Letters issued from now on use this; ones already issued keep their signatory." };
 }
 
 // ─── Sign-in and safety ────────────────────────────────────────────────────
@@ -253,7 +395,7 @@ export async function updateSafetySettings(_: FormState, formData: FormData): Pr
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const before = await getSettings();
-  await db.companySettings.update({ where: { id: 1 }, data: parsed.data });
+  await db.companySettings.update({ where: await thisCompany(), data: parsed.data });
   const changed = changedSettings(before, parsed.data);
   if (changed) await logActivity(admin, "SETTINGS", "settings.safety", `Changed sign-in safety: ${changed}`);
   revalidatePath("/admin/settings");
@@ -288,7 +430,7 @@ export async function updateGoogleSettings(_: FormState, formData: FormData): Pr
   if (googleEnabled && (!d.googleClientId || !googleClientSecret || !d.appAddress)) {
     return { error: "Fill in the client ID, client secret and app address before switching Google sign-in on." };
   }
-  await db.companySettings.update({ where: { id: 1 }, data: { ...d, googleClientSecret, googleEnabled } });
+  await db.companySettings.update({ where: await thisCompany(), data: { ...d, googleClientSecret, googleEnabled } });
   const changed = changedSettings(before, { ...d, googleClientSecret, googleEnabled });
   if (changed) await logActivity(admin, "SETTINGS", "settings.google", `Changed Google sign-in: ${changed}`);
   revalidatePath("/admin/settings");

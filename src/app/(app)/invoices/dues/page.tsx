@@ -7,7 +7,10 @@ import { invoicesWithBalance } from "../data";
 import { getSettings } from "@/lib/settings";
 import { mailSetup } from "@/lib/mail";
 import { ActionForm, SubmitButton } from "@/components/action-form";
-import { remindSchool } from "../../emails/actions";
+import { remindSchool, setSchoolAutoReminders } from "../../emails/actions";
+import { schoolReminderPlans } from "@/lib/payment-reminders";
+import type { SchoolPlan } from "@/lib/reminder-rules";
+import { Badge } from "@/components/ui";
 
 export const metadata = { title: "Payments due" };
 
@@ -23,7 +26,10 @@ const BUCKETS = [
 export default async function DuesPage() {
   await requireUser(["ADMIN", "MANAGER"]);
   const open = (await invoicesWithBalance({ status: "ISSUED" })).filter((i) => i.balance > 0);
-  const mailOn = mailSetup(await getSettings()) === "READY";
+  const settings = await getSettings();
+  const mailOn = mailSetup(settings) === "READY";
+  const autoOn = mailOn && settings.autoRemindersEnabled;
+  const plans = await schoolReminderPlans();
 
   const bySchool = new Map<
     string,
@@ -42,9 +48,9 @@ export default async function DuesPage() {
       buckets: BUCKETS.map(([, test]) => s.invoices.filter((i) => test(i.daysLate)).reduce((n, i) => n + i.balance, 0)),
       oldest: Math.max(...s.invoices.map((i) => i.daysLate)),
       email: s.invoices.find((i) => i.daysLate > 0 && i.contact?.email)?.contact?.email ?? s.org.email,
-      reminded: s.invoices
-        .flatMap((i) => i.emails.map((e) => e.createdAt))
-        .sort((a, b) => b.getTime() - a.getTime())[0],
+      reminded: s.invoices.flatMap((i) => i.emails).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0],
+      plan: plans.get(s.org.id),
+      paused: isPaused(plans.get(s.org.id)),
       invoices: s.invoices.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime()),
     }))
     .sort((a, b) => b.oldest - a.oldest || b.total - a.total);
@@ -57,7 +63,9 @@ export default async function DuesPage() {
         title="Payments due"
         subtitle={
           mailOn
-            ? "Unpaid invoices by school, the longest overdue first. A reminder lists all of a school's overdue invoices, with copies attached."
+            ? `Unpaid invoices by school, the longest overdue first. A reminder lists all of a school's overdue invoices, with copies attached.${
+                autoOn ? " Automatic reminders are on (Admin → Settings → Email)." : ""
+              }`
             : "Unpaid invoices by school, the longest overdue first."
         }
         actions={
@@ -101,7 +109,12 @@ export default async function DuesPage() {
                     </div>
                     {s.oldest > 0 && (
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                        {s.reminded && <span className="text-slate-500">Reminded {formatDate(s.reminded)}</span>}
+                        {s.reminded && (
+                          <span className="text-slate-500">
+                            Reminded {formatDate(s.reminded.createdAt)}
+                            {s.reminded.automatic && " (automatic)"}
+                          </span>
+                        )}
                         {!s.email ? (
                           <span className="text-slate-400">No email address on file</span>
                         ) : (
@@ -112,6 +125,18 @@ export default async function DuesPage() {
                               </SubmitButton>
                             </ActionForm>
                           )
+                        )}
+                      </div>
+                    )}
+                    {s.oldest > 0 && (autoOn || s.paused) && s.plan && (
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                        <AutoStatus plan={s.plan} on={autoOn} />
+                        {autoOn && (
+                          <ActionForm action={setSchoolAutoReminders.bind(null, s.org.id, !s.paused)} className="contents">
+                            <SubmitButton className="btn-secondary btn-sm" pendingLabel="Saving…">
+                              {s.paused ? "Restart automatic reminders" : "Stop automatic reminders"}
+                            </SubmitButton>
+                          </ActionForm>
                         )}
                       </div>
                     )}
@@ -152,4 +177,21 @@ export default async function DuesPage() {
       )}
     </>
   );
+}
+
+const isPaused = (p: SchoolPlan | undefined) => !!p && !p.send && p.why === "paused";
+
+/** Where a school stands with the automatic reminders, in a few words. */
+function AutoStatus({ plan, on }: { plan: SchoolPlan; on: boolean }) {
+  if (!plan.send && plan.why === "paused") return <Badge color="amber">Automatic reminders stopped</Badge>;
+  if (!on) return null;
+  if (plan.send) return <span className="text-brand-700">Automatic reminder in the next round</span>;
+  switch (plan.why) {
+    case "limit-reached":
+      return <Badge color="red">Automatic reminders used up: call them</Badge>;
+    case "no-email":
+      return null; // already said above
+    default:
+      return plan.nextOn ? <span className="text-slate-500">Next automatic reminder from {formatDate(plan.nextOn)}</span> : null;
+  }
 }

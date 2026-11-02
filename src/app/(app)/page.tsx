@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { backupProblem } from "@/lib/backups";
-import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
+import { isAdmin, isBackupAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
+import { homeDashboard, isOwner } from "@/lib/permissions";
 import { pendingApprovals } from "@/lib/approvals";
 import { myPendingAcks } from "@/lib/notices";
 import { daysFromNow, todayIST } from "@/lib/time";
@@ -25,6 +26,9 @@ import { ReviewTodos } from "./hr/reviews/ui";
 import { myReviewTodos } from "@/lib/reviews";
 import { openExitOf } from "@/lib/exits";
 import { ChecklistsHomeCard } from "./checklists/home-card";
+import { CalendarCard, InboxCard, PlanCard } from "./home-widgets";
+import { RecognitionHomeCard, SpotlightCard } from "./recognition/ui";
+import { spotlightSince } from "@/lib/recognition-rules";
 
 export const metadata = { title: "Home" };
 
@@ -35,11 +39,10 @@ function greeting() {
   return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 }
 
-export default async function Home({ searchParams }: PageProps<"/">) {
+export default async function Home() {
   const user = await requireUser();
-  const { denied } = (await searchParams) as Record<string, string | undefined>;
   const admin = isAdmin(user);
-  const backupIssue = admin ? await backupProblem() : null;
+  const backupIssue = isBackupAdmin(user) ? await backupProblem() : null;
   const manager = isManagerOrAdmin(user);
 
   const now = new Date();
@@ -68,6 +71,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     toAcknowledge,
     notices,
     reviewTodos,
+    spotlight,
+    recentThanks,
+    thanksThisMonth,
   ] = await Promise.all([
       db.projectTask.findMany({
         where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" }, onHold: false } },
@@ -133,6 +139,17 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         take: 3,
       }),
       myReviewTodos(user),
+      db.recognition.findFirst({
+        where: { featuredAt: { gte: spotlightSince(now) } },
+        include: { from: { select: { name: true } }, to: { select: { name: true } } },
+        orderBy: { featuredAt: "desc" },
+      }),
+      db.recognition.findMany({
+        include: { from: { select: { name: true } }, to: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+      }),
+      db.recognition.count({ where: { toId: user.id, createdAt: { gte: monthStart } } }),
     ]);
   const myExit = user.employee ? await openExitOf(user.employee.id) : null;
   const [onOrder, billSettled] = await Promise.all([
@@ -160,20 +177,19 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const weekHours = myWeek?.entries.reduce((s, e) => s + Number(e.hours), 0) ?? 0;
   const lateProjects = projects.filter((p) => p.dueDate && p.dueDate < today).length;
 
-  const roleNote = admin
+  const mine = homeDashboard(user);
+  const roleNote = isOwner(user)
     ? "Company performance and decisions in one place."
-    : manager
+    : admin
+      ? "Running the company: approvals, billing, delivery and setup."
+      : user.role === "HR"
+        ? "People, attendance, leave and hiring at a glance."
+        : manager
       ? "Team delivery, approvals and project health."
       : "Focus on what needs your attention today.";
 
   return (
     <>
-      {denied && (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          You don&apos;t have access to that page.
-        </div>
-      )}
-
       <PendingAcks notices={toAcknowledge} />
       <ReviewTodos todos={reviewTodos} today={today} />
       {myExit && (
@@ -184,22 +200,20 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </Link>
       )}
 
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div className="overview-header mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs font-semibold tracking-wider text-brand-700 uppercase">
             {today.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}
           </div>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-900">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 lg:text-4xl">
             {greeting()}, {user.name.split(" ")[0]}
           </h1>
-          <p className="text-sm text-slate-500">{roleNote}</p>
+          <p className="mt-3 text-sm text-slate-500">{roleNote}</p>
         </div>
-        <div className="flex gap-2">
-          {admin && (
-            <Link href="/dashboard" className="btn-secondary">
-              Owner dashboard
-            </Link>
-          )}
+        <div className="flex flex-wrap gap-2">
+          <Link href={mine.href} className="btn-secondary">
+            {mine.label}
+          </Link>
           <Link href="/timesheets" className="btn-secondary">
             Log time
           </Link>
@@ -224,8 +238,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
       )}
 
+      {spotlight && <SpotlightCard r={spotlight} />}
+
       {focus && (
-        <section className="mb-6 rounded-2xl bg-brand-900 p-5 text-white shadow-lg">
+        <section className="hero-card mb-6 p-5 text-white">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-semibold tracking-widest text-brand-300">NEXT PRIORITY</div>
@@ -258,7 +274,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </section>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="overview-stats mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label={`My open tasks · ${dueToday} due or overdue`} value={myTasks.length} href="/work" />
         <Stat label={`Active projects${lateProjects ? ` · ${lateProjects} late` : ""}`} value={projects.length} href="/projects" />
         <Stat label="Hours this week" value={weekHours} href="/timesheets" />
@@ -387,7 +403,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </section>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
+          <PlanCard user={user} today={today} />
+          <CalendarCard user={user} today={today} />
+          <InboxCard user={user} />
           <ChecklistsHomeCard user={user} />
           {(mySessions.length > 0 || myLogsDue > 0 || allLogsDue > 0) && (
             <section className="card">
@@ -459,7 +478,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 {notices.map((n) => (
                   <li key={n.id}>
                     <Link href={`/notices/${n.id}`} className="font-medium hover:underline">
-                      {n.pinned && "📌 "}
+                      {n.pinned && <span className="mr-1.5 text-xs font-semibold text-brand-700">Pinned</span>}
                       {n.title}
                     </Link>
                     <p className="line-clamp-2 text-slate-600">{n.body}</p>
@@ -471,6 +490,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </ul>
             )}
           </section>
+          <RecognitionHomeCard recent={recentThanks} receivedThisMonth={thanksThisMonth} />
           <HelpdeskHomeCard user={user} />
           {manager ? (
             <section className="card">

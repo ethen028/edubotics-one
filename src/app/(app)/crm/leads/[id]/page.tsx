@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { canEditCrmRecord } from "@/lib/permissions";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Field, Options, PageHeader } from "@/components/ui";
 import { humanize } from "@/lib/format";
 import { LeadForm, ProgramList } from "../../forms";
@@ -10,6 +11,7 @@ import { convertLead, deleteLead, updateLead } from "../../actions";
 import { activeUsers, orgOptions } from "../../data";
 import { ActivityPanel, activityInclude } from "../../activity-panel";
 import { ORG_TYPES, leadStatusColor } from "../../constants";
+import { ContactValue } from "@/components/copy-button";
 
 export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">) {
   const user = await requireUser();
@@ -22,6 +24,7 @@ export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">)
     },
   });
   if (!lead) notFound();
+  const canEdit = canEditCrmRecord(user, lead);
   const [users, orgs] = await Promise.all([activeUsers(), orgOptions()]);
   const match = lead.organizationName
     ? orgs.find((o) => o.name.toLowerCase() === lead.organizationName!.toLowerCase())
@@ -35,6 +38,12 @@ export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">)
           <>
             {lead.organizationName && `${lead.organizationName} · `}
             <Badge color={leadStatusColor[lead.status]}>{humanize(lead.status)}</Badge>
+            {(lead.phone || lead.email) && (
+              <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                {lead.phone && <ContactValue value={lead.phone} kind="phone" />}
+                {lead.email && <ContactValue value={lead.email} kind="email" />}
+              </span>
+            )}
           </>
         }
         actions={
@@ -44,7 +53,7 @@ export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">)
             </Link>
             {isAdmin(user) && (
               <form action={deleteLead.bind(null, lead.id)}>
-                <button className="btn-danger">Delete</button>
+                <ConfirmButton message={`Delete the lead ${lead.name} and its activity history for good?`} className="btn-danger">Delete</ConfirmButton>
               </form>
             )}
           </>
@@ -60,7 +69,7 @@ export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">)
               </Link>
               .
             </div>
-          ) : (
+          ) : canEdit ? (
             <ActionForm action={convertLead.bind(null, lead.id)} className="card space-y-3">
               <h2 className="font-semibold">Convert to deal</h2>
               <p className="text-sm text-slate-500">Creates the institution (or uses an existing one), a contact for {lead.name}, and an open deal.</p>
@@ -104,8 +113,12 @@ export default async function LeadPage({ params }: PageProps<"/crm/leads/[id]">)
               </div>
               <SubmitButton>Convert</SubmitButton>
             </ActionForm>
+          ) : null}
+          {canEdit ? (
+            <LeadForm action={updateLead.bind(null, lead.id)} lead={lead} users={users} />
+          ) : (
+            <p className="card text-sm text-slate-500">This lead belongs to someone else. Its owner, a manager or an admin can change it.</p>
           )}
-          <LeadForm action={updateLead.bind(null, lead.id)} lead={lead} users={users} />
         </div>
         <div className="xl:col-span-2">
           <ActivityPanel activities={lead.activities} link={{ leadId: lead.id }} users={users} />

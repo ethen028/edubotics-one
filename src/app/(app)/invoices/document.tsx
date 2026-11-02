@@ -3,6 +3,7 @@ import type { Invoice, InvoiceLine } from "@prisma/client";
 import type { Settings } from "@/lib/settings";
 import { formatDate } from "@/lib/format";
 import { amountInWords, formatMoney } from "@/lib/invoices";
+import { LogoMark } from "@/components/logo";
 
 /** The invoice as the school sees it, on screen and on paper. */
 export function InvoiceDocument({ invoice, lines, settings }: { invoice: Invoice; lines: InvoiceLine[]; settings: Settings }) {
@@ -72,6 +73,7 @@ export function BillingDocument({
       )}
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
+          <LogoMark className="mb-2 h-9 w-auto" />
           <div className="font-display text-lg font-semibold">{settings.companyName}</div>
           <div className="whitespace-pre-line text-slate-600">{settings.companyAddress}</div>
           {(settings.companyPhone || settings.companyEmail) && (

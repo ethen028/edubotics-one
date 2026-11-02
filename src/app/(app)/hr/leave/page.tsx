@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getLeaveBalances } from "@/lib/leave-balance";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Empty, Field, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { applyLeave, cancelLeave } from "../actions";
@@ -116,7 +116,7 @@ export default async function MyLeavePage() {
                       <td className="text-right">
                         {cancellable && (
                           <form action={cancelLeave.bind(null, r.id)}>
-                            <button className="btn-secondary btn-sm">Cancel</button>
+                            <ConfirmButton message={"Cancel this leave request?"} className="btn-secondary btn-sm">Cancel</ConfirmButton>
                           </form>
                         )}
                       </td>

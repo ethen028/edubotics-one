@@ -6,7 +6,7 @@ import { createNotice } from "../actions";
 export const metadata = { title: "New notice" };
 
 export default async function NewNoticePage({ searchParams }: PageProps<"/notices/new">) {
-  await requireUser(["ADMIN", "MANAGER"]);
+  await requireUser(["ADMIN", "HR", "MANAGER"]);
   const { kind } = (await searchParams) as Record<string, string | undefined>;
   const policy = kind === "POLICY";
   return (

@@ -30,7 +30,7 @@ export default async function NewTicketPage({ searchParams }: PageProps<"/helpde
         }
       />
       <div className="card max-w-2xl">
-        <ActionForm action={createTicket} className="grid gap-4 sm:grid-cols-2">
+        <ActionForm action={createTicket} className="grid gap-4 sm:grid-cols-2" draft="new-helpdesk-request">
           <Field label="What do you need?" className="sm:col-span-2">
             <input name="title" required maxLength={150} placeholder="e.g. Laptop charger not working" className="input" />
           </Field>

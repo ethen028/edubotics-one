@@ -2,9 +2,11 @@ import "server-only";
 import nodemailer from "nodemailer";
 import { z } from "zod";
 import type { EmailKind } from "@prisma/client";
+import { BRAND } from "./brand";
 import { db } from "./db";
 import type { Settings } from "./settings";
 import { unseal } from "./secret-box";
+import { reportServerError } from "./telemetry";
 
 /** NOT_SET: no mail account yet. UNTESTED: filled in but no test email has gone through. READY: emails can go out. */
 export type MailSetup = "NOT_SET" | "UNTESTED" | "READY";
@@ -57,8 +59,8 @@ function explain(e: unknown, s: Settings) {
   if (["ECONNECTION", "ETIMEDOUT", "ESOCKET", "EDNS", "ENOTFOUND", "ECONNREFUSED"].includes(err.code ?? ""))
     return `Couldn't reach the mail server ${s.smtpHost}:${s.smtpPort}. Check the server name and port, and that this computer is online.`;
   if (err.responseCode === 550 || err.responseCode === 553)
-    return `The mail server refused the address: ${err.message ?? "unknown reason"}`;
-  return err.message ?? String(e);
+    return "The mail server refused a recipient address. Check the recipient and sender settings.";
+  return "The mail server could not send this message. Ask an admin to check the mail configuration.";
 }
 
 export type Attachment = { filename: string; content: Buffer; contentType: string };
@@ -70,14 +72,15 @@ export type OutgoingEmail = {
   subject: string;
   message: string; // plain text the person typed or kept from the template
   attachments?: Attachment[];
-  links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string; certificateId?: string; exitId?: string };
+  automatic?: boolean; // the daily automatic payment reminder round, with no person sending it
+  links?: { invoiceIds?: string[]; quoteId?: string; payslipId?: string; interviewId?: string; creditNoteId?: string; certificateId?: string; receiptId?: string; exitId?: string; letterId?: string };
 };
 
 /**
  * Sends one email from the company account and records it, sent or failed, in the email history.
  * Only a test email may go out before the account has passed a test.
  */
-export async function sendEmail(email: OutgoingEmail, settings: Settings, userId: string): Promise<{ ok: true } | { error: string }> {
+export async function sendEmail(email: OutgoingEmail, settings: Settings, userId: string | null): Promise<{ ok: true } | { error: string }> {
   const setup = mailSetup(settings);
   if (setup === "NOT_SET") return { error: MAIL_NOT_READY.NOT_SET };
   if (setup === "UNTESTED" && email.kind !== "TEST") return { error: MAIL_NOT_READY.UNTESTED };
@@ -97,6 +100,7 @@ export async function sendEmail(email: OutgoingEmail, settings: Settings, userId
       attachments: email.attachments,
     });
   } catch (e) {
+    reportServerError(e);
     error = explain(e, settings);
   }
 
@@ -110,12 +114,15 @@ export async function sendEmail(email: OutgoingEmail, settings: Settings, userId
       attachments: (email.attachments ?? []).map((a) => a.filename),
       error,
       sentById: userId,
+      automatic: !!email.automatic,
       quoteId: email.links?.quoteId,
       payslipId: email.links?.payslipId,
       interviewId: email.links?.interviewId,
       creditNoteId: email.links?.creditNoteId,
       certificateId: email.links?.certificateId,
+      receiptId: email.links?.receiptId,
       exitId: email.links?.exitId,
+      letterId: email.links?.letterId,
       invoices: email.links?.invoiceIds?.length ? { connect: email.links.invoiceIds.map((id) => ({ id })) } : undefined,
     },
   });
@@ -141,10 +148,10 @@ function htmlBody(message: string, s: Settings) {
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 14px">${escape(p).replace(/\n/g, "<br>")}</p>`)
     .join("");
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#f1f5f4">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f4;padding:24px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #dbe4e2">
-<tr><td style="background:#0f3d3e;padding:16px 24px;font:600 17px Arial,Helvetica,sans-serif;color:#ffffff">${escape(s.companyName)}</td></tr>
+  return `<!doctype html><html><body style="margin:0;padding:0;background:${BRAND.page}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.page};padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid ${BRAND.line}">
+<tr><td style="background:${BRAND.navy};border-bottom:3px solid ${BRAND.orange};padding:16px 24px;font:600 17px Arial,Helvetica,sans-serif;color:#ffffff">${escape(s.companyName)}</td></tr>
 <tr><td style="padding:24px;font:15px/1.55 Arial,Helvetica,sans-serif;color:#1e293b">${paragraphs}</td></tr>
 <tr><td style="padding:14px 24px;border-top:1px solid #e2e8f0;font:12px/1.5 Arial,Helvetica,sans-serif;color:#64748b">${footerLines(s)
     .map(escape)

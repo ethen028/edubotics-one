@@ -9,7 +9,7 @@ import { updateNotice } from "../../actions";
 export const metadata = { title: "Edit notice" };
 
 export default async function EditNoticePage({ params }: PageProps<"/notices/[id]/edit">) {
-  const user = await requireUser(["ADMIN", "MANAGER"]);
+  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   const { id } = await params;
   const notice = await db.notice.findUnique({ where: { id }, include: { attachment: { select: { fileName: true } } } });
   if (!notice) notFound();

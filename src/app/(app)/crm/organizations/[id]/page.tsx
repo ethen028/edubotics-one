@@ -14,6 +14,8 @@ import { formatMoney, payStateColor, payStateLabel } from "@/lib/invoices";
 import { invoicesWithBalance } from "../../../invoices/data";
 import { quotesWithState } from "../../../quotes/data";
 import { quoteStateColor, quoteStateLabel } from "@/lib/quotes";
+import { ConfirmButton } from "@/components/action-form";
+import { ContactValue } from "@/components/copy-button";
 
 export default async function OrganizationPage({ params }: PageProps<"/crm/organizations/[id]">) {
   const user = await requireUser();
@@ -44,7 +46,12 @@ export default async function OrganizationPage({ params }: PageProps<"/crm/organ
         subtitle={
           <>
             <Badge>{humanize(org.type)}</Badge> {[org.board, org.city, org.district].filter(Boolean).join(" · ")}
-            {org.phone && ` · ${org.phone}`}
+            {(org.phone || org.email) && (
+              <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                {org.phone && <ContactValue value={org.phone} kind="phone" />}
+                {org.email && <ContactValue value={org.email} kind="email" />}
+              </span>
+            )}
           </>
         }
         actions={
@@ -64,7 +71,7 @@ export default async function OrganizationPage({ params }: PageProps<"/crm/organ
             )}
             {isAdmin(user) && (
               <form action={deleteOrganization.bind(null, org.id)}>
-                <button className="btn-danger">Delete</button>
+                <ConfirmButton message={`Delete ${org.name} and its activity history for good?`} className="btn-danger">Delete</ConfirmButton>
               </form>
             )}
           </>

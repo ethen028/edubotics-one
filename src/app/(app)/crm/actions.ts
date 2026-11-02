@@ -6,8 +6,10 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
+import { canEditCrmRecord, canTickActivity } from "@/lib/permissions";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
+import { flash } from "@/lib/flash";
 
 const optional = z
   .string()
@@ -62,15 +64,17 @@ export async function createLead(_: FormState, formData: FormData): Promise<Form
   if (!parsed.success) return { error: firstError(parsed.error) };
   const lead = await db.lead.create({ data: { ...parsed.data, ownerId: parsed.data.ownerId ?? user.id } });
   refresh();
+  await flash("Lead added.");
   redirect(`/crm/leads/${lead.id}`);
 }
 
 export async function updateLead(id: string, _: FormState, formData: FormData): Promise<FormState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = leadSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
   const lead = await db.lead.findUnique({ where: { id } });
   if (!lead) return { error: "Lead not found." };
+  if (!canEditCrmRecord(user, lead)) return { error: "Only the lead's owner, a manager or an admin can change it." };
   // A converted lead keeps its status; everything else can be edited.
   const data = lead.status === "CONVERTED" ? { ...parsed.data, status: undefined } : parsed.data;
   await db.lead.update({ where: { id }, data });
@@ -83,6 +87,7 @@ export async function deleteLead(id: string) {
   const lead = await db.lead.delete({ where: { id } });
   await logActivity(admin, "DELETED", "lead.deleted", `Deleted lead ${lead.name}`);
   refresh();
+  await flash("Lead deleted.");
   redirect("/crm/leads");
 }
 
@@ -105,6 +110,7 @@ export async function convertLead(id: string, _: FormState, formData: FormData):
 
   const lead = await db.lead.findUnique({ where: { id } });
   if (!lead) return { error: "Lead not found." };
+  if (!canEditCrmRecord(user, lead)) return { error: "Only the lead's owner, a manager or an admin can convert it." };
   if (lead.status === "CONVERTED") return { error: "This lead was already converted." };
   if (!input.organizationId && !input.organizationName) return { error: "Pick an institution or enter a new one." };
 
@@ -138,6 +144,7 @@ export async function convertLead(id: string, _: FormState, formData: FormData):
     return deal.id;
   });
   refresh();
+  await flash("Lead converted to a deal.");
   redirect(`/crm/deals/${dealId}`);
 }
 
@@ -165,6 +172,7 @@ export async function createOrganization(_: FormState, formData: FormData): Prom
   if (!parsed.success) return { error: firstError(parsed.error) };
   const org = await db.organization.create({ data: { ...parsed.data, ownerId: parsed.data.ownerId ?? user.id } });
   refresh();
+  await flash("Institution added.");
   redirect(`/crm/organizations/${org.id}`);
 }
 
@@ -188,6 +196,7 @@ export async function deleteOrganization(id: string) {
   const org = await db.organization.delete({ where: { id } });
   await logActivity(user, "DELETED", "institution.deleted", `Deleted institution ${org.name}`);
   refresh();
+  await flash("Institution deleted.");
   redirect("/crm/organizations");
 }
 
@@ -226,6 +235,7 @@ export async function deleteContact(id: string) {
   const contact = await db.contact.delete({ where: { id } });
   await logActivity(admin, "DELETED", "contact.deleted", `Deleted contact ${contact.name}`);
   refresh();
+  await flash("Contact deleted.");
   redirect("/crm/contacts");
 }
 
@@ -263,25 +273,27 @@ export async function createDeal(_: FormState, formData: FormData): Promise<Form
     data: { ...parsed.data, ownerId: parsed.data.ownerId ?? user.id, closedAt: closedAtFor(parsed.data.stage) },
   });
   refresh();
+  await flash("Deal added.");
   redirect(`/crm/deals/${deal.id}`);
 }
 
 export async function updateDeal(id: string, _: FormState, formData: FormData): Promise<FormState> {
-  await requireUser();
+  const user = await requireUser();
   const parsed = dealSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
   const previous = await db.deal.findUnique({ where: { id } });
   if (!previous) return { error: "Deal not found." };
+  if (!canEditCrmRecord(user, previous)) return { error: "Only the deal's owner, a manager or an admin can change it." };
   await db.deal.update({ where: { id }, data: { ...parsed.data, closedAt: closedAtFor(parsed.data.stage, previous) } });
   refresh();
   return { ok: "Saved." };
 }
 
 export async function moveDeal(id: string, formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const stage = dealStage.parse(formData.get("stage"));
   const previous = await db.deal.findUnique({ where: { id } });
-  if (!previous) return;
+  if (!previous || !canEditCrmRecord(user, previous)) return;
   await db.deal.update({ where: { id }, data: { stage, closedAt: closedAtFor(stage, previous) } });
   refresh();
 }
@@ -291,6 +303,7 @@ export async function deleteDeal(id: string) {
   const deal = await db.deal.delete({ where: { id } });
   await logActivity(admin, "DELETED", "deal.deleted", `Deleted deal ${deal.title}`);
   refresh();
+  await flash("Deal deleted.");
   redirect("/crm/deals");
 }
 
@@ -329,9 +342,9 @@ export async function createActivity(_: FormState, formData: FormData): Promise<
 }
 
 export async function toggleActivity(id: string) {
-  await requireUser();
+  const user = await requireUser();
   const a = await db.activity.findUnique({ where: { id } });
-  if (!a) return;
+  if (!a || !canTickActivity(user, a)) return;
   await db.activity.update({ where: { id }, data: { done: !a.done } });
   refresh();
 }

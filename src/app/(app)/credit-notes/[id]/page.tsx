@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { ActionForm, SubmitButton } from "@/components/action-form";
+import { ActionForm, SubmitButton, ConfirmButton } from "@/components/action-form";
 import { Badge, Field, Options, PageHeader } from "@/components/ui";
 import { formatDate, toDateInput } from "@/lib/format";
 import { todayIST } from "@/lib/time";
@@ -49,6 +49,7 @@ export default async function CreditNotePage({ params }: PageProps<"/credit-note
       <div className="print:hidden">
         <PageHeader
           title={note.number}
+          copy={note.number}
           subtitle={
             <>
               <Badge color={live ? "purple" : "gray"}>{live ? "Credit note" : "Cancelled"}</Badge> against invoice{" "}
@@ -158,7 +159,7 @@ export default async function CreditNotePage({ params }: PageProps<"/credit-note
               </p>
               {isAdmin(user) && (
                 <form action={removeRefund.bind(null, note.id)}>
-                  <button className="text-xs text-slate-400 hover:text-red-600">Remove refund</button>
+                  <ConfirmButton message={"Remove the refund recorded on this credit note?"} className="text-xs text-slate-400 hover:text-red-600">Remove refund</ConfirmButton>
                 </form>
               )}
             </section>

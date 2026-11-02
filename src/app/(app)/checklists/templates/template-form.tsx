@@ -152,6 +152,7 @@ export function TemplateForm({
               <select name="role" defaultValue={defaults.role} className="input">
                 <option value="EMPLOYEE">Employees</option>
                 <option value="MANAGER">Managers</option>
+                <option value="HR">HR</option>
                 <option value="ADMIN">Admins</option>
               </select>
             </Field>

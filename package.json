@@ -7,23 +7,38 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "security:secrets": "node scripts/check-secrets.mjs",
+    "security:dependencies": "node scripts/check-dependencies.mjs",
+    "test": "tsx --test tests/*.test.ts",
+    "test:smoke": "node --env-file=.env --import tsx scripts/smoke-test.ts",
+    "test:workflows": "node --env-file=.env --import tsx scripts/hr-inventory-smoke.ts",
+    "test:acceptance": "node --env-file=.env --import tsx scripts/acceptance-test.ts",
+    "test:roles": "node --env-file=.env --import tsx scripts/role-access-test.ts",
+    "test:security": "node --conditions=react-server --env-file-if-exists=.env --import tsx scripts/security-integration.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed-demo": "tsx scripts/seed-demo.ts",
+    "demo:seed": "tsx scripts/seed-demo.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@react-pdf/renderer": "^4.9.0",
     "bcryptjs": "^3.0.3",
-    "jose": "^6.2.12",
-    "next": "16.3.8",
-    "nodemailer": "^10.0.15",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "jose": "^6.2.14",
+    "next": "16.4.3",
+    "nodemailer": "^10.3.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "server-only": "^0.0.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.0"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -32,7 +47,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.4.3",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",

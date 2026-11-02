@@ -17,7 +17,7 @@ export function NoticeForm({
 }) {
   const policy = kind === "POLICY";
   return (
-    <ActionForm action={action} className="card space-y-4">
+    <ActionForm action={action} className="card space-y-4" draft={notice ? undefined : `new-notice-${kind}`}>
       <input type="hidden" name="kind" value={kind} />
       <Field label="Title">
         <input
@@ -53,7 +53,7 @@ export function NoticeForm({
             .
           </p>
         )}
-        <input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="text-sm" />
+        <input name="file" type="file" aria-label="Attach a file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="w-full max-w-full text-sm" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

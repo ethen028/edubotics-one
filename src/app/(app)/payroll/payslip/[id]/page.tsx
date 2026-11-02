@@ -7,6 +7,7 @@ import { getSettings } from "@/lib/settings";
 import { formatDate, formatINR } from "@/lib/format";
 import { CATEGORY_LABEL, payableOf } from "@/lib/expenses";
 import { PrintButton } from "./print-button";
+import { LogoMark } from "@/components/logo";
 
 export const metadata = { title: "Payslip" };
 
@@ -24,7 +25,7 @@ export default async function PayslipPage({ params }: PageProps<"/payroll/paysli
   const own = p && user.employee?.id === p.employeeId && p.run.status !== "DRAFT";
   if (!p || (!isAdmin(user) && !own)) notFound();
 
-  const { earnings, deductions } = payslipParts(p);
+  const { earnings, deductions, companyPays } = payslipParts(p);
   const settings = await getSettings();
 
   return (
@@ -41,6 +42,7 @@ export default async function PayslipPage({ params }: PageProps<"/payroll/paysli
       <article className="card mx-auto max-w-3xl print:border-0 print:shadow-none">
         <header className="mb-6 flex items-start justify-between border-b border-slate-200 pb-4">
           <div>
+            <LogoMark className="mb-2 h-9 w-auto" />
             <div className="text-lg font-semibold">{settings.companyName}</div>
             <div className="text-sm text-slate-500">{settings.companyAddress}</div>
           </div>
@@ -151,6 +153,17 @@ export default async function PayslipPage({ params }: PageProps<"/payroll/paysli
           <span className="text-2xl font-semibold">{formatINR(p.net)}</span>
         </div>
         {p.note && <p className="mt-3 text-sm text-slate-600">Note: {p.note}</p>}
+        {companyPays.length > 0 && (
+          <div className="mt-4 text-sm text-slate-600">
+            <div className="font-medium">Paid by the company on top of your salary (not taken from your pay)</div>
+            {companyPays.map(([k, v]) => (
+              <div key={k} className="flex justify-between">
+                <span>{k}</span>
+                <span>{formatINR(v)}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <p className="mt-6 text-xs text-slate-400">This is a computer-generated payslip and needs no signature.</p>
       </article>
     </>

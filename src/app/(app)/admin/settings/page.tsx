@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+import { parseSlabs } from "@/lib/payroll";
 import { requireUser } from "@/lib/auth";
 import { WEEKDAYS, getSettings } from "@/lib/settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -7,31 +9,46 @@ import {
   updateCareersSettings,
   updateCertificateSettings,
   updateGoogleSettings,
+  updateLetterSettings,
   updateMailSettings,
+  updateReminderSettings,
   updateSafetySettings,
   updateSettings,
+  updateTeamworkSettings,
 } from "./actions";
+import { emailInDomain } from "@/lib/teamwork-rules";
 import { callbackUrl, googleSetup } from "@/lib/google-sign-in";
-import { certificateSignature } from "@/lib/settings";
+import { certificateSignature, letterSignature } from "@/lib/settings";
 import { GST_RATES, INDIAN_STATES } from "@/lib/invoices";
 import { db } from "@/lib/db";
 import { mailSetup } from "@/lib/mail";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui";
 import { EmailHistory, emailLogSelect } from "@/components/email";
+import { PasswordInput } from "@/components/password-input";
 
 export const metadata = { title: "Settings" };
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default async function SettingsPage() {
   const user = await requireUser(["ADMIN"]);
   const s = await getSettings();
   const setup = mailSetup(s);
-  const signature = await certificateSignature();
+  const [signature, hrSignature] = await Promise.all([certificateSignature(), letterSignature()]);
   const googleOn = !!googleSetup(s);
-  const recent = await db.emailLog.findMany({ select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 15 });
+  const [recent, automatic] = await Promise.all([
+    db.emailLog.findMany({ select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 15 }),
+    db.emailLog.findMany({ where: { automatic: true }, select: emailLogSelect, orderBy: { createdAt: "desc" }, take: 10 }),
+  ]);
+  const teamworkOutside = s.workspaceDomain
+    ? (await db.user.findMany({ where: { active: true, closedAt: null }, select: { name: true, email: true }, orderBy: { name: "asc" } })).filter(
+        (u) => !emailInDomain(u.email, s.workspaceDomain),
+      )
+    : [];
   return (
     <>
-      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email, certificates, the careers page and sign-in." />
+      <PageHeader title="Settings" subtitle="Company-wide rules for attendance, leave, payroll, expenses, invoices, email, certificates, HR letters, the careers page, Teamwork and sign-in." />
       <div className="card max-w-xl">
         <ActionForm action={updateSettings} className="space-y-4">
           <Field label="Working time per day">
@@ -70,17 +87,90 @@ export default async function SettingsPage() {
               {(
                 [
                   ["pfEnabled", "Provident fund (PF): 12% of basic, on basic up to ₹15,000", s.pfEnabled],
-                  ["esiEnabled", "ESI: 0.75% of gross, for gross up to ₹21,000", s.esiEnabled],
-                  ["ptEnabled", "Professional tax: entered per payslip", s.ptEnabled],
+                  ["esiEnabled", "ESI: employee and company shares of wages earned, for people within the wage limit (rates below)", s.esiEnabled],
+                  ["ptEnabled", "Kerala professional tax: worked out from the half-year slabs below, taken once each half-year", s.ptEnabled],
                   ["tdsEnabled", "Income tax (TDS): entered per payslip", s.tdsEnabled],
+                  ["gratuityEnabled", "Gratuity: show the amount the company sets aside each month (never taken from pay)", s.gratuityEnabled],
                 ] as const
               ).map(([name, label, checked]) => (
                 <label key={name} className="flex items-center gap-2">
-                  <input type="checkbox" name={name} defaultChecked={checked} />
+                  <input type="checkbox" role="switch" className="switch" name={name} defaultChecked={checked} />
                   {label}
                 </label>
               ))}
             </div>
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              The ESI, professional tax and gratuity figures below are a best reading of the rules. Check them with your accountant before switching any of these on.
+            </p>
+            <details className="text-sm" open>
+              <summary className="cursor-pointer font-medium">ESI rates</summary>
+              <div className="mt-2 flex flex-wrap gap-4">
+                <Field label="Employee share, % of wages">
+                  <input name="esiEmployeeRate" type="number" min={0} max={10} step="0.01" defaultValue={Number(s.esiEmployeeRate)} className="input w-24" />
+                </Field>
+                <Field label="Company share, %">
+                  <input name="esiEmployerRate" type="number" min={0} max={10} step="0.01" defaultValue={Number(s.esiEmployerRate)} className="input w-24" />
+                </Field>
+                <Field label="Covered up to gross of ₹ a month">
+                  <input name="esiWageLimit" type="number" min={0} max={1000000} defaultValue={s.esiWageLimit} className="input w-28" />
+                </Field>
+              </div>
+            </details>
+            <details className="text-sm" open>
+              <summary className="cursor-pointer font-medium">Kerala professional tax slabs (per half-year)</summary>
+              <p className="mt-1 text-xs text-slate-500">
+                Half-years run April–September and October–March. Each line: half-year salary from ₹… pays ₹…. Below the first line, nothing. Clear both boxes to remove a line.
+              </p>
+              <div className="mt-2 grid max-w-xs grid-cols-2 gap-2">
+                <div className="label">Half-year salary from ₹</div>
+                <div className="label">Tax ₹</div>
+                {[...parseSlabs(s.ptSlabs), { from: "", tax: "" }, { from: "", tax: "" }].map((slab, i) => (
+                  <Fragment key={i}>
+                    <input name="ptSlabFrom" type="number" min={0} defaultValue={slab.from} className="input py-1" aria-label={`Slab ${i + 1} from`} />
+                    <input name="ptSlabTax" type="number" min={0} defaultValue={slab.tax} className="input py-1" aria-label={`Slab ${i + 1} tax`} />
+                  </Fragment>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-4">
+                <Field label="April–September: take it in">
+                  <select name="ptFirstHalfMonth" defaultValue={s.ptFirstHalfMonth} className="input">
+                    {[4, 5, 6, 7, 8, 9].map((m) => (
+                      <option key={m} value={m}>{MONTHS[m - 1]}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="October–March: take it in">
+                  <select name="ptSecondHalfMonth" defaultValue={s.ptSecondHalfMonth} className="input">
+                    {[10, 11, 12, 1, 2, 3].map((m) => (
+                      <option key={m} value={m}>{MONTHS[m - 1]}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Not charged under this many days employed in the half-year">
+                  <input name="ptMinDays" type="number" min={0} max={183} defaultValue={s.ptMinDays} className="input w-24" />
+                </Field>
+              </div>
+            </details>
+            <details className="text-sm" open>
+              <summary className="cursor-pointer font-medium">Gratuity</summary>
+              <p className="mt-1 text-xs text-slate-500">
+                Gratuity is paid on leaving, not taken from pay: monthly basic × days ÷ working days × years of service. The exit page suggests it once the minimum years are served.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-4">
+                <Field label="Days' basic per year">
+                  <input name="gratuityDays" type="number" min={1} max={60} defaultValue={s.gratuityDays} className="input w-24" />
+                </Field>
+                <Field label="Working days in a month">
+                  <input name="gratuityDivisor" type="number" min={1} max={31} defaultValue={s.gratuityDivisor} className="input w-24" />
+                </Field>
+                <Field label="Payable after years">
+                  <input name="gratuityMinYears" type="number" min={0} max={10} defaultValue={s.gratuityMinYears} className="input w-24" />
+                </Field>
+                <Field label="Most payable, ₹">
+                  <input name="gratuityCap" type="number" min={0} max={100000000} defaultValue={s.gratuityCap} className="input w-32" />
+                </Field>
+              </div>
+            </details>
           </fieldset>
           <fieldset className="space-y-3 border-t border-slate-100 pt-4">
             <legend className="pt-4 font-semibold">Expense claims</legend>
@@ -124,7 +214,7 @@ export default async function SettingsPage() {
               </Field>
             </div>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="gstEnabled" defaultChecked={s.gstEnabled} />
+              <input type="checkbox" role="switch" className="switch" name="gstEnabled" defaultChecked={s.gstEnabled} />
               Charge GST on invoices (switch off if Edubotics isn&apos;t GST registered)
             </label>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -205,8 +295,8 @@ export default async function SettingsPage() {
             )}
           </div>
           <p className="text-sm text-slate-600">
-            Invoices, quotes, payslips, interview invites and payment reminders are sent from the company&apos;s own mail account, only when
-            someone presses Send.
+            Invoices, quotes, payslips, interview invites and payment reminders are sent from the company&apos;s own mail account when
+            someone presses Send. Payment reminders can also go out on their own, if switched on below.
           </p>
           <div className="rounded-lg bg-brand-50 p-3 text-xs text-slate-700">
             <strong>Gmail or Google Workspace:</strong> server <code>smtp.gmail.com</code>, port 587, username is the full email address,
@@ -232,9 +322,8 @@ export default async function SettingsPage() {
                 <input name="smtpUser" defaultValue={s.smtpUser ?? ""} className="input" autoComplete="off" placeholder="accounts@yourdomain.com" />
               </Field>
               <Field label="Password">
-                <input
+                <PasswordInput
                   name="smtpPassword"
-                  type="password"
                   className="input"
                   autoComplete="new-password"
                   placeholder={s.smtpPassword ? "Saved. Leave blank to keep it" : "App password"}
@@ -251,7 +340,7 @@ export default async function SettingsPage() {
               <input name="mailReplyTo" type="email" defaultValue={s.mailReplyTo ?? ""} className="input" placeholder="Same as the send-from address" />
             </Field>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="mailBccSelf" defaultChecked={s.mailBccSelf} />
+              <input type="checkbox" role="switch" className="switch" name="mailBccSelf" defaultChecked={s.mailBccSelf} />
               Keep a copy of every email in the send-from inbox
             </label>
             {s.smtpPassword && (
@@ -285,6 +374,58 @@ export default async function SettingsPage() {
         </div>
       </section>
 
+      <section id="reminders" className="mt-8 grid scroll-mt-6 gap-6 xl:grid-cols-[36rem_1fr]">
+        <div className="card space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">Automatic payment reminders</h2>
+            {!s.autoRemindersEnabled ? (
+              <Badge>Off</Badge>
+            ) : setup === "READY" ? (
+              <Badge color="green">On</Badge>
+            ) : (
+              <Badge color="amber">On, but waiting for a test email</Badge>
+            )}
+          </div>
+          <p className="text-sm text-slate-600">
+            Emails schools the same reminder as the <strong>Send reminder</strong> button on Billing → Payments due, with the overdue
+            invoices attached, to the invoice contact (else the school&apos;s email). They go out on working days from 10 AM, never on
+            weekly offs or holidays. A school gets at most one email per round, so days when this computer was off never add up to a pile
+            of reminders.
+          </p>
+          <ActionForm action={updateReminderSettings} className="space-y-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" role="switch" className="switch" name="autoRemindersEnabled" defaultChecked={s.autoRemindersEnabled} />
+              Send payment reminders automatically
+            </label>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="First reminder (days late)">
+                <input name="autoReminderAfterDays" type="number" min={1} max={90} defaultValue={s.autoReminderAfterDays} className="input" />
+              </Field>
+              <Field label="Then every (days)">
+                <input name="autoReminderEveryDays" type="number" min={3} max={60} defaultValue={s.autoReminderEveryDays} className="input" />
+              </Field>
+              <Field label="Most per invoice">
+                <input name="autoReminderMaxPerInvoice" type="number" min={1} max={10} defaultValue={s.autoReminderMaxPerInvoice} className="input" />
+              </Field>
+            </div>
+            <p className="text-xs text-slate-500">
+              Reminders sent by hand count towards the gap. After the last automatic reminder an invoice is left for a phone call, and
+              Payments due marks it. To stop one school being chased, use <strong>Stop automatic reminders</strong> next to it on Payments
+              due.
+            </p>
+            {s.autoReminderLastRunOn && <p className="text-xs text-slate-500">Last round: {formatDate(s.autoReminderLastRunOn)}.</p>}
+            <SubmitButton>Save reminder settings</SubmitButton>
+          </ActionForm>
+        </div>
+        <div className="min-w-0">
+          {automatic.length > 0 ? (
+            <EmailHistory emails={automatic} title="Automatic reminders sent" />
+          ) : (
+            <p className="text-sm text-slate-500">Reminders sent automatically will be listed here.</p>
+          )}
+        </div>
+      </section>
+
       <section id="certificates" className="mt-8 max-w-xl scroll-mt-6">
         <div className="card space-y-4">
           <h2 className="font-semibold">Workshop certificates</h2>
@@ -308,13 +449,62 @@ export default async function SettingsPage() {
             {signature && (
               <div className="flex items-center gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/admin/settings/signature" alt="Current signature" className="h-14 rounded border border-slate-200 bg-white p-1" />
+                <img src="/admin/settings/signature" alt="Current signature" className="h-14 rounded border border-slate-200 bg-surface p-1" />
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" name="removeSignature" /> Remove it
                 </label>
               </div>
             )}
             <SubmitButton>Save certificate settings</SubmitButton>
+          </ActionForm>
+        </div>
+      </section>
+
+      <section id="letters" className="mt-8 max-w-xl scroll-mt-6">
+        <div className="card space-y-4">
+          <h2 className="font-semibold">HR letters</h2>
+          <p className="text-sm text-slate-600">
+            Appointment letters, certificates, NOCs and the rest under HR → Letters are printed on a letterhead with the company name, address,
+            phone and email from Invoices above, plus these. They are signed by the person below, separate from the certificate signatory.
+          </p>
+          <ActionForm action={updateLetterSettings} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Website">
+                <input name="companyWebsite" defaultValue={s.companyWebsite ?? ""} className="input" placeholder="www.eduboticsglobal.com" />
+              </Field>
+              <Field label="Registration number (optional)">
+                <input name="companyRegNo" defaultValue={s.companyRegNo ?? ""} className="input" placeholder="e.g. CIN U80900KL2020PTC000000" />
+              </Field>
+              <Field label="Probation on appointment letters (months)">
+                <input name="probationMonths" type="number" min={0} max={24} defaultValue={s.probationMonths} className="input w-24" />
+              </Field>
+              <Field label="Notice during probation (days)">
+                <input name="probationNoticeDays" type="number" min={0} max={180} defaultValue={s.probationNoticeDays} className="input w-24" />
+              </Field>
+            </div>
+            <p className="text-xs text-slate-500">Notice once confirmed is the notice period at the top of this page ({s.noticePeriodDays} days). Both can be changed on a single letter.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Letters signed by">
+                <input name="letterSignatoryName" defaultValue={s.letterSignatoryName ?? ""} className="input" placeholder="Full name" />
+              </Field>
+              <Field label="Their title">
+                <input name="letterSignatoryTitle" defaultValue={s.letterSignatoryTitle ?? ""} className="input" placeholder="e.g. HR Manager" />
+              </Field>
+            </div>
+            <Field label="Signature picture (PNG or JPG, under 1 MB)">
+              <input type="file" name="signature" accept="image/png,image/jpeg" className="input" />
+              <span className="mt-1 block text-xs text-slate-500">Without a name, letters say “Authorised signatory” with a blank line to sign by hand.</span>
+            </Field>
+            {hrSignature && (
+              <div className="flex items-center gap-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/admin/settings/signature?letters" alt="Current letter signature" className="h-14 rounded border border-slate-200 bg-surface p-1" />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="removeSignature" /> Remove it
+                </label>
+              </div>
+            )}
+            <SubmitButton>Save letter settings</SubmitButton>
           </ActionForm>
         </div>
       </section>
@@ -329,7 +519,7 @@ export default async function SettingsPage() {
           </p>
           <ActionForm action={updateCareersSettings} className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-medium">
-              <input type="checkbox" name="careersEnabled" defaultChecked={s.careersEnabled} /> Careers page is on
+              <input type="checkbox" role="switch" className="switch" name="careersEnabled" defaultChecked={s.careersEnabled} /> Careers page is on
             </label>
             <Field label="Welcome text at the top">
               <textarea
@@ -343,7 +533,42 @@ export default async function SettingsPage() {
             <Field label="Email for candidates' questions (optional)">
               <input name="careersContactEmail" type="email" defaultValue={s.careersContactEmail ?? ""} className="input" placeholder="careers@eduboticsglobal.com" />
             </Field>
+            <Field label="Delete turned-down applicants after (months)">
+              <input name="applicantRetentionMonths" type="number" min={0} max={120} required defaultValue={s.applicantRetentionMonths} className="input max-w-32" />
+            </Field>
+            <p className="text-xs text-slate-500">
+              Applicants marked rejected or withdrawn are deleted, with their resumes, once nothing about them has changed for this long. Hired
+              people are never deleted. 0 keeps everyone. Holding personal data only as long as needed is what India&apos;s data protection law asks.
+            </p>
             <SubmitButton>Save careers page</SubmitButton>
+          </ActionForm>
+        </div>
+      </section>
+
+      <section id="teamwork" className="mt-8 max-w-xl scroll-mt-6">
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Teamwork</h2>
+            {s.workspaceDomain ? <Badge color="green">Company emails only</Badge> : <Badge>Everyone with a login</Badge>}
+          </div>
+          <p className="text-sm text-slate-600">
+            Messages, Channels, Files and Meetings can be kept to logins on the company&apos;s email domain, like a company Teams
+            workspace. Anyone else (a personal Gmail login, for example) can still use the rest of Orbit but can&apos;t open these or be
+            added to them. The careers page and other public pages are not part of Teamwork either way.
+          </p>
+          <ActionForm action={updateTeamworkSettings} className="space-y-3">
+            <Field label="Company email domain" className="block">
+              <input name="workspaceDomain" defaultValue={s.workspaceDomain ?? ""} className="input" placeholder="eduboticsglobal.com" />
+              <span className="mt-1 block text-xs text-slate-500">Leave blank to let every login use Teamwork.</span>
+            </Field>
+            {teamworkOutside.length > 0 && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {teamworkOutside.length === 1 ? "1 login is" : `${teamworkOutside.length} logins are`} not on @{s.workspaceDomain}, so{" "}
+                {teamworkOutside.length === 1 ? "it can't" : "they can't"} use Teamwork: {teamworkOutside.map((u) => u.name).join(", ")}. Change
+                their email under Admin → Users if they should.
+              </p>
+            )}
+            <SubmitButton>Save Teamwork</SubmitButton>
           </ActionForm>
         </div>
       </section>
@@ -387,7 +612,7 @@ export default async function SettingsPage() {
           </p>
           <ActionForm action={updateGoogleSettings} className="space-y-3">
             <Field label="App address" className="block">
-              <input name="appAddress" defaultValue={s.appAddress ?? ""} className="input" placeholder="https://one.eduboticsglobal.com" />
+              <input name="appAddress" defaultValue={s.appAddress ?? ""} className="input" placeholder="https://orbit.eduboticsglobal.com" />
             </Field>
             {s.appAddress && (
               <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
@@ -399,9 +624,8 @@ export default async function SettingsPage() {
               <input name="googleClientId" defaultValue={s.googleClientId ?? ""} className="input" placeholder="1234567890-abc.apps.googleusercontent.com" />
             </Field>
             <Field label="Client secret" className="block">
-              <input
+              <PasswordInput
                 name="googleClientSecret"
-                type="password"
                 autoComplete="off"
                 className="input"
                 placeholder={s.googleClientSecret ? "Saved. Type a new one to replace it." : "GOCSPX-…"}
@@ -412,7 +636,7 @@ export default async function SettingsPage() {
               <span className="mt-1 block text-xs text-slate-500">Leave blank to allow any Google account (including gmail.com) whose email has a login here.</span>
             </Field>
             <label className="flex items-center gap-2 text-sm font-medium">
-              <input type="checkbox" name="googleEnabled" defaultChecked={s.googleEnabled} /> Google sign-in is on
+              <input type="checkbox" role="switch" className="switch" name="googleEnabled" defaultChecked={s.googleEnabled} /> Google sign-in is on
             </label>
             <SubmitButton>Save Google sign-in</SubmitButton>
           </ActionForm>

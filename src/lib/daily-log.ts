@@ -17,6 +17,11 @@ export function workedMinutes(start: string, end: string) {
   return e - s - overlap;
 }
 
+/** Whether two "HH:MM"–"HH:MM" spans overlap. Touching ends (one finishes at 11:00, the next starts at 11:00) is fine. */
+export function overlapping(aStart: string, aEnd: string, bStart: string, bEnd: string) {
+  return toMinutes(aStart) < toMinutes(bEnd) && toMinutes(bStart) < toMinutes(aEnd);
+}
+
 export function formatDuration(minutes: number) {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
