@@ -80,7 +80,7 @@ export default async function UsersPage() {
                     </select>
                   </Field>
                   <label className="flex items-center gap-1 pb-2 text-sm">
-                    <input type="checkbox" name="active" defaultChecked={u.active} /> Active
+                    <input type="checkbox" role="switch" className="switch" name="active" defaultChecked={u.active} /> Active
                   </label>
                   <button className="btn-secondary">Save</button>
                 </form>

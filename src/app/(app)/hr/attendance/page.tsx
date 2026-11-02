@@ -2,7 +2,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getAttendance, summarize } from "@/lib/attendance-data";
-import { STATUS_COLOR, STATUS_LABEL, dateKey, formatMinutes, istDate, monthDays, parseMonth, formatTime } from "@/lib/attendance";
+import { STATUS_COLOR, STATUS_LABEL, dateKey, formatMinutes, heatWeeks, istDate, monthDays, parseMonth, formatTime } from "@/lib/attendance";
+import { AttendanceChart, CHART_WEEKS } from "@/components/attendance-chart";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge, Empty, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/format";
@@ -29,9 +30,11 @@ export default async function MyAttendancePage({ searchParams }: PageProps<"/hr/
   const days = monthDays(year, month);
   const today = istDate(now);
 
-  const [{ days: grid, settings }, corrections] = await Promise.all([
+  const chartFrom = heatWeeks(today, CHART_WEEKS)[0].days[0];
+  const [{ days: grid, settings }, corrections, chart] = await Promise.all([
     getAttendance([employee.id], days[0], days[days.length - 1], now),
     db.attendanceCorrection.findMany({ where: { employeeId: employee.id }, orderBy: { createdAt: "desc" } }),
+    getAttendance([employee.id], chartFrom, today, now),
   ]);
   const mine = grid.get(employee.id)!;
   const todayDetail = (await getAttendance([employee.id], today, today, now)).days.get(employee.id)!.get(dateKey(today))!;
@@ -104,6 +107,8 @@ export default async function MyAttendancePage({ searchParams }: PageProps<"/hr/
           </p>
         </div>
       </div>
+
+      <AttendanceChart days={chart.days.get(employee.id)!} today={today} target={settings.workMinutesPerDay} />
 
       <div className="card mb-6">
         <div className="grid grid-cols-7 gap-1 text-center text-xs">

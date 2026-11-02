@@ -118,3 +118,38 @@ export function parseMonth(value: string | undefined, now: Date) {
 
 export const formatTime = (d: Date | null) =>
   d ? d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }) : "—";
+
+/** One square in the "last six months" attendance chart: how full the day was, or why it was empty. */
+export type HeatCell = 0 | 1 | 2 | 3 | 4 | "leave" | "off" | "future";
+
+/**
+ * Shade for a day in the attendance chart, against the daily target: 0 nothing worked, 1 under half,
+ * 2 under the target, 3 the target met, 4 overtime (worked on an off day, or past the overtime line).
+ * Leave and off days (holidays, weekly offs) get their own look so a quiet week off doesn't read as absent.
+ */
+export function heatCell(day: DayResult, isFuture: boolean, target: number): HeatCell {
+  if (isFuture || day.status === "NOT_YET") return "future";
+  if (day.status === "LEAVE") return "leave";
+  if (day.status === "HOLIDAY" || day.status === "WEEKLY_OFF") return "off";
+  if (day.status === "OVERTIME") return 4;
+  // Also a day HR marked present without any punches.
+  if (day.status === "PRESENT") return 3;
+  if (day.worked <= 0) return 0;
+  if (day.worked >= target) return 3;
+  return day.worked * 2 < target ? 1 : 2;
+}
+
+/**
+ * The weeks shown in the attendance chart, oldest first, each Sunday to Saturday; the last week holds `today`.
+ * `month` names the month on the first week and on each week that holds the 1st of a month.
+ */
+export function heatWeeks(today: Date, weeks: number): { days: Date[]; month: string | null }[] {
+  const lastSunday = new Date(today.getTime() - today.getUTCDay() * 86400000);
+  const start = new Date(lastSunday.getTime() - (weeks - 1) * 7 * 86400000);
+  const label = (d: Date) => d.toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" });
+  return Array.from({ length: weeks }, (_, w) => {
+    const days = Array.from({ length: 7 }, (_, i) => new Date(start.getTime() + (w * 7 + i) * 86400000));
+    const first = days.find((d) => d.getUTCDate() === 1);
+    return { days, month: w === 0 ? label(days[0]) : first ? label(first) : null };
+  });
+}

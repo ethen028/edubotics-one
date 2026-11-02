@@ -36,7 +36,7 @@ Brand palette from the 24 Oct 2026 files:
 | Mid teal | `#0F7C86` | The logo's mid teal. The app uses `#0E7480` (`brand-700`), a touch darker, so white text on buttons (5.5:1) and teal links on the page (5.1:1) pass |
 | Teal | `#14A3A8` | `brand-500`: focus borders, the mark's gradient. Too light for white text (3.1:1); never use it behind text |
 | Light teal | `#8FE0DF` | `brand-300`: the reverse mark, link preview text |
-| Orange spark | `#FF7A30` | `--color-spark`: the short bar on number cards, the mark beside the open menu page, the dot on the open tab, the short bar under page titles, the top edge of table cards, today's dot in the mini calendar, the email rule. Small marks only: it is 2.6:1 on white, so never text or a button |
+| Orange spark | `#FF7A30` | `--color-spark`: the short bar on number cards, the mark beside the open menu page, the dot on the open tab, the short bar under page titles, the top edge of table cards, today's dot in the mini calendar, the ring round today's square in the attendance chart, the email rule. Small marks only: it is 2.6:1 on white, so never text or a button |
 | Grey text | `#4F6A70` | `slate-500`: secondary text (5.4:1 on the page) |
 | Near-white | `#F4F8F8` | `--page-bg`, the reverse mark |
 
@@ -68,7 +68,7 @@ Plus Jakarta Sans everywhere (`next/font` in `src/app/layout.tsx`, `--font-sans`
 - Radii: cards 20 px (`.card`), banners 24 px, inputs 12 px, buttons and chips fully round.
 - Spacing: Tailwind's 4 px scale. Card padding `p-5`; gaps between cards `gap-4`; page header `mb-6`.
 - Depth: one soft shadow on cards. Frosted glass only on things that float (top bar, dropdowns, dialogs).
-- Motion: short (150 ms) with one easing, `cubic-bezier(0.22, 1, 0.36, 1)`. Everything stops under `prefers-reduced-motion`.
+- Motion: short (150 ms, 260 ms for the tab pill) with one easing, `cubic-bezier(0.22, 1, 0.36, 1)`. Only things that move with purpose: the tab pill gliding to the open tab, a switch's knob, a fold-out's chevron turning, saved messages sliding in. Everything stops under `prefers-reduced-motion`.
 
 ## Components
 
@@ -86,8 +86,18 @@ Use these before writing new markup:
 | Page tabs under the title | `src/components/section-tabs.tsx` (driven by `src/lib/nav.ts`) |
 | Toast after saving | returned `{ ok: "..." }` from the action; `ActionForm` shows it |
 | Icons | `<Icon name>` from `src/components/icons.tsx` (24 px line icons; add a path there, no icon library) |
+| A setting that is on or off (payroll deductions, GST, backups, a login being active) | `<input type="checkbox" role="switch" className="switch">`. Keep plain tick boxes for picking several things (weekly off days, people) |
+| A section that folds away | `<details>` + `<summary>`; the chevron comes by itself. Add `list-none` to a summary styled as a button to leave it out |
+| Days over months, shaded by amount | The attendance chart (`src/components/attendance-chart.tsx`, `.heat-*` classes): one teal, deeper means more, leave and days off outlined, a word for every square on hover |
 
-CSS classes: `.card`, `.input`, `.label`, `.btn-primary` (solid teal), `.btn-secondary` (soft grey, no border), `.btn-danger`, `.btn-sm`, `.table`, `.link`, `.hero-card`.
+CSS classes: `.card`, `.input`, `.label`, `.btn-primary` (solid teal), `.btn-secondary` (soft grey, no border), `.btn-danger`, `.btn-sm`, `.table`, `.link`, `.hero-card`, `.switch`.
+
+Behaviour of the shared pieces (Nov 2026, ideas taken from uiarc.dev, spaceui.one, useplanes.com, skecher-ui.com and componentry.dev; no code or assets copied):
+
+- Section tabs: one navy pill glides to the tab you open within a section; it jumps straight there when you change section.
+- Saved messages stack up to three, newest in front with the older ones peeking out; pointing at the stack opens it and holds the messages until you move away.
+- Find anything (Ctrl K, ⌘K on a Mac) groups results under Recently viewed, Start something and Pages, and shows the keys at the bottom.
+- Tick boxes and radio buttons are the brand teal (`accent-color`).
 
 ## Layout
 
