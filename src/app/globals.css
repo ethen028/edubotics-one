@@ -59,6 +59,44 @@ body {
   color: var(--color-slate-900);
 }
 
+/* Fold-out sections ("Edit draft", "ESI rates", "How these numbers are worked out"): a small chevron that turns
+   when the section opens, in place of the browser's black triangle, after the FAQ lists on useplanes.com.
+   Summaries styled as buttons (list-none) keep their own look. */
+summary:not(.list-none) {
+  list-style: none;
+}
+summary:not(.list-none)::-webkit-details-marker {
+  display: none;
+}
+summary:not(.list-none)::before {
+  content: "";
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  margin: 0 0.55em 0.12em 0.1em;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  opacity: 0.7;
+  transform: rotate(-45deg);
+  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+details[open] > summary:not(.list-none)::before {
+  transform: rotate(45deg);
+}
+summary {
+  border-radius: 0.375rem;
+}
+summary:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+/* Tick boxes and radio buttons in the brand blue instead of the browser's blue. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-brand-700);
+}
+
 h1,
 h2 {
   font-family: var(--font-display);
@@ -106,6 +144,20 @@ h2 {
   }
   .link {
     @apply font-medium text-brand-700 hover:underline;
+  }
+  /* On/off settings (payroll deductions, GST, backups, a login being active): a small switch instead of a tick
+     box, after the animated switch on uiarc.dev. Still a real checkbox, so forms send it as before; role="switch"
+     makes screen readers say on or off. */
+  .switch {
+    @apply relative inline-block h-5 w-9 shrink-0 cursor-pointer appearance-none rounded-full bg-slate-300 align-middle transition-colors duration-150 outline-none checked:bg-brand-700 focus-visible:ring-3 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .switch::before {
+    content: "";
+    @apply absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .switch:checked::before {
+    @apply translate-x-4;
   }
 
   /* Number cards: flat white with a short orange bar; the first card of a row is the accent tile, filled navy. */
@@ -438,6 +490,13 @@ h2 {
   }
 }
 
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
 @keyframes flyout-in {
   from {
     opacity: 0;
@@ -455,6 +514,9 @@ h2 {
   [class*="btn"]:active,
   a.stat:hover {
     transform: none !important;
+  }
+  .workspace-notification {
+    animation: none !important;
   }
 }
 
@@ -488,6 +550,25 @@ h2 {
   .palette-item[data-active] {
     @apply bg-mint text-ink;
   }
+  /* Grouped results with key hints, after the command palettes on uiarc.dev and useplanes.com. */
+  .palette-heading {
+    @apply block px-3 pt-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase;
+  }
+  li:first-child > .palette-heading {
+    @apply pt-1;
+  }
+  .palette-item-icon {
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--line)] bg-surface text-slate-500;
+  }
+  .palette-item[data-active] .palette-item-icon {
+    @apply border-brand-200 text-brand-700;
+  }
+  .palette-foot {
+    @apply hidden items-center gap-4 border-t border-[var(--line)] bg-[var(--page-bg)] px-4 py-2 text-xs text-slate-500 sm:flex;
+  }
+  .palette-foot > span {
+    @apply inline-flex items-center gap-1;
+  }
   .waiting-strip {
     @apply mb-3 flex flex-wrap items-center gap-2 px-1 text-sm;
   }
@@ -501,14 +582,29 @@ h2 {
     @apply hidden shrink-0 items-center gap-1.5 text-xs font-semibold tracking-wider text-slate-500 uppercase lg:flex;
   }
   .section-tabs-track {
-    @apply flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-full border border-[var(--line)] bg-surface p-1;
+    @apply relative isolate flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-full border border-[var(--line)] bg-surface p-1;
     scrollbar-width: none;
   }
   .section-tab {
-    @apply flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900;
+    @apply relative z-[1] flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900;
   }
   .section-tab[data-active] {
     @apply bg-navy font-semibold text-white hover:bg-navy hover:text-white;
+  }
+  /* One navy pill that glides to the open tab (src/components/section-tabs.tsx). Until the page script runs, the
+     open tab paints its own navy, so the row never looks empty. The text turns white a moment after the pill
+     sets off, so it is never white on white. */
+  .section-tabs-pill {
+    @apply pointer-events-none absolute top-1 bottom-1 left-0 z-0 rounded-full bg-navy;
+  }
+  .section-tabs-pill[data-slide] {
+    transition:
+      transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .section-tabs-track[data-pill] .section-tab[data-active] {
+    @apply bg-transparent hover:bg-transparent;
+    transition: color 120ms 120ms;
   }
   .section-tab[data-active]::before {
     content: "";
@@ -564,6 +660,63 @@ h2 {
   }
   .rag[data-rag="NONE"] {
     @apply bg-slate-100 text-slate-600;
+  }
+
+  /* "Last six months" attendance squares on My attendance (src/components/attendance-chart.tsx). One blue, deeper
+     means more of the day worked; leave and days off are outlined so they never read as absent. */
+  .heat {
+    @apply grid max-w-2xl grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1;
+  }
+  .heat-months {
+    @apply grid gap-[3px] text-[11px] text-slate-500;
+  }
+  .heat-months > a {
+    @apply row-start-1 w-0 overflow-visible whitespace-nowrap hover:text-brand-700 hover:underline;
+  }
+  .heat-days {
+    @apply grid grid-rows-7 gap-[3px] text-[10px] leading-none text-slate-500;
+  }
+  .heat-days > span {
+    @apply flex items-center;
+  }
+  .heat-grid {
+    @apply grid grid-flow-col grid-rows-7 gap-[3px];
+  }
+  .heat-cell {
+    @apply block aspect-square rounded-[3px] bg-slate-200;
+  }
+  .heat-cell[data-cell="1"] {
+    @apply bg-brand-200;
+  }
+  .heat-cell[data-cell="2"] {
+    @apply bg-brand-400;
+  }
+  .heat-cell[data-cell="3"] {
+    @apply bg-brand-700;
+  }
+  .heat-cell[data-cell="4"] {
+    @apply bg-navy;
+  }
+  .heat-cell[data-cell="leave"] {
+    @apply bg-mint ring-1 ring-brand-300 ring-inset;
+  }
+  .heat-cell[data-cell="off"] {
+    @apply bg-transparent ring-1 ring-slate-200 ring-inset;
+  }
+  .heat-cell[data-cell="future"] {
+    @apply bg-transparent;
+  }
+  .heat-cell[data-today] {
+    @apply ring-2 ring-spark ring-offset-1 ring-offset-surface;
+  }
+  .heat-legend {
+    @apply mt-3 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500;
+  }
+  .heat-legend > .heat-cell {
+    @apply w-3;
+  }
+  .heat-legend-gap {
+    @apply w-3;
   }
 
   /* Month calendar page. */
@@ -659,6 +812,34 @@ h2 {
   }
   .workspace-notification {
     @apply pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-emerald-200 bg-surface px-4 py-3 text-sm shadow-lg;
+  }
+  /* Several messages in a row: the newest in front, up to two peeking out below it, opened out on hover or focus
+     (src/components/notifications.tsx). */
+  .notification-stack {
+    @apply pointer-events-auto relative isolate grid w-full max-w-md items-start justify-items-end;
+  }
+  .notification-stack > .workspace-notification {
+    @apply col-start-1 row-start-1 transition-[transform,opacity] duration-200;
+    animation: toast-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .notification-stack > [data-depth="1"] {
+    @apply z-[-1];
+    transform: translateY(10px) scale(0.95);
+    opacity: 0.85;
+  }
+  .notification-stack > [data-depth="2"] {
+    @apply z-[-2];
+    transform: translateY(20px) scale(0.9);
+    opacity: 0.6;
+  }
+  .notification-stack[data-open] {
+    @apply gap-2;
+  }
+  .notification-stack[data-open] > .workspace-notification {
+    @apply row-auto;
+    transform: none;
+    opacity: 1;
+    z-index: auto;
   }
   .workspace-notification p {
     @apply flex-1;
@@ -1239,6 +1420,14 @@ main .grid > * {
   }
   .chat-picked {
     @apply inline-flex max-w-48 items-center gap-1 truncate rounded-full bg-brand-50 px-2 py-0.5 text-brand-800;
+  }
+  /* A video call card: same light card for everyone, so the Join button reads the same in your bubble and theirs. */
+  .chat-bubble.chat-call,
+  .chat-mine .chat-bubble.chat-call {
+    @apply border border-brand-200 bg-white text-slate-900;
+  }
+  .chat-call-error {
+    @apply absolute top-full right-0 z-20 mt-1 w-60 p-2 text-xs text-red-700;
   }
 }
 @media (pointer: coarse) {

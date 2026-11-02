@@ -7,6 +7,13 @@ import { Icon, NAV_ICONS, type IconName } from "./icons";
 
 type Entry = { href: string; label: string; group: string; icon: IconName };
 
+/** The small heading a result sits under in the list, so recent pages, quick starts and menu pages read apart. */
+function headingOf(e: Entry) {
+  if (e.group.startsWith("Recent")) return "Recently viewed";
+  if (e.group === "Quick start") return "Start something";
+  return "Pages";
+}
+
 /** Things people often start from anywhere; shown first when the box is empty. */
 const QUICK: { href: string; label: string; needs?: string }[] = [
   { href: "/crm/leads/new", label: "Add a lead", needs: "/crm/leads" },
@@ -79,7 +86,9 @@ export function CommandPalette({ groups, userId }: { groups: NavGroupData[]; use
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const list = useRef<HTMLUListElement>(null);
   const router = useRouter();
+  const [mac, setMac] = useState(false);
 
   const pages = useMemo<Entry[]>(
     () =>
@@ -132,6 +141,17 @@ export function CommandPalette({ groups, userId }: { groups: NavGroupData[]; use
   }, []);
 
   useEffect(() => {
+    // Show ⌘K on a Mac; read after the page loads, since the server can't tell.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
+  }, []);
+
+  // Keep the picked row in view while moving through a long list with the arrow keys.
+  useEffect(() => {
+    list.current?.querySelector<HTMLElement>("[data-active]")?.scrollIntoView({ block: "nearest" });
+  }, [index, open]);
+
+  useEffect(() => {
     const d = dialog.current;
     if (!d) return;
     if (open && !d.open) {
@@ -158,7 +178,7 @@ export function CommandPalette({ groups, userId }: { groups: NavGroupData[]; use
       <button type="button" className="find-button" onClick={() => setOpen(true)} aria-haspopup="dialog">
         <Icon name="search" className="h-4 w-4 shrink-0" />
         <span className="flex-1 text-left">Find a page or start something…</span>
-        <kbd className="find-kbd">Ctrl K</kbd>
+        <kbd className="find-kbd">{mac ? "⌘K" : "Ctrl K"}</kbd>
       </button>
       <dialog
         ref={dialog}
@@ -197,24 +217,52 @@ export function CommandPalette({ groups, userId }: { groups: NavGroupData[]; use
           />
           <kbd className="find-kbd">Esc</kbd>
         </div>
-        <ul id="palette-results" role="listbox" aria-label="Pages" className="palette-results">
+        <ul ref={list} id="palette-results" role="listbox" aria-label="Pages" className="palette-results">
           {results.length === 0 && <li className="px-3 py-6 text-center text-sm text-slate-500">No page matches &ldquo;{query}&rdquo;.</li>}
-          {results.map((r, i) => (
-            <li key={`${r.group}-${r.href}`} role="option" aria-selected={i === index}>
-              <button
-                type="button"
-                className="palette-item"
-                data-active={i === index || undefined}
-                onMouseEnter={() => setIndex(i)}
-                onClick={() => go(r)}
-              >
-                <Icon name={r.icon} className="h-4 w-4 shrink-0" />
-                <span className="flex-1 truncate text-left">{r.label}</span>
-                <span className="text-xs text-slate-500">{r.group}</span>
-              </button>
-            </li>
-          ))}
+          {results.map((r, i) => {
+            const heading = headingOf(r);
+            const first = i === 0 || headingOf(results[i - 1]) !== heading;
+            return (
+              <li key={`${r.group}-${r.href}`} role="option" aria-selected={i === index}>
+                {first && (
+                  <span className="palette-heading" aria-hidden="true">
+                    {heading}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="palette-item"
+                  data-active={i === index || undefined}
+                  onMouseEnter={() => setIndex(i)}
+                  onClick={() => go(r)}
+                >
+                  <span className="palette-item-icon">
+                    <Icon name={r.icon} className="h-4 w-4" />
+                  </span>
+                  <span className="flex-1 truncate text-left">{r.label}</span>
+                  {r.group !== "Quick start" && r.group !== "Recent" && <span className="text-xs text-slate-500">{r.group.replace(/^Recent · /, "")}</span>}
+                  {i === index && (
+                    <kbd className="find-kbd" aria-hidden="true">
+                      Enter
+                    </kbd>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
+        <div className="palette-foot" aria-hidden="true">
+          <span>
+            <kbd className="find-kbd">↑</kbd>
+            <kbd className="find-kbd">↓</kbd> to move
+          </span>
+          <span>
+            <kbd className="find-kbd">Enter</kbd> to open
+          </span>
+          <span>
+            <kbd className="find-kbd">Esc</kbd> to close
+          </span>
+        </div>
       </dialog>
     </>
   );

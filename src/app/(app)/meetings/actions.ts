@@ -11,7 +11,7 @@ import { loadMeeting, meetingWhen } from "@/lib/meetings";
 import { notify } from "@/lib/notifications";
 import { parseISTDateTime } from "@/lib/recruitment";
 import { requireTeamwork, teammatesAmong, teammateWhere } from "@/lib/teamwork";
-import { MEETING_LENGTHS, checkJoinUrl } from "@/lib/teamwork-rules";
+import { MEETING_LENGTHS, checkJoinUrl, newCallUrl } from "@/lib/teamwork-rules";
 
 const optional = (max: number, label: string) =>
   z
@@ -54,7 +54,9 @@ async function readMeeting(formData: FormData, organizerId: string) {
       ? await db.user.findMany({ where: { ...(await teammateWhere()), id: { not: organizerId } }, select: { id: true, name: true } })
       : await teammatesAmong(formData.getAll("people").map(String), organizerId);
   if (people.length === 0) return { error: "Invite at least one person." };
-  return { data: { ...parsed.data, joinUrl: link.url }, people };
+  // No link pasted and "Video call in Orbit" ticked: a fresh call room for this meeting.
+  const joinUrl = link.url ?? (formData.get("makeCall") === "on" ? newCallUrl(crypto.getRandomValues(new Uint8Array(24))) : null);
+  return { data: { ...parsed.data, joinUrl }, people };
 }
 
 export async function createMeeting(_: FormState, formData: FormData): Promise<FormState> {

@@ -7,7 +7,7 @@ import { PASSWORD_RULES } from "@/lib/passwords";
 import { lockedEmails, minutesUntil } from "@/lib/sign-in";
 import { getSettings } from "@/lib/settings";
 import { emailInDomain } from "@/lib/teamwork-rules";
-import { changeUserEmail, createUser, makeOwner, resetPassword, signOutEverywhere, unlockUser, updateUser } from "../actions";
+import { changeUserEmail, createUser, makeOwner, resetPassword, signOutEverywhere, turnOffUserCodes, unlockUser, updateUser } from "../actions";
 
 export const metadata = { title: "Users" };
 
@@ -47,6 +47,7 @@ export default async function UsersPage() {
                 {locked.has(u.email) && <Badge color="red">Locked for {minutesUntil(locked.get(u.email)!)} min</Badge>}
                 {u.mustChangePassword && <Badge color="amber">Picks a new password at next sign-in</Badge>}
                 {u.googleSub && <Badge color="green">Google linked</Badge>}
+                {u.totpEnabledAt && <Badge color="green">Sign-in codes on</Badge>}
                 {settings.workspaceDomain && !emailInDomain(u.email, settings.workspaceDomain) && (
                   <span title={`Teamwork is for @${settings.workspaceDomain} logins only`}>
                     <Badge color="amber">No Teamwork</Badge>
@@ -80,7 +81,7 @@ export default async function UsersPage() {
                     </select>
                   </Field>
                   <label className="flex items-center gap-1 pb-2 text-sm">
-                    <input type="checkbox" name="active" defaultChecked={u.active} /> Active
+                    <input type="checkbox" role="switch" className="switch" name="active" defaultChecked={u.active} /> Active
                   </label>
                   <button className="btn-secondary">Save</button>
                 </form>
@@ -104,6 +105,13 @@ export default async function UsersPage() {
                 {u._count.sessions > 0 && u.id !== me.id && (
                   <form action={signOutEverywhere.bind(null, u.id)}>
                     <button className="btn-secondary">Sign out everywhere</button>
+                  </form>
+                )}
+                {u.totpEnabledAt && u.id !== me.id && (!u.isSuperadmin || me.isSuperadmin) && (!u.isOwner || me.isOwner) && (
+                  <form action={turnOffUserCodes.bind(null, u.id)}>
+                    <ConfirmButton className="btn-secondary" message={`Turn off sign-in codes for ${u.name}? They sign in with their password alone until they set codes up again.`}>
+                      Turn off sign-in codes
+                    </ConfirmButton>
                   </form>
                 )}
                 {me.isOwner && !u.isOwner && u.role === "ADMIN" && u.active && (

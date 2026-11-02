@@ -156,7 +156,7 @@
   }
 
   /* Panels that stay navy in both looks keep the light-look colours inside them. */
-  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .brand-mark, .avatar, .recognition-spotlight-avatar, .nav-badge, .theme-pill, .section-tab[data-active], .nav-flyout-card .nav-link[data-active], .menu-rail-item[data-shown]) {
+  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.hero-card, .auth-panel, .brand-mark, .avatar, .recognition-spotlight-avatar, .nav-badge, .theme-pill, .section-tab[data-active], .section-tabs-pill, .nav-flyout-card .nav-link[data-active], .menu-rail-item[data-shown]) {
     --color-brand-50: #f1f6fc;
     --color-brand-100: #e2edf9;
     --color-brand-300: #9cc3ea;
@@ -174,7 +174,7 @@
     --color-mint: #e2edf9;
     --color-ink: #173d73;
   }
-  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) .btn-primary {
+  html:is([data-theme="DARK"], [data-theme="SYSTEM"][data-device="dark"]) :is(.btn-primary, .switch) {
     --color-brand-700: #2563ae;
     --color-brand-800: #1d4f93;
   }

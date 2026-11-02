@@ -43,7 +43,7 @@ test("every signed-in page has a row in the access list and enforces exactly tha
 });
 
 // Server actions that run before anyone is signed in (sign-in, password reset, email links).
-const PUBLIC_ACTIONS = new Set(["actions.ts#login", "actions.ts#logout", "account-actions.ts#requestPasswordReset", "account-actions.ts#resetPassword", "account-actions.ts#verifyEmail"]);
+const PUBLIC_ACTIONS = new Set(["actions.ts#login", "actions.ts#verifyLoginCode", "actions.ts#logout", "account-actions.ts#requestPasswordReset", "account-actions.ts#resetPassword", "account-actions.ts#verifyEmail"]);
 const GUARD = /\b(requireUser|requireOwner|requireSuperadmin|requireBackupAdmin|requireTeamwork|getCurrentSession|getApiUser|getTeamworkApiUser)\s*\(/;
 
 test("every server action checks who is signed in before it touches the database", () => {

@@ -33,7 +33,7 @@ Sampled from the 2 Nov 2026 logo:
 | Face light blue | `#1D7EC2` | `brand-500` / `BRAND.blueLight`: focus borders and accents. 4.4:1 with white, so never behind text |
 | Deep blue-navy | `#0F2D57` | `--color-navy` / `BRAND.navy`: menu rail, banners, sign-in panel, first number card, app icon tile, email header, ID card band. White on it is 13.7:1 |
 | Dark blue | `#1D4F93` | `brand-800`: button hover, menu flyout |
-| Robot orange | `#EE6C23` | `--color-spark` / `BRAND.orange` (the logo runs `#E96324` to `#F07922`): the short bar on number cards, the mark beside the open menu page, the dot on the open tab, the short bar under page titles, the top edge of table cards, today's dot in the mini calendar, the email rule, the ID card rule. Small marks only: 3.2:1 on white, so never text or a button |
+| Robot orange | `#EE6C23` | `--color-spark` / `BRAND.orange` (the logo runs `#E96324` to `#F07922`): the short bar on number cards, the mark beside the open menu page, the dot on the open tab, the short bar under page titles, the top edge of table cards, today's dot in the mini calendar, the ring round today's square in the attendance chart, the email rule, the ID card rule. Small marks only: 3.2:1 on white, so never text or a button |
 | Blue-grey text | `#4A5B71` | `slate-500` / `BRAND.muted`: secondary text (6.5:1 on the page) |
 | Page | `#F4F7FB` | `--page-bg` / `BRAND.page` |
 | Logo grey | `#3E3E3F` | The tagline in the colour logo only |
@@ -67,7 +67,7 @@ Plus Jakarta Sans everywhere (`next/font` in `src/app/layout.tsx`, `--font-sans`
 - Radii: cards 20 px (`.card`), banners 24 px, inputs 12 px, buttons and chips fully round.
 - Spacing: Tailwind's 4 px scale. Card padding `p-5`; gaps between cards `gap-4`; page header `mb-6`.
 - Depth: one soft shadow on cards. Frosted glass only on things that float (top bar, dropdowns, dialogs).
-- Motion: short (150 ms) with one easing, `cubic-bezier(0.22, 1, 0.36, 1)`. Everything stops under `prefers-reduced-motion`.
+- Motion: short (150 ms, 260 ms for the tab pill) with one easing, `cubic-bezier(0.22, 1, 0.36, 1)`. Only things that move with purpose: the tab pill gliding to the open tab, a switch's knob, a fold-out's chevron turning, saved messages sliding in. Everything stops under `prefers-reduced-motion`.
 
 ## Components
 
@@ -85,8 +85,18 @@ Use these before writing new markup:
 | Page tabs under the title | `src/components/section-tabs.tsx` (driven by `src/lib/nav.ts`) |
 | Toast after saving | returned `{ ok: "..." }` from the action; `ActionForm` shows it |
 | Icons | `<Icon name>` from `src/components/icons.tsx` (24 px line icons; add a path there, no icon library) |
+| A setting that is on or off (payroll deductions, GST, backups, a login being active) | `<input type="checkbox" role="switch" className="switch">`. Keep plain tick boxes for picking several things (weekly off days, people) |
+| A section that folds away | `<details>` + `<summary>`; the chevron comes by itself. Add `list-none` to a summary styled as a button to leave it out |
+| Days over months, shaded by amount | The attendance chart (`src/components/attendance-chart.tsx`, `.heat-*` classes): one blue, deeper means more, leave and days off outlined, a word for every square on hover |
 
-CSS classes: `.card`, `.input`, `.label`, `.btn-primary` (solid blue), `.btn-secondary` (soft grey, no border), `.btn-danger`, `.btn-sm`, `.table`, `.link`, `.hero-card`.
+CSS classes: `.card`, `.input`, `.label`, `.btn-primary` (solid blue), `.btn-secondary` (soft grey, no border), `.btn-danger`, `.btn-sm`, `.table`, `.link`, `.hero-card`, `.switch`.
+
+Behaviour of the shared pieces (Nov 2026, ideas taken from uiarc.dev, spaceui.one, useplanes.com, skecher-ui.com and componentry.dev; no code or assets copied):
+
+- Section tabs: one navy pill glides to the tab you open within a section; it jumps straight there when you change section.
+- Saved messages stack up to three, newest in front with the older ones peeking out; pointing at the stack opens it and holds the messages until you move away.
+- Find anything (Ctrl K, ⌘K on a Mac) groups results under Recently viewed, Start something and Pages, and shows the keys at the bottom.
+- Tick boxes and radio buttons are the brand blue (`accent-color`).
 
 ## Layout
 
