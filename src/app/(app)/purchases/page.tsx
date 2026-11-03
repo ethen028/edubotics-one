@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
-import { Empty, PageHeader, Stat } from "@/components/ui";
+import { Empty, PageHeader, Pager, Stat } from "@/components/ui";
+import { pageHref, pageNumber, pageQuery, pageRows } from "@/lib/paging";
 import { formatDate } from "@/lib/format";
 import { todayIST } from "@/lib/time";
 import { OPEN_PO_STATUSES, RECEIVABLE_STATUSES, orderScope } from "@/lib/purchases";
@@ -26,8 +27,9 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const q = sp.q?.trim() ?? "";
   const scope = orderScope(user);
   const today = todayIST();
+  const page = pageNumber(sp.page);
 
-  const [orders, openValue, pending, incoming] = await Promise.all([
+  const [found, openValue, pending, incoming] = await Promise.all([
     db.purchaseOrder.findMany({
       where: {
         AND: [
@@ -42,13 +44,14 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         project: { select: { id: true, name: true } },
         lines: { select: { quantity: true, received: true } },
       },
-      orderBy: { number: "desc" },
-      take: 200,
+      orderBy: [{ number: "desc" }, { id: "desc" }],
+      ...pageQuery(page),
     }),
     db.purchaseOrder.aggregate({ where: { AND: [scope, { status: { in: [...RECEIVABLE_STATUSES] } }] }, _sum: { total: true } }),
     db.purchaseOrder.count({ where: { AND: [scope, { status: "PENDING" }] } }),
     db.purchaseOrder.count({ where: { AND: [scope, { status: { in: [...RECEIVABLE_STATUSES] } }] } }),
   ]);
+  const { rows: orders, more, first } = pageRows(found, page);
 
   return (
     <>
@@ -163,6 +166,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           </table>
         </div>
       )}
+      <Pager page={page} more={more} shown={orders.length} first={first} href={(n) => pageHref({ view: view !== "open" ? view : undefined, q }, n)} />
     </>
   );
 }

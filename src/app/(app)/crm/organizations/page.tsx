@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { OrgType, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { Badge, Empty, Options, PageHeader } from "@/components/ui";
+import { Badge, Empty, Options, PageHeader, Pager } from "@/components/ui";
+import { pageHref, pageNumber, pageQuery, pageRows } from "@/lib/paging";
 import { formatINR, humanize } from "@/lib/format";
 import { ORG_TYPES, OPEN_STAGES } from "../constants";
 
@@ -10,7 +11,8 @@ export const metadata = { title: "Institutions" };
 
 export default async function OrganizationsPage({ searchParams }: PageProps<"/crm/organizations">) {
   await requireUser();
-  const { q = "", type = "" } = (await searchParams) as Record<string, string | undefined>;
+  const { q = "", type = "", page: pageParam } = (await searchParams) as Record<string, string | undefined>;
+  const page = pageNumber(pageParam);
   const where: Prisma.OrganizationWhereInput = {
     ...((ORG_TYPES as readonly string[]).includes(type) ? { type: type as OrgType } : {}),
     ...(q
@@ -23,16 +25,17 @@ export default async function OrganizationsPage({ searchParams }: PageProps<"/cr
         }
       : {}),
   };
-  const orgs = await db.organization.findMany({
+  const found = await db.organization.findMany({
     where,
     include: {
-      owner: true,
+      owner: { select: { name: true } },
       _count: { select: { contacts: true } },
       deals: { select: { stage: true, value: true } },
     },
-    orderBy: { name: "asc" },
-    take: 300,
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    ...pageQuery(page),
   });
+  const { rows: orgs, more, first } = pageRows(found, page);
 
   return (
     <>
@@ -96,6 +99,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps<"/cr
           </table>
         </div>
       )}
+      <Pager page={page} more={more} shown={orgs.length} first={first} href={(n) => pageHref({ q, type }, n)} />
     </>
   );
 }

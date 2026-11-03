@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { LeadStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { Badge, Empty, PageHeader } from "@/components/ui";
+import { Badge, Empty, PageHeader, Pager } from "@/components/ui";
+import { pageHref, pageNumber, pageQuery, pageRows } from "@/lib/paging";
 import { formatDate, humanize } from "@/lib/format";
 import { leadStatusColor } from "../constants";
 
@@ -35,7 +36,17 @@ export default async function LeadsPage({ searchParams }: PageProps<"/crm/leads"
         }
       : {}),
   };
-  const leads = await db.lead.findMany({ where, include: { owner: true }, orderBy: { createdAt: "desc" }, take: 200 });
+  const page = pageNumber(sp.page);
+  const [found, total] = await Promise.all([
+    db.lead.findMany({
+      where,
+      include: { owner: { select: { name: true } } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      ...pageQuery(page),
+    }),
+    db.lead.count({ where }),
+  ]);
+  const { rows: leads, more, first } = pageRows(found, page);
   const qs = (s: string) => `?status=${s}${q ? `&q=${encodeURIComponent(q)}` : ""}${mine ? "&mine=1" : ""}`;
 
   return (
@@ -73,7 +84,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/crm/leads"
         <button className="btn-secondary">Filter</button>
       </form>
       </section>
-      <div className="directory-heading"><h2>Lead directory</h2><span>{leads.length === 200 ? "Showing up to 200 matches" : `${leads.length} matching ${leads.length === 1 ? "lead" : "leads"}`}</span></div>
+      <div className="directory-heading"><h2>Lead directory</h2><span>{`${total} matching ${total === 1 ? "lead" : "leads"}`}</span></div>
       {leads.length === 0 ? (
         <Empty>No leads here.</Empty>
       ) : (
@@ -115,6 +126,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/crm/leads"
           </table>
         </div>
       )}
+      <Pager page={page} more={more} shown={leads.length} first={first} href={(n) => pageHref({ status: tab, q, mine: mine ? "1" : undefined }, n)} />
     </>
   );
 }

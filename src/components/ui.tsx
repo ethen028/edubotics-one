@@ -96,3 +96,25 @@ export function Options({ values, labels }: { values: readonly string[]; labels?
     </>
   );
 }
+
+/** Previous / Next links under a long list. `href(page)` builds the address for a page; see src/lib/paging.ts. */
+export function Pager({ page, more, shown, first, href }: { page: number; more: boolean; shown: number; first: number; href: (page: number) => string }) {
+  if (page === 1 && !more) return null;
+  return (
+    <nav aria-label="Pages" className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+      {page > 1 && (
+        <Link href={href(page - 1)} className="btn-secondary btn-sm">
+          Previous
+        </Link>
+      )}
+      <span className="text-slate-500">
+        {shown > 0 ? `Showing ${first}–${first + shown - 1}` : "Nothing on this page"}
+      </span>
+      {more && (
+        <Link href={href(page + 1)} className="btn-secondary btn-sm">
+          Next
+        </Link>
+      )}
+    </nav>
+  );
+}
