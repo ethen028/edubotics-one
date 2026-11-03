@@ -1,24 +1,31 @@
 {
   "expo": {
-    "name": "Edubotics One",
-    "slug": "edubotics-one-mobile",
-    "version": "1.0.0",
+    "name": "Orbit",
+    "slug": "orbit",
+    "version": "1.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "scheme": "eduboticsone",
+    "scheme": "orbit",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f4f7fb"
+    },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.eduboticsglobal.eduboticsone"
+      "bundleIdentifier": "com.eduboticsglobal.orbit"
     },
     "android": {
-      "package": "com.eduboticsglobal.eduboticsone",
-      "versionCode": 1,
+      "package": "com.eduboticsglobal.orbit",
+      "versionCode": 2,
       "permissions": [],
       "adaptiveIcon": {
-        "backgroundColor": "#F5F8FF"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f2d57"
       }
     },
-    "plugins": ["expo-secure-store"],
+    "plugins": ["expo-secure-store", "expo-web-browser"],
     "extra": {
       "eas": {
         "projectId": "REPLACE_WITH_EAS_PROJECT_ID"

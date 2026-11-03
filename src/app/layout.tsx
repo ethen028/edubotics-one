@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(publicOrigin() ?? "http://localhost:3000"),
   robots: { index: false, follow: false },
   icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
+  appleWebApp: { capable: true, title: "Orbit", statusBarStyle: "default" },
   openGraph: { title: "Edubotics Global", description: "People, projects and learning programmes.", images: ["/opengraph-image"] },
   title: { default: "Orbit", template: "%s · Orbit" },
   description: "Internal operations for Edubotics Global: CRM, HR, payroll, projects and timesheets",

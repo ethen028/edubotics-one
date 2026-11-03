@@ -1,5 +1,5 @@
 {
-  "name": "edubotics-one-mobile",
+  "name": "orbit-mobile",
   "version": "1.0.0",
   "private": true,
   "main": "index.js",
@@ -13,8 +13,12 @@
     "expo": "~54.0.0",
     "expo-secure-store": "~15.0.7",
     "expo-status-bar": "~3.0.8",
+    "expo-web-browser": "~15.0.11",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-svg": "15.12.1",
+    "react-native-webview": "13.15.0"
   },
   "devDependencies": {
     "@types/react": "~19.1.10",

@@ -1,8 +1,8 @@
-import { requireUser, isAdmin, isBackupAdmin } from "@/lib/auth";
+import { requireUser, isBackupAdmin } from "@/lib/auth";
+import { loadNavCounts } from "@/lib/nav-counts";
 import { allCompanies, currentCompany } from "@/lib/company";
 import { CompanySwitcher } from "@/components/company-switcher";
 import { switchCompany } from "./companies/actions";
-import { canManagePeople } from "@/lib/permissions";
 import Link from "next/link";
 import { Sidebar } from "@/components/sidebar";
 import { SectionTabs } from "@/components/section-tabs";
@@ -14,18 +14,6 @@ import { FLASH_COOKIE } from "@/lib/flash";
 import { cookies } from "next/headers";
 import { Icon } from "@/components/icons";
 import { humanize } from "@/lib/format";
-import { pendingApprovals } from "@/lib/approvals";
-import { lowStockItems } from "@/lib/inventory";
-import { db } from "@/lib/db";
-import { myPendingAcks } from "@/lib/notices";
-import { helpdeskCounts } from "@/lib/helpdesk";
-import { myReviewTodos } from "@/lib/reviews";
-import { newOnlineApplications } from "@/lib/careers";
-import { myChecklistsNow } from "@/lib/checklists";
-import { unreadCount } from "@/lib/notifications";
-import { unreadMessageCount } from "@/lib/messages";
-import { canUseTeamwork } from "@/lib/teamwork";
-import { myPlanTasksToUpdate } from "@/lib/plan";
 import { buildNav } from "@/lib/nav";
 import { logout, setAppearance } from "../actions";
 import { SignOutForm } from "@/components/sign-out-form";
@@ -41,48 +29,21 @@ function initials(name: string) {
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const teamwork = await canUseTeamwork(user);
-  const [approvals, lowStock, myInterviews, toAcknowledge, helpdesk, reviewTodos, onlineApplications, checklists, inbox, planToUpdate, messages] =
-    await Promise.all([
-      pendingApprovals(user),
-      isAdmin(user) ? lowStockItems() : [],
-      db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
-      myPendingAcks(user),
-      helpdeskCounts(user),
-      myReviewTodos(user),
-      canManagePeople(user) ? newOnlineApplications() : 0,
-      myChecklistsNow(user.id),
-      unreadCount(user.id),
-      myPlanTasksToUpdate(user.id),
-      teamwork ? unreadMessageCount(user.id) : 0,
-    ]);
+  const counts = await loadNavCounts(user);
   const [company, companies, backups] = await Promise.all([
     currentCompany(),
     user.isSuperadmin ? allCompanies() : [],
     isBackupAdmin(user),
   ]);
-  const groups = buildNav(user, {
-    teamwork,
-    inbox,
-    messages,
-    toAcknowledge: toAcknowledge.length,
-    checklists: checklists.open.length,
-    overdueChecklists: checklists.open.some((e) => e.status === "OVERDUE"),
-    helpdesk: helpdesk.total,
-    approvals: approvals.total,
-    lowStock: lowStock.length,
-    onlineApplications,
-    myInterviews,
-    reviewTodos: reviewTodos.length,
-    planToUpdate,
-  }, { backups });
+  const groups = buildNav(user, counts, { backups });
+  const { approvals, planToUpdate, checklists, toAcknowledge, reviewTodos, myInterviews, teamwork, messages, inbox } = counts;
   // Shortcuts in the bar along the top: only the things this person has to act on.
   const waiting = [
-    { n: approvals.total, label: `${approvals.total} to approve`, href: "/approvals" },
+    { n: approvals, label: `${approvals} to approve`, href: "/approvals" },
     { n: planToUpdate, label: `${planToUpdate} plan task${planToUpdate === 1 ? "" : "s"} to update`, href: "/plan" },
-    { n: checklists.open.length, label: `${checklists.open.length} checklist${checklists.open.length === 1 ? "" : "s"} to tick`, href: "/checklists" },
-    { n: toAcknowledge.length, label: `${toAcknowledge.length} notice${toAcknowledge.length === 1 ? "" : "s"} to read`, href: "/notices" },
-    { n: reviewTodos.length, label: `${reviewTodos.length} review${reviewTodos.length === 1 ? "" : "s"} to do`, href: "/hr/reviews" },
+    { n: checklists, label: `${checklists} checklist${checklists === 1 ? "" : "s"} to tick`, href: "/checklists" },
+    { n: toAcknowledge, label: `${toAcknowledge} notice${toAcknowledge === 1 ? "" : "s"} to read`, href: "/notices" },
+    { n: reviewTodos, label: `${reviewTodos} review${reviewTodos === 1 ? "" : "s"} to do`, href: "/hr/reviews" },
     { n: myInterviews, label: `${myInterviews} interview${myInterviews === 1 ? "" : "s"}`, href: "/recruitment/interviews" },
   ].filter((w) => w.n > 0);
   const dark = user.theme === "DARK";
