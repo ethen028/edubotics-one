@@ -31,7 +31,7 @@ Copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL`:
 
 - Android emulator with Orbit on the same computer: `http://10.0.2.2:3000`
 - A phone on the office Wi-Fi with Expo Go (development only): the computer's address, e.g. `http://192.168.1.20:3000` (needs `APP_BIND_ADDRESS=0.0.0.0` in Orbit's `.env`)
-- An installed app: an **https** address. Android blocks plain http for installed apps, so the office copy has to be reachable over https first (a Cloudflare Tunnel, Tailscale, or the optional Caddy `gateway` in docker-compose.yml).
+- An installed app: an **https** address. Android blocks plain http for installed apps, so the office copy has to be reachable over https first (steps: `docs/office-https.md` in the web app, a free Cloudflare Tunnel).
 
 ## Run it while developing
 
