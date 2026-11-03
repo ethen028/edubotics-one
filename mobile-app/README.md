@@ -5,6 +5,7 @@ Orbit for Android and iPhone, built with Expo (React Native) and TypeScript. It 
 ## What it does
 
 - **Sign in** with the Orbit email and password, and the code from the authenticator app for people who switched sign-in codes on. Same lockout, rate limits and activity log as the web sign-in. The session is kept in the phone's secure storage.
+- **My leave** (phone screen): balances, ask for leave with a date picker and half day, cancel, coming holidays. Same rules as the web form (`src/lib/leave-requests.ts`).
 - **Home**: check in and out, hours today, "Waiting on you" (approvals, Inbox, messages) and shortcuts (My leave, Timesheet, Expenses, My payslips, Calendar, Follow-ups), each shown only when the person's role has the page.
 - **Tabs**: Home, My work, Messages, Approvals, More. A tab only shows when the person can open that page.
 - **More**: every page the person's role can open, grouped as in the web menu, with a search box; their name (opens My account) and Sign out.
@@ -22,6 +23,7 @@ The app never puts its session token in a web address. To open a page it asks `P
 | `POST /api/mobile/auth/logout` | Ends the phone's session |
 | `GET /api/mobile/dashboard` | Name, role and today's attendance |
 | `POST /api/mobile/attendance` | Check in or out |
+| `GET /api/mobile/leave`, `POST /api/mobile/leave`, `POST /api/mobile/leave/[id]/cancel` | My leave |
 | `GET /api/mobile/menu` | The person's menu (same as the website's) and waiting counts |
 | `POST /api/mobile/open-code`, `GET /api/mobile/open` | Open an Orbit page inside the app |
 
@@ -58,3 +60,9 @@ eas build --platform android --profile preview     # an .apk to share by link
 ## Look
 
 Colours come from the web app's `src/lib/brand.ts` (`src/theme.ts`), icons from `src/components/icons.tsx` (`src/icon-paths.ts`), and the logo from `public/brand`. `tests/mobile-app.test.ts` in the web app fails if they drift apart. The app icon and splash are in `assets/`.
+
+## Adding a phone screen for a module
+
+1. Move the module's rules out of its server actions into `src/lib/` (as `src/lib/leave-requests.ts`), so the web form and the phone call the same function.
+2. Add routes under `src/app/api/mobile/<module>` that start with `getApiUser()` and call those functions.
+3. Add the screen in `src/screens/` and its page address in `src/native.tsx`. Home, More and the tabs then open the phone screen instead of the web page.

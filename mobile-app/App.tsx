@@ -7,13 +7,15 @@ import { SignIn } from './src/SignIn';
 import { Home } from './src/Home';
 import { More } from './src/More';
 import { OrbitPage } from './src/OrbitPage';
+import { NATIVE, NativePage } from './src/native';
 import { Icon } from './src/Icon';
 import { Badge } from './src/ui';
 import { C } from './src/theme';
 
 /**
- * Orbit on the phone. Home and More are drawn by the app; My work, Messages and Approvals, and every page
- * opened from Home or More, are the real Orbit pages shown inside the app, signed in (src/OrbitPage.tsx).
+ * Orbit on the phone. Home, More and the pages listed in src/native.tsx are phone screens; every other page
+ * (and for now the My work, Messages and Approvals tabs) is the real Orbit page inside the app, signed in
+ * (src/OrbitPage.tsx), until its phone screen is built.
  * Tabs only appear when the person's menu has the page, so roles see what they see on the web.
  */
 
@@ -98,6 +100,7 @@ function Orbit() {
     if (asTab) go(asTab.key); else setOpened({ path, title });
   };
   const refresh = () => void load(token);
+  const close = () => { setOpened(null); refresh(); };
 
   return (
     <SafeAreaView style={st.app} edges={['top', 'left', 'right']}>
@@ -115,7 +118,11 @@ function Orbit() {
         </View>
         {opened && (
           <View style={st.fill}>
-            <OrbitPage token={token} path={opened.path} title={opened.title} onClose={() => { setOpened(null); refresh(); }} onSignedOut={signOutHere} active />
+            {NATIVE[opened.path] ? (
+              <NativePage title={opened.title} onClose={close}>{React.createElement(NATIVE[opened.path], { token })}</NativePage>
+            ) : (
+              <OrbitPage token={token} path={opened.path} title={opened.title} onClose={close} onSignedOut={signOutHere} active />
+            )}
           </View>
         )}
       </View>

@@ -62,3 +62,12 @@ test("the phone app's icons and colours are the web app's", async () => {
     assert.match(theme, new RegExp(`\\b${key}: '${BRAND[key]}'`), `phone colour ${key} should be ${BRAND[key]}`);
   }
 });
+
+test("the phone's leave routes use the same rules as the web form", () => {
+  const web = readFileSync("src/app/(app)/hr/actions.ts", "utf8");
+  for (const fn of ["requestLeave(", "cancelOwnLeave(", "decideLeaveRequest("]) assert.ok(web.includes(fn), `the web form should call ${fn}`);
+  const phone = readFileSync("src/app/api/mobile/leave/route.ts", "utf8");
+  assert.match(phone, /getApiUser\(\)/);
+  assert.match(phone, /requestLeave\(access\.user, parsed\.data\)/);
+  assert.match(readFileSync("src/app/api/mobile/leave/[id]/cancel/route.ts", "utf8"), /cancelOwnLeave\(access\.user, id\)/);
+});

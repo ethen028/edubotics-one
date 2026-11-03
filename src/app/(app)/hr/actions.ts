@@ -5,14 +5,11 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { isHrOrAdmin } from "@/lib/permissions";
 import { hashPassword, isAdmin, requireUser } from "@/lib/auth";
 import { passwordProblem } from "@/lib/passwords";
-import { countLeaveDays, leaveDaysInYear, parseDateOnly } from "@/lib/leave";
-import { todayIST } from "@/lib/time";
+import { parseDateOnly } from "@/lib/leave";
 import { dateOnlyInput, optionalDateOnlyInput } from "@/lib/date-input";
-import { getLeaveBalances } from "@/lib/leave-balance";
-import { getSettings } from "@/lib/settings";
+import { cancelOwnLeave, decideLeaveRequest, requestLeave } from "@/lib/leave-requests";
 import { checklistRows } from "@/lib/hr-constants";
 import type { FormState } from "@/components/action-form";
 import { flash } from "@/lib/flash";
@@ -233,7 +230,7 @@ export async function deleteHoliday(id: string) {
 
 // ─── Leave requests ────────────────────────────────────────────────────────
 
-const leaveSchema = z.object({
+const leaveForm = z.object({
   leaveTypeId: z.string().min(1, "required"),
   startDate: dateOnlyInput,
   endDate: dateOnlyInput,
@@ -243,59 +240,10 @@ const leaveSchema = z.object({
 
 export async function applyLeave(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
-  const employee = user.employee;
-  if (!employee) return { error: "Your login isn't linked to an employee record yet. Ask HR to link it." };
-
-  const parsed = leaveSchema.safeParse(Object.fromEntries(formData));
+  if (!user.employee) return { error: "Your login isn't linked to an employee record yet. Ask HR to link it." };
+  const parsed = leaveForm.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: firstError(parsed.error) };
-  const { leaveTypeId, startDate, endDate, reason } = parsed.data;
-  const halfDay = parsed.data.halfDay === "on";
-
-  if (endDate < startDate) return { error: "End date is before start date." };
-  if (endDate.getTime() - startDate.getTime() > 366 * 86400000) return { error: "Use a date range up to one year. Submit longer leave in separate requests." };
-  if (halfDay && endDate.getTime() !== startDate.getTime()) return { error: "Half day is only for single-day leave." };
-
-  const holidays = await db.holiday.findMany({
-    where: { date: { gte: startDate, lte: endDate }, optional: false },
-    select: { date: true },
-  });
-  const { weeklyOffDays } = await getSettings();
-  const days = countLeaveDays(startDate, endDate, holidays.map((h) => h.date), halfDay, weeklyOffDays);
-  if (days === 0) return { error: "Those dates are all weekly offs or holidays, so no leave is needed." };
-
-  const result = await db.$transaction(async tx => {
-  await tx.$queryRaw`SELECT "id" FROM "Employee" WHERE "id" = ${employee.id} FOR UPDATE`;
-  const overlap = await tx.leaveRequest.findFirst({
-    where: {
-      employeeId: employee.id,
-      status: { in: ["PENDING", "APPROVED"] },
-      startDate: { lte: endDate },
-      endDate: { gte: startDate },
-    },
-  });
-  if (overlap) return { error: "You already have leave booked that overlaps these dates." };
-
-  for (let year = startDate.getUTCFullYear(); year <= endDate.getUTCFullYear(); year++) {
-    const balance = (await getLeaveBalances(employee.id, year, tx)).find(b => b.leaveTypeId === leaveTypeId);
-    if (!balance) return { error: "Choose a valid leave type." };
-    const allocated = leaveDaysInYear({ startDate, endDate, days, halfDay }, year, holidays.map(holiday => holiday.date), weeklyOffDays);
-    if (balance.remaining !== null && allocated > balance.remaining) return { error: `Not enough ${balance.name} in ${year}: ${balance.remaining} day(s) available, ${allocated} requested.` };
-  }
-
-  await tx.leaveRequest.create({
-    data: {
-      employeeId: employee.id,
-      leaveTypeId,
-      startDate,
-      endDate,
-      halfDay,
-      days,
-      reason,
-      approverId: employee.managerId,
-    },
-  });
-  return { ok: `Leave request sent for ${days} day(s).` };
-  });
+  const result = await requestLeave(user, { ...parsed.data, halfDay: parsed.data.halfDay === "on" });
   revalidatePath("/hr");
   revalidatePath("/hr/leave");
   revalidatePath("/hr/approvals");
@@ -305,13 +253,8 @@ export async function applyLeave(_: FormState, formData: FormData): Promise<Form
 
 export async function cancelLeave(id: string) {
   const user = await requireUser();
-  const req = await db.leaveRequest.findUnique({ where: { id } });
-  if (!req || req.employeeId !== user.employee?.id) throw new Error("Not found");
-  if (req.status !== "PENDING" && !(req.status === "APPROVED" && req.startDate > todayIST())) {
-    throw new Error("Only pending or future leave can be cancelled");
-  }
-  const changed = await db.leaveRequest.updateMany({ where: { id, employeeId: user.employee.id, OR: [{ status: "PENDING" }, { status: "APPROVED", startDate: { gt: todayIST() } }] }, data: { status: "CANCELLED" } });
-  if (!changed.count) throw new Error("Leave changed. Reload before cancelling.");
+  const result = await cancelOwnLeave(user, id);
+  if (result.error) throw new Error(result.error);
   revalidatePath("/hr");
   revalidatePath("/hr/leave");
   revalidatePath("/hr/approvals");
@@ -321,17 +264,8 @@ export async function decideLeave(id: string, formData: FormData) {
   const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   const decision = z.enum(["APPROVED", "REJECTED"]).parse(formData.get("decision"));
   const note = String(formData.get("note") ?? "").trim() || null;
-
-  const req = await db.leaveRequest.findUnique({ where: { id }, include: { employee: true } });
-  if (!req || req.status !== "PENDING") throw new Error("Request is no longer pending");
-  const isTheirManager = user.employee && req.employee.managerId === user.employee.id;
-  if (!isHrOrAdmin(user) && !isTheirManager) throw new Error("Not allowed");
-  if (req.employeeId === user.employee?.id) throw new Error("You can't approve your own leave");
-
-  await db.leaveRequest.updateMany({
-    where: { id, status: "PENDING" },
-    data: { status: decision, decisionNote: note, decidedAt: new Date(), approverId: user.employee?.id ?? req.approverId },
-  });
+  const result = await decideLeaveRequest(user, id, decision, note);
+  if (result.error) throw new Error(result.error);
   revalidatePath("/hr");
   revalidatePath("/hr/approvals");
   revalidatePath("/hr/leave");

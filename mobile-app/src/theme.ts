@@ -20,4 +20,13 @@ export const C = {
   grey: '#eef2f7',
 } as const;
 
+/** Status pills, the web app's Badge colours (src/components/ui.tsx, Tailwind's 100 and 700/800 shades). */
+export const badge = {
+  gray: { bg: '#f1f5f9', fg: '#334155' },
+  blue: { bg: '#e2edf9', fg: '#2563ae' },
+  green: { bg: '#d1fae5', fg: '#065f46' },
+  amber: { bg: '#fef3c7', fg: '#92400e' },
+  red: { bg: '#fee2e2', fg: '#b91c1c' },
+} as const;
+
 export const radius = { card: 14, button: 10, pill: 999 } as const;
