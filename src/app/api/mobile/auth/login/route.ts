@@ -37,6 +37,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Email or password is incorrect." }, { status: 401, headers: noStore });
   }
 
+  // The phone app can't ask for the code from an authenticator app yet, so these accounts sign in in the browser.
+  if (user.totpEnabledAt) {
+    await logActivity(user, "SIGN_IN", "sign-in.code-needed", `${user.name} tried the phone app, but sign-in codes are on`);
+    return Response.json({ error: "Sign-in codes are on for this account. Use Orbit in the browser." }, { status: 403, headers: noStore });
+  }
+
   // Same rule as the web sign-in: old or weak passwords must be changed (in the browser) first.
   let mustChangePassword = user.mustChangePassword;
   if (!mustChangePassword && passwordProblem(password, user)) {
