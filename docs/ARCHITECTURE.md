@@ -33,7 +33,8 @@ src/
                          page.tsx, plus actions.ts (server actions), forms.tsx (client forms), data.ts (queries)
     (app)/layout.tsx     Shell: icon rail, top bar, Find anything, notifications
     api/                 Route handlers only where a page can't do it: file downloads, health,
-                         message polling, client error reports, the payment-reminder cron
+                         message polling, client error reports, the payment-reminder cron, and the phone
+                         app's routes under api/mobile (sign-in, day, check-in, menu, opening pages)
     login, careers, ...  Public and pre-sign-in pages
     globals.css          Design tokens and shared classes
   components/            Shared UI: ui.tsx, action-form.tsx, sidebar.tsx, icons.tsx, logo.tsx, ...
@@ -46,6 +47,9 @@ src/
 prisma/                  Schema, migrations, seed (reference data, Kerala holidays)
 scripts/                 Demo seed, smoke/acceptance/role/security test scripts, secret and dependency checks
 tests/                   Unit tests (no database)
+mobile-app/              The phone app (Expo, React Native). Its own package.json; kept out of the web app's
+                         typecheck, lint, Docker and Vercel builds. Native Home and More; every other page is the
+                         web page inside the app, signed in through a one-time code (src/lib/mobile-open.ts)
 docker/                  start.sh (migrate + seed + start), backup worker, restore, Caddy for HTTPS
 docs/                    Run, deploy, backup and security guides, and these docs
 ```

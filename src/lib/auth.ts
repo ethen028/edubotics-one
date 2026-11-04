@@ -41,13 +41,22 @@ export async function createSession(userId: string, method: SignInMethod = "PASS
     ip: await requestIp(), userAgent: h.get("user-agent")?.slice(0, 300) ?? null,
   });
   if (!session) return false;
-  const token = await new SignJWT({ sub: userId, sid: session.id })
+  await setSessionCookie(userId, session.id);
+  return true;
+}
+
+/**
+ * Names an existing session in this browser's cookie. Used by sign-in, and by the phone app when it opens an
+ * Orbit page inside itself (src/lib/mobile-open.ts): the page then shares the phone's session, so ending one
+ * ends both.
+ */
+export async function setSessionCookie(userId: string, sessionId: string) {
+  const token = await new SignJWT({ sub: userId, sid: sessionId })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
     .sign(sessionSecret());
   (await cookies()).set(COOKIE, token, { httpOnly: true, sameSite: "lax", secure: cookieSecure(), path: "/", maxAge: MAX_AGE });
-  return true;
 }
 
 /** Signs this browser out. */

@@ -77,7 +77,9 @@ test("every server action checks who is signed in before it touches the database
 // Google sign-in, the phone app's sign-in (it checks the password itself, with the same lockout as the web
 // sign-in), the phone app's sign-out (it only ends the caller's own session, and must work before a temporary
 // password is replaced), the careers application form and browser error reports (which check sign-in themselves).
-const PUBLIC_ROUTES = new Set(["api/health/route.ts", "api/cron/payment-reminders/route.ts", "auth/google/route.ts", "auth/google/callback/route.ts", "api/mobile/auth/login/route.ts", "api/mobile/auth/logout/route.ts", "careers/[id]/apply/route.ts"]);
+// The phone app's page opener: open-code needs a live session (getCurrentSession) but not a finished password
+// setup, so a phone user can reach the change-password page inside the app; open checks its one-time code.
+const PUBLIC_ROUTES = new Set(["api/health/route.ts", "api/cron/payment-reminders/route.ts", "auth/google/route.ts", "auth/google/callback/route.ts", "api/mobile/auth/login/route.ts", "api/mobile/auth/logout/route.ts", "api/mobile/open-code/route.ts", "api/mobile/open/route.ts", "careers/[id]/apply/route.ts"]);
 
 test("every download and export checks sign-in, including a finished password setup", () => {
   for (const f of all.filter((x) => x.endsWith("/route.ts"))) {
@@ -89,12 +91,15 @@ test("every download and export checks sign-in, including a finished password se
   }
 });
 
-// The phone app can't ask for an authenticator code yet, so it must not become a way round sign-in codes.
-test("the phone app's sign-in refuses accounts with sign-in codes on", () => {
+// The phone app must not become a way round sign-in codes: the code is checked before any session is made.
+test("the phone app's sign-in asks for the sign-in code before it signs anyone in", () => {
   const src = read("api/mobile/auth/login/route.ts");
   const codeCheck = src.search(/if \(user\.totpEnabledAt\)/);
-  assert.ok(codeCheck > 0, "api/mobile/auth/login/route.ts must refuse accounts with sign-in codes on");
-  assert.ok(codeCheck < src.indexOf("createSessionRecord(user.id"), "the code check must come before the session is made");
+  const redeem = src.indexOf("redeemSignInCode(user, code)");
+  const session = src.indexOf("createSessionRecord(user.id");
+  assert.ok(codeCheck > 0 && redeem > codeCheck, "api/mobile/auth/login/route.ts must check the code when sign-in codes are on");
+  assert.ok(redeem < session, "the code check must come before the session is made");
+  assert.match(src.slice(codeCheck, session), /if \(!usedCode\)[\s\S]*?return Response\.json/, "a wrong code must stop the sign-in");
 });
 
 const PEOPLE = {
