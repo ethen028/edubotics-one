@@ -8,13 +8,14 @@ import { requireUser, type CurrentUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
 import { PROJECT_STAGES, canEditProject, canUpdateTask, projectScope } from "@/lib/projects";
 import { readFiles } from "@/lib/project-files";
-import { afterStatusChange, nextTaskState, recordTaskUpdate } from "@/lib/task-updates";
+import { nextTaskState, recordTaskUpdate } from "@/lib/task-updates";
 import { notify } from "@/lib/notifications";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
 import { formatDate } from "@/lib/format";
 import { flash } from "@/lib/flash";
 import { decideProjectApproval } from "@/lib/decisions";
+import { TASK_STATUSES, setTaskStatusFor } from "@/lib/my-work";
 
 const optional = z
   .string()
@@ -418,29 +419,13 @@ export async function deleteChecklistItem(id: string) {
 /** The assignee, the project owner or an admin can move a task along. */
 export async function setTaskStatus(id: string, formData: FormData) {
   const user = await requireUser();
-  const task = await db.projectTask.findUnique({ where: { id }, include: { project: true } });
-  if (!task) return;
-  if (task.assigneeId !== user.id && !canEditProject(user, task.project)) throw new Error("Not allowed");
-  const status = z.enum(["TODO", "IN_PROGRESS", "REVIEW", "DONE"]).parse(formData.get("status"));
-  if (status === task.status) return;
-  await db.$transaction(async (tx) => {
-    await tx.projectTask.update({
-      where: { id },
-      data: {
-        status,
-        completedAt: status === "DONE" ? (task.completedAt ?? new Date()) : null,
-        ...(status === "DONE" ? { progress: 100, blockedReason: null, blockedAt: null } : {}),
-      },
-    });
-    if (status === "REVIEW")
-      await notify([task.project.ownerId], user.id, {
-        kind: "task.review",
-        title: `${task.title} is ready for review`,
-        href: taskHref(task.projectId, id),
-      }, tx);
-    await afterStatusChange(tx, task, status, user.id);
-  });
-  refresh(task.projectId);
+  const status = z.enum(TASK_STATUSES).parse(formData.get("status"));
+  const result = await setTaskStatusFor(user, id, status);
+  if (result.error) {
+    if (result.error.startsWith("You can't")) throw new Error("Not allowed");
+    return;
+  }
+  refresh(result.projectId);
 }
 
 export async function deleteTask(id: string) {

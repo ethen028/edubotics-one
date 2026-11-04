@@ -34,7 +34,7 @@ src/
     (app)/layout.tsx     Shell: icon rail, top bar, Find anything, notifications
     api/                 Route handlers only where a page can't do it: file downloads, health,
                          message polling, client error reports, the payment-reminder cron, and the phone
-                         app's routes under api/mobile (sign-in, day, check-in, menu, opening pages, leave, approvals)
+                         app's routes under api/mobile (sign-in, day, check-in, menu, opening pages, leave, approvals, my work, timesheet)
     login, careers, ...  Public and pre-sign-in pages
     globals.css          Design tokens and shared classes
   components/            Shared UI: ui.tsx, action-form.tsx, sidebar.tsx, icons.tsx, logo.tsx, ...

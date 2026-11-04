@@ -99,3 +99,30 @@ test("the phone's approvals use the same rules as the web Approvals page", () =>
     assert.match(fn, /updateMany\(/, fn.slice(0, 40));
   }
 });
+
+test("the phone's My work and timesheet use the same rules as the web pages", () => {
+  const web = readFileSync("src/app/(app)/timesheets/actions.ts", "utf8");
+  for (const fn of ["logTime(", "removeOwnEntry(", "submitOwnWeek(", "checkDay(", "readEntry("]) assert.ok(web.includes(fn), `the web timesheet should call ${fn}`);
+  assert.ok(readFileSync("src/app/(app)/projects/actions.ts", "utf8").includes("setTaskStatusFor("));
+  assert.ok(readFileSync("src/app/(app)/work/page.tsx", "utf8").includes("myWork(user)"));
+
+  const routes: Record<string, string> = {
+    "src/app/api/mobile/work/route.ts": "myWork(access.user)",
+    "src/app/api/mobile/work/[id]/status/route.ts": "setTaskStatusFor(access.user",
+    "src/app/api/mobile/timesheet/route.ts": "logTime(access.user",
+    "src/app/api/mobile/timesheet/entries/[id]/delete/route.ts": "removeOwnEntry(access.user",
+    "src/app/api/mobile/timesheet/[id]/submit/route.ts": "submitOwnWeek(access.user",
+  };
+  for (const [file, call] of Object.entries(routes)) {
+    const src = readFileSync(file, "utf8");
+    assert.match(src, /getApiUser\(\)/, file);
+    assert.ok(src.includes(call), `${file} should call ${call}`);
+  }
+
+  // Only your own entries and weeks, and nothing once the week is sent.
+  const rules = readFileSync("src/lib/timesheet-entries.ts", "utf8");
+  assert.match(rules, /entry\.timesheet\.employeeId !== user\.employee\.id/);
+  assert.match(rules, /sheet\.employeeId !== user\.employee\.id/);
+  assert.match(rules, /status: \{ notIn: \["SUBMITTED", "APPROVED"\] \}/);
+  assert.match(readFileSync("src/lib/my-work.ts", "utf8"), /task\.assigneeId !== user\.id && !canEditProject\(user, task\.project\)/);
+});
