@@ -71,3 +71,31 @@ test("the phone's leave routes use the same rules as the web form", () => {
   assert.match(phone, /requestLeave\(access\.user, parsed\.data\)/);
   assert.match(readFileSync("src/app/api/mobile/leave/[id]/cancel/route.ts", "utf8"), /cancelOwnLeave\(access\.user, id\)/);
 });
+
+test("the phone's approvals use the same rules as the web Approvals page", () => {
+  const actions: Record<string, string> = {
+    "src/app/(app)/hr/attendance/actions.ts": "decideCorrectionRequest(",
+    "src/app/(app)/timesheets/actions.ts": "decideTimesheetRequest(",
+    "src/app/(app)/expenses/actions.ts": "decideClaimRequest(",
+    "src/app/(app)/projects/actions.ts": "decideProjectApproval(",
+    "src/app/(app)/inventory/actions.ts": "decideStockRequestDecision(",
+    "src/app/(app)/purchases/actions.ts": "decidePurchaseOrderDecision(",
+  };
+  for (const [file, fn] of Object.entries(actions)) assert.ok(readFileSync(file, "utf8").includes(fn), `${file} should call ${fn}`);
+
+  const list = readFileSync("src/app/api/mobile/approvals/route.ts", "utf8");
+  assert.match(list, /getApiUser\(\)/);
+  assert.match(list, /\["ADMIN", "MANAGER"\]\.includes\(access\.user\.role\)/);
+  const decide = readFileSync("src/app/api/mobile/approvals/decide/route.ts", "utf8");
+  assert.match(decide, /getApiUser\(\)/);
+  for (const fn of ["decideLeaveRequest(", ...Object.values(actions)]) assert.ok(decide.includes(fn), `the phone should call ${fn}`);
+
+  // Every decision checks the role and that the item is still waiting.
+  const rules = readFileSync("src/lib/decisions.ts", "utf8");
+  const fns = rules.split("export async function ").slice(1);
+  assert.equal(fns.length, 6);
+  for (const fn of fns) {
+    assert.match(fn, /includes\(user\.role\)\) return NOT_YOURS/, fn.slice(0, 40));
+    assert.match(fn, /updateMany\(/, fn.slice(0, 40));
+  }
+});

@@ -13,11 +13,12 @@ import { projectScope } from "@/lib/projects";
 import { todayIST } from "@/lib/time";
 import { MAX_DOCUMENT_BYTES, sniffMime } from "@/lib/hr-constants";
 import { STOCK_UNITS } from "@/lib/inventory";
-import { canApproveOrder, RECEIVABLE_STATUSES, BILLABLE_STATUSES, settledByBill } from "@/lib/purchases";
+import { RECEIVABLE_STATUSES, BILLABLE_STATUSES, settledByBill } from "@/lib/purchases";
 import { GST_RATES, INDIAN_STATES, PAYMENT_METHODS, orderTotals, poNo, round2 } from "@/lib/purchase-math";
 import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
 import { flash } from "@/lib/flash";
+import { decidePurchaseOrderDecision } from "@/lib/decisions";
 
 const optional = z
   .string()
@@ -220,22 +221,12 @@ async function loadOrder(id: string) {
 
 export async function decidePurchaseOrder(id: string, formData: FormData) {
   const user = await requireUser(["ADMIN", "MANAGER"]);
-  const order = await loadOrder(id);
-  if (order.status !== "PENDING") return;
-  if (!(await canApproveOrder(user, order))) throw new Error("Not allowed");
   const decision = z.enum(["APPROVED", "REJECTED"]).parse(formData.get("decision"));
   const note = String(formData.get("note") ?? "").trim() || null;
-  await db.purchaseOrder.update({
-    where: { id },
-    data: {
-      status: decision,
-      decisionNote: note,
-      decidedById: user.id,
-      decidedAt: new Date(),
-      closedAt: decision === "REJECTED" ? new Date() : null,
-    },
-  });
-  refresh({ orderId: id, projectId: order.projectId });
+  const order = await db.purchaseOrder.findUnique({ where: { id }, select: { projectId: true } });
+  const result = await decidePurchaseOrderDecision(user, id, decision, note);
+  if (result.error && !result.gone) throw new Error(result.error);
+  refresh({ orderId: id, projectId: order?.projectId });
 }
 
 export async function markOrdered(id: string) {

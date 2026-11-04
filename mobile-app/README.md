@@ -6,6 +6,7 @@ Orbit for Android and iPhone, built with Expo (React Native) and TypeScript. It 
 
 - **Sign in** with the Orbit email and password, and the code from the authenticator app for people who switched sign-in codes on. Same lockout, rate limits and activity log as the web sign-in. The session is kept in the phone's secure storage.
 - **My leave** (phone screen): balances, ask for leave with a date picker and half day, cancel, coming holidays. Same rules as the web form (`src/lib/leave-requests.ts`).
+- **Approvals** (phone screen, managers and admins): everything waiting on them, grouped like the web Approvals page, with Approve and Reject (or Send back), a note, and the amount to approve on expense claims. Same rules as the web page (`src/lib/decisions.ts`, `src/lib/leave-requests.ts`); resignations open the web page.
 - **Home**: check in and out, hours today, "Waiting on you" (approvals, Inbox, messages) and shortcuts (My leave, Timesheet, Expenses, My payslips, Calendar, Follow-ups), each shown only when the person's role has the page.
 - **Tabs**: Home, My work, Messages, Approvals, More. A tab only shows when the person can open that page.
 - **More**: every page the person's role can open, grouped as in the web menu, with a search box; their name (opens My account) and Sign out.
@@ -24,6 +25,7 @@ The app never puts its session token in a web address. To open a page it asks `P
 | `GET /api/mobile/dashboard` | Name, role and today's attendance |
 | `POST /api/mobile/attendance` | Check in or out |
 | `GET /api/mobile/leave`, `POST /api/mobile/leave`, `POST /api/mobile/leave/[id]/cancel` | My leave |
+| `GET /api/mobile/approvals`, `POST /api/mobile/approvals/decide` | Approvals |
 | `GET /api/mobile/menu` | The person's menu (same as the website's) and waiting counts |
 | `POST /api/mobile/open-code`, `GET /api/mobile/open` | Open an Orbit page inside the app |
 

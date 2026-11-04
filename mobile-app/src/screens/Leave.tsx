@@ -4,6 +4,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import { api } from '../api';
 import { Button, Card } from '../ui';
 import { badge, C, radius } from '../theme';
+import type { NativeProps } from '../native';
 
 type Balance = { leaveTypeId: string; code: string; name: string; quota: number; used: number; pending: number; remaining: number | null };
 type Request = {
@@ -25,7 +26,7 @@ const range = (a: string, b: string) => (a === b ? nice(a) : `${nice(a)} to ${ni
 const daysText = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
 
 /** My leave, native: balances, asking for leave, cancelling, and the next holidays. Rules: src/lib/leave-requests.ts. */
-export function Leave({ token }: { token: string }) {
+export function Leave({ token }: NativeProps) {
   const [data, setData] = useState<LeaveData | null>(null);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);

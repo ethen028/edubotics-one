@@ -3,13 +3,23 @@ import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon } from './Icon';
 import { C } from './theme';
 import { Leave } from './screens/Leave';
+import { Approvals } from './screens/Approvals';
+
+export type NativeProps = {
+  token: string;
+  /** Opens another page: its phone screen if it has one, else (or with web) the Orbit page inside the app. */
+  open: (path: string, title: string, how?: { web?: boolean }) => void;
+  /** Something changed that the counts on Home and the tabs should show. */
+  changed: () => void;
+};
 
 /**
  * Pages that have their own phone screens. Everything else opens as the Orbit page inside the app until its
  * screen is built; adding a page here is all it takes for Home, More and the tabs to use the native one.
  */
-export const NATIVE: Record<string, (props: { token: string }) => React.ReactElement> = {
+export const NATIVE: Record<string, (props: NativeProps) => React.ReactElement> = {
   '/hr/leave': Leave,
+  '/approvals': Approvals,
 };
 
 /** A native screen opened from Home or More: the title bar with a back arrow, and the Android back button. */

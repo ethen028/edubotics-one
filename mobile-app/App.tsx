@@ -47,7 +47,7 @@ function Orbit() {
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('home');
   const [visited, setVisited] = useState<string[]>(['home']);
-  const [opened, setOpened] = useState<{ path: string; title: string } | null>(null);
+  const [opened, setOpened] = useState<{ path: string; title: string; web?: boolean } | null>(null);
 
   const signOutHere = useCallback(async () => {
     await forgetToken();
@@ -95,9 +95,9 @@ function Orbit() {
   const tabs = TABS.filter((t) => !t.href || pages.has(t.href));
   const badge: Record<string, number> = { messages: menu?.counts.messages ?? 0, approvals: menu?.counts.approvals ?? 0 };
   const go = (key: string) => { setTab(key); setVisited((v) => (v.includes(key) ? v : [...v, key])); };
-  const open = (path: string, title: string) => {
+  const open = (path: string, title: string, how: { web?: boolean } = {}) => {
     const asTab = tabs.find((t) => t.href === path);
-    if (asTab) go(asTab.key); else setOpened({ path, title });
+    if (asTab && !how.web && !opened) go(asTab.key); else setOpened({ path, title, web: how.web });
   };
   const refresh = () => void load(token);
   const close = () => { setOpened(null); refresh(); };
@@ -110,7 +110,14 @@ function Orbit() {
         </View>
         {tabs.filter((t) => t.href && visited.includes(t.key)).map((t) => (
           <View key={t.key} style={[st.fill, tab !== t.key && st.hidden]}>
-            <OrbitPage token={token} path={t.href!} title={t.label} onSignedOut={signOutHere} active={tab === t.key && !opened} />
+            {NATIVE[t.href!] ? (
+              <>
+                <View style={st.tabHead}><Text style={st.tabTitle}>{t.label}</Text></View>
+                {React.createElement(NATIVE[t.href!], { token, open, changed: refresh })}
+              </>
+            ) : (
+              <OrbitPage token={token} path={t.href!} title={t.label} onSignedOut={signOutHere} active={tab === t.key && !opened} />
+            )}
           </View>
         ))}
         <View style={[st.fill, tab !== 'more' && st.hidden]}>
@@ -118,8 +125,8 @@ function Orbit() {
         </View>
         {opened && (
           <View style={st.fill}>
-            {NATIVE[opened.path] ? (
-              <NativePage title={opened.title} onClose={close}>{React.createElement(NATIVE[opened.path], { token })}</NativePage>
+            {NATIVE[opened.path] && !opened.web ? (
+              <NativePage title={opened.title} onClose={close}>{React.createElement(NATIVE[opened.path], { token, open, changed: refresh })}</NativePage>
             ) : (
               <OrbitPage token={token} path={opened.path} title={opened.title} onClose={close} onSignedOut={signOutHere} active />
             )}
@@ -151,6 +158,8 @@ const st = StyleSheet.create({
   body: { flex: 1 },
   fill: { ...StyleSheet.absoluteFillObject },
   hidden: { display: 'none' },
+  tabHead: { height: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.line },
+  tabTitle: { color: C.ink, fontSize: 17, fontWeight: '700' },
   tabBar: { flexDirection: 'row', backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.line },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 56, gap: 3, paddingTop: 6 },
   tabMark: { position: 'absolute', top: 0, width: 24, height: 3, borderRadius: 2, backgroundColor: C.orange },

@@ -9,9 +9,10 @@ import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { optionalDateOnlyInput } from "@/lib/date-input";
 import { projectScope } from "@/lib/projects";
-import { INVENTORY_CATEGORIES, STOCK_UNITS, canApproveRequest, outstanding, requestNo } from "@/lib/inventory";
+import { INVENTORY_CATEGORIES, STOCK_UNITS, outstanding, requestNo } from "@/lib/inventory";
 import type { FormState } from "@/components/action-form";
 import { flash } from "@/lib/flash";
+import { decideStockRequestDecision } from "@/lib/decisions";
 
 const optional = z
   .string()
@@ -207,22 +208,12 @@ export async function cancelRequest(id: string) {
 
 export async function decideStockRequest(id: string, formData: FormData) {
   const user = await requireUser(["ADMIN", "MANAGER"]);
-  const request = await loadRequest(id);
-  if (request.status !== "PENDING") return;
-  if (!(await canApproveRequest(user, request))) throw new Error("Not allowed");
   const decision = z.enum(["APPROVED", "REJECTED"]).parse(formData.get("decision"));
   const note = String(formData.get("note") ?? "").trim() || null;
-  await db.stockRequest.updateMany({
-    where: { id, status: "PENDING" },
-    data: {
-      status: decision,
-      decisionNote: note,
-      decidedById: user.id,
-      decidedAt: new Date(),
-      closedAt: decision === "REJECTED" ? new Date() : null,
-    },
-  });
-  refresh({ requestId: id, projectId: request.projectId });
+  const request = await db.stockRequest.findUnique({ where: { id }, select: { projectId: true } });
+  const result = await decideStockRequestDecision(user, id, decision, note);
+  if (result.error && !result.gone) throw new Error(result.error);
+  refresh({ requestId: id, projectId: request?.projectId });
 }
 
 /** Hand items out. Each line can be issued in part (e.g. only 8 of 10 kits in stock); the rest is dropped. */

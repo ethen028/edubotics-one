@@ -7,7 +7,6 @@ import { z } from "zod";
 import { db, type Tx } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
-import { canManage } from "@/lib/team";
 import { mondayOf } from "@/lib/week";
 import { todayIST } from "@/lib/time";
 import { toDateInput } from "@/lib/format";
@@ -15,10 +14,10 @@ import { canUpdateTask, projectScope } from "@/lib/projects";
 import { readFiles } from "@/lib/project-files";
 import { recordTaskUpdate } from "@/lib/task-updates";
 import { overlapping, workedMinutes } from "@/lib/daily-log";
-import { notify } from "@/lib/notifications";
 import { formatDate } from "@/lib/format";
 import type { FormState } from "@/components/action-form";
 import { flash } from "@/lib/flash";
+import { decideTimesheetRequest } from "@/lib/decisions";
 
 function refresh() {
   revalidatePath("/timesheets", "layout");
@@ -267,21 +266,9 @@ export async function submitWeek(id: string) {
 /** The employee's manager or an admin approves a week, or sends it back with a note. */
 export async function decideTimesheet(id: string, formData: FormData) {
   const user = await requireUser(["ADMIN", "MANAGER"]);
-  const sheet = await db.timesheet.findUnique({ where: { id } });
-  if (!sheet || sheet.status !== "SUBMITTED") return;
-  if (sheet.employeeId === user.employee?.id || !(await canManage(user, sheet.employeeId))) throw new Error("Not allowed");
   const decision = z.enum(["APPROVED", "REJECTED"]).parse(formData.get("decision"));
   const note = String(formData.get("note") ?? "").trim() || null;
-  await db.timesheet.update({
-    where: { id },
-    data: { status: decision, decisionNote: note, decidedById: user.id, decidedAt: new Date() },
-  });
-  const employee = await db.employee.findUnique({ where: { id: sheet.employeeId }, select: { userId: true } });
-  await notify([employee?.userId], user.id, {
-    kind: "timesheet.decided",
-    title: `${user.name} ${decision === "APPROVED" ? "approved" : "sent back"} your timesheet for the week of ${formatDate(sheet.weekStart)}`,
-    body: note,
-    href: `/timesheets?week=${toDateInput(sheet.weekStart)}`,
-  });
+  const result = await decideTimesheetRequest(user, id, decision, note);
+  if (result.error && !result.gone) throw new Error(result.error);
   refresh();
 }
