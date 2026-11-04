@@ -24,7 +24,7 @@ export async function loadNavCounts(user: CurrentUser): Promise<NavCounts> {
       pendingApprovals(user),
       isAdmin(user) ? lowStockItems() : [],
       db.interview.count({ where: { interviewerId: user.id, status: "SCHEDULED" } }),
-      myPendingAcks(user),
+      myPendingAcks(),
       helpdeskCounts(user),
       myReviewTodos(user),
       canManagePeople(user) ? newOnlineApplications() : 0,

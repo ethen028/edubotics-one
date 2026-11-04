@@ -64,6 +64,8 @@ Next.js 16 (App Router, server actions) · TypeScript · Tailwind CSS 4 · Postg
 
 One office computer can run the whole app with Docker Desktop, and staff on the same Wi-Fi use it from their browsers. Plain step-by-step guide: [docs/run-on-your-computer.md](docs/run-on-your-computer.md).
 
+Orbit is moving to Convex module by module (the Notice board first). Convex runs on the same office computer; `.env` needs `CONVEX_INSTANCE_SECRET` (see `.env.example`). Details: [docs/convex.md](docs/convex.md).
+
 The public careers page (`/careers`) and how to put just that page on the internet later: [docs/careers-page.md](docs/careers-page.md).
 
 Working on the code with Claude Code (shared design skills, plugins and ground rules): [docs/claude-code-setup.md](docs/claude-code-setup.md).

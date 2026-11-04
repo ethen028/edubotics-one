@@ -1,6 +1,6 @@
 # Architecture
 
-One Next.js app talks straight to one PostgreSQL database. There is no separate API server, no client-side data store and no public API.
+One Next.js app talks straight to one PostgreSQL database, and (while Orbit moves module by module) to Convex for the modules already moved: so far the Notice board. See [convex.md](convex.md). There is no separate API server, no client-side data store and no public API.
 
 ```
 Browser ──► src/proxy.ts ──► page.tsx (server component) ──► src/lib/* ──► Prisma ──► PostgreSQL

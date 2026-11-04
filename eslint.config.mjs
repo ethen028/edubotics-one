@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     ".omc/**",
     // The phone app has its own tooling (Expo); see mobile-app/README.md.
     "mobile-app/**",
+    // Written by `npx convex dev` / `npx convex codegen`.
+    "convex/_generated/**",
   ]),
 ]);
 

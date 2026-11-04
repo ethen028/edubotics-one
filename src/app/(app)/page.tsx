@@ -4,7 +4,7 @@ import { backupProblem } from "@/lib/backups";
 import { isAdmin, isBackupAdmin, isManagerOrAdmin, requireUser } from "@/lib/auth";
 import { homeDashboard, isOwner } from "@/lib/permissions";
 import { pendingApprovals } from "@/lib/approvals";
-import { myPendingAcks } from "@/lib/notices";
+import { homeAnnouncements, myPendingAcks } from "@/lib/notices";
 import { daysFromNow, todayIST } from "@/lib/time";
 import { mondayOf } from "@/lib/week";
 import { OPEN_PROJECT_STAGES, progress, projectScope } from "@/lib/projects";
@@ -131,13 +131,8 @@ export default async function Home() {
           })
         : [],
       myOpenInterviews(user.id),
-      myPendingAcks(user),
-      db.notice.findMany({
-        where: { kind: "ANNOUNCEMENT", archivedAt: null, OR: [{ showUntil: null }, { showUntil: { gte: today } }] },
-        include: { author: { select: { name: true } } },
-        orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
-        take: 3,
-      }),
+      myPendingAcks(),
+      homeAnnouncements(today),
       myReviewTodos(user),
       db.recognition.findFirst({
         where: { featuredAt: { gte: spotlightSince(now) } },

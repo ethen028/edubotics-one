@@ -3,18 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { requireUser } from "@/lib/auth";
+import { convexMessage, convexMutation, uploadToConvex } from "@/lib/convex";
 import { MAX_DOCUMENT_BYTES, sniffMime } from "@/lib/hr-constants";
-import { canEditNotice } from "@/lib/notices";
+import { NOTICE_POSTERS } from "@/lib/notice-rules";
 import type { FormState } from "@/components/action-form";
 import { flash } from "@/lib/flash";
+
+// The notice board is stored in Convex (convex/notices.ts), which checks the role and company again.
 
 const optionalDate = z
   .string()
   .trim()
   .optional()
-  .transform((v) => (v ? new Date(`${v}T00:00:00.000Z`) : null));
+  .transform((v) => (v ? new Date(`${v}T00:00:00.000Z`).getTime() : undefined));
 
 const noticeSchema = z.object({
   kind: z.enum(["ANNOUNCEMENT", "POLICY"]),
@@ -24,12 +28,14 @@ const noticeSchema = z.object({
     .string()
     .trim()
     .optional()
-    .transform((v) => v || null),
+    .transform((v) => v || undefined),
   pinned: z.literal("on").optional().transform(Boolean),
   requiresAck: z.literal("on").optional().transform(Boolean),
   ackDueDate: optionalDate,
   showUntil: optionalDate,
 });
+
+const posters = [...NOTICE_POSTERS];
 
 function refresh(id?: string) {
   revalidatePath("/", "layout");
@@ -37,109 +43,76 @@ function refresh(id?: string) {
   if (id) revalidatePath(`/notices/${id}`);
 }
 
-/** Reads the optional attachment. Returns an error message, nothing (no file chosen) or the file. */
+/** Reads the optional attachment and puts it in Convex storage. Returns an error message, nothing, or the file. */
 async function readAttachment(formData: FormData) {
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return null;
+  if (!(file instanceof File) || file.size === 0) return undefined;
   if (file.size > MAX_DOCUMENT_BYTES) return "Files can be up to 5 MB.";
   const bytes = new Uint8Array(await file.arrayBuffer());
   const mimeType = sniffMime(bytes);
   if (!mimeType) return "Attach a PDF, JPG, PNG or WebP file.";
-  return { fileName: file.name.slice(0, 200) || "document", mimeType, size: file.size, data: bytes };
+  const storageId = await uploadToConvex(api.notices.uploadUrl, { data: bytes, mimeType });
+  return { storageId: storageId as Id<"_storage">, fileName: file.name.slice(0, 200) || "document", mimeType, size: file.size };
 }
 
 export async function createNotice(_: FormState, formData: FormData): Promise<FormState> {
-  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
+  await requireUser(posters);
   const parsed = noticeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const file = await readAttachment(formData);
-  if (typeof file === "string") return { error: file };
-  const { kind, showUntil, category, ...rest } = parsed.data;
-
-  const notice = await db.notice.create({
-    data: {
-      ...rest,
-      kind,
-      category: kind === "POLICY" ? category : null,
-      showUntil: kind === "ANNOUNCEMENT" ? showUntil : null,
-      ackDueDate: rest.requiresAck ? rest.ackDueDate : null,
-      authorId: user.id,
-      ...(file && { attachment: { create: file } }),
-      // The person posting it has obviously read it.
-      ...(rest.requiresAck && { acks: { create: { userId: user.id, version: 1 } } }),
-    },
-  });
+  let id: string;
+  try {
+    const attachment = await readAttachment(formData);
+    if (typeof attachment === "string") return { error: attachment };
+    id = await convexMutation(api.notices.create, { ...parsed.data, attachment });
+  } catch (error) {
+    const message = convexMessage(error);
+    if (!message) throw error;
+    return { error: message };
+  }
   refresh();
   await flash("Notice posted.");
-  redirect(`/notices/${notice.id}`);
+  redirect(`/notices/${id}`);
 }
 
 export async function updateNotice(id: string, _: FormState, formData: FormData): Promise<FormState> {
-  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
-  const notice = await db.notice.findUniqueOrThrow({ where: { id } });
-  if (!canEditNotice(user, notice)) return { error: "Only the person who posted this or an admin can change it." };
-  const parsed = noticeSchema.safeParse({ ...Object.fromEntries(formData), kind: notice.kind });
+  await requireUser(posters);
+  const parsed = noticeSchema.omit({ kind: true }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const file = await readAttachment(formData);
-  if (typeof file === "string") return { error: file };
-  const { kind, showUntil, category, ...rest } = parsed.data;
-  // Turning acknowledgement on, or asking again after a change, starts a new round.
-  const newRound = rest.requiresAck && (!notice.requiresAck || formData.get("askAgain") === "on");
-  const version = newRound ? notice.version + 1 : notice.version;
-
-  await db.$transaction([
-    db.notice.update({
-      where: { id },
-      data: {
-        ...rest,
-        category: kind === "POLICY" ? category : null,
-        showUntil: kind === "ANNOUNCEMENT" ? showUntil : null,
-        ackDueDate: rest.requiresAck ? rest.ackDueDate : null,
-        version,
-        ...(file && { attachment: { upsert: { create: file, update: file } } }),
-      },
-    }),
-    ...(formData.get("removeFile") === "on" && !file ? [db.noticeFile.deleteMany({ where: { noticeId: id } })] : []),
-    ...(newRound
-      ? [
-          db.noticeAck.upsert({
-            where: { noticeId_userId: { noticeId: id, userId: user.id } },
-            create: { noticeId: id, userId: user.id, version },
-            update: { version, ackedAt: new Date() },
-          }),
-        ]
-      : []),
-  ]);
+  try {
+    const attachment = await readAttachment(formData);
+    if (typeof attachment === "string") return { error: attachment };
+    await convexMutation(api.notices.update, {
+      id: id as Id<"notices">,
+      ...parsed.data,
+      askAgain: formData.get("askAgain") === "on",
+      removeFile: formData.get("removeFile") === "on",
+      attachment,
+    });
+  } catch (error) {
+    const message = convexMessage(error);
+    if (!message) throw error;
+    return { error: message };
+  }
   refresh(id);
   await flash("Notice updated.");
   redirect(`/notices/${id}`);
 }
 
 export async function acknowledgeNotice(id: string) {
-  const user = await requireUser();
-  const notice = await db.notice.findUniqueOrThrow({ where: { id }, select: { version: true, requiresAck: true, archivedAt: true } });
-  if (!notice.requiresAck || notice.archivedAt) return;
-  await db.noticeAck.upsert({
-    where: { noticeId_userId: { noticeId: id, userId: user.id } },
-    create: { noticeId: id, userId: user.id, version: notice.version },
-    update: { version: notice.version, ackedAt: new Date() },
-  });
+  await requireUser();
+  await convexMutation(api.notices.acknowledge, { id: id as Id<"notices"> });
   refresh(id);
 }
 
 export async function togglePinned(id: string) {
-  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
-  const notice = await db.notice.findUniqueOrThrow({ where: { id } });
-  if (!canEditNotice(user, notice)) throw new Error("Not allowed");
-  await db.notice.update({ where: { id }, data: { pinned: !notice.pinned } });
+  await requireUser(posters);
+  await convexMutation(api.notices.togglePinned, { id: id as Id<"notices"> });
   refresh(id);
 }
 
 /** Archived notices leave Home and the board, and stop asking for acknowledgement. History is kept. */
 export async function toggleArchived(id: string) {
-  const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
-  const notice = await db.notice.findUniqueOrThrow({ where: { id } });
-  if (!canEditNotice(user, notice)) throw new Error("Not allowed");
-  await db.notice.update({ where: { id }, data: { archivedAt: notice.archivedAt ? null : new Date() } });
+  await requireUser(posters);
+  await convexMutation(api.notices.toggleArchived, { id: id as Id<"notices"> });
   refresh(id);
 }

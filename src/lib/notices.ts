@@ -1,45 +1,64 @@
 import "server-only";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { db } from "./db";
-import { isAdmin, type CurrentUser } from "./auth";
+import { convexQuery } from "./convex";
+import { isAcked } from "./notice-rules";
 
-export const POLICY_CATEGORIES = ["HR and leave", "Conduct", "Travel and expenses", "Safety", "IT and data", "Other"] as const;
+export { POLICY_CATEGORIES, canEditNotice, isAcked } from "./notice-rules";
 
-/** Admins edit any notice; managers only their own. */
-export const canEditNotice = (user: CurrentUser, notice: { authorId: string }) => isAdmin(user) || notice.authorId === user.id;
+/**
+ * The notice board lives in Convex (convex/notices.ts); people still live in PostgreSQL. These helpers read
+ * from Convex and turn Convex's millisecond dates back into Dates for the pages.
+ */
 
-/** An acknowledgement only counts for the notice version it was given on. */
-export const isAcked = (notice: { version: number }, ack: { version: number } | undefined) => !!ack && ack.version >= notice.version;
+export const toDate = (ms: number | null | undefined) => (ms == null ? null : new Date(ms));
 
-/** Live notices this user still has to read and acknowledge, oldest due first. */
-export async function myPendingAcks(user: CurrentUser) {
-  const notices = await db.notice.findMany({
-    where: { requiresAck: true, archivedAt: null },
-    select: {
-      id: true,
-      kind: true,
-      title: true,
-      version: true,
-      ackDueDate: true,
-      createdAt: true,
-      acks: { where: { userId: user.id }, select: { version: true } },
-    },
-    orderBy: [{ ackDueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
-  });
-  return notices.filter((n) => !isAcked(n, n.acks[0]));
+/** Names of people by id, for "posted by" and the acknowledgement roster. */
+export async function namesOf(ids: string[]) {
+  const users = await db.user.findMany({ where: { id: { in: [...new Set(ids)] } }, select: { id: true, name: true } });
+  return new Map(users.map((u) => [u.id, u.name]));
+}
+
+/**
+ * Live notices the signed-in person still has to acknowledge, oldest due first. Shown on Home and counted in
+ * the menu on every page, so if Convex can't be reached this logs and shows nothing rather than breaking
+ * every page.
+ */
+export async function myPendingAcks() {
+  try {
+    const rows = await convexQuery(api.notices.myPending, {});
+    return rows.map((n) => ({ id: n._id as string, kind: n.kind, title: n.title, ackDueDate: toDate(n.ackDueDate) }));
+  } catch (error) {
+    console.error("Notice board (Convex) unavailable:", error);
+    return [];
+  }
+}
+
+/** Up to three current announcements for Home, with the poster's name. Empty if Convex can't be reached. */
+export async function homeAnnouncements(today: Date) {
+  try {
+    const rows = await convexQuery(api.notices.forHome, { today: today.getTime() });
+    const names = await namesOf(rows.map((n) => n.authorId));
+    return rows.map((n) => ({ id: n._id as string, title: n.title, body: n.body, pinned: n.pinned, createdAt: new Date(n.createdAt), author: { name: names.get(n.authorId) ?? "Former staff" } }));
+  } catch (error) {
+    console.error("Notice board (Convex) unavailable:", error);
+    return [];
+  }
 }
 
 /** Everyone with an active login, split by whether they have acknowledged the current version. */
-export async function ackRoster(notice: { id: string; version: number }) {
+export async function ackRoster(notice: { _id: Id<"notices">; version: number }) {
   const [users, acks] = await Promise.all([
     db.user.findMany({
       where: { active: true },
       select: { id: true, name: true, role: true, employee: { select: { designation: true } } },
       orderBy: { name: "asc" },
     }),
-    db.noticeAck.findMany({ where: { noticeId: notice.id } }),
+    convexQuery(api.notices.acknowledgements, { id: notice._id }),
   ]);
   const byUser = new Map(acks.map((a) => [a.userId, a]));
-  const done = users.filter((u) => isAcked(notice, byUser.get(u.id))).map((u) => ({ ...u, ackedAt: byUser.get(u.id)!.ackedAt }));
+  const done = users.filter((u) => isAcked(notice, byUser.get(u.id))).map((u) => ({ ...u, ackedAt: new Date(byUser.get(u.id)!.ackedAt) }));
   const waiting = users
     .filter((u) => !isAcked(notice, byUser.get(u.id)))
     .map((u) => ({ ...u, olderVersion: byUser.has(u.id) }));
