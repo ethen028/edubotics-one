@@ -8,6 +8,7 @@ import { canManageHrEmployee } from "@/lib/team";
 import { istDate, istTimeOn } from "@/lib/attendance";
 import { dateOnlyInput, timeInput } from "@/lib/date-input";
 import type { FormState } from "@/components/action-form";
+import { decideCorrectionRequest } from "@/lib/decisions";
 
 function refresh() {
   revalidatePath("/hr");
@@ -76,17 +77,8 @@ export async function requestCorrection(sessionId: string, _: FormState, formDat
 export async function decideCorrection(id: string, formData: FormData) {
   const user = await requireUser(["ADMIN", "HR", "MANAGER"]);
   const decision = z.enum(["APPROVED", "REJECTED"]).parse(formData.get("decision"));
-  const req = await db.attendanceCorrection.findUnique({ where: { id } });
-  if (!req || req.status !== "PENDING") return;
-  if (!(await canManageHrEmployee(user, req.employeeId)) || req.employeeId === user.employee?.id) throw new Error("Not allowed");
-  await db.$transaction(async tx => {
-    const changed = await tx.attendanceCorrection.updateMany({ where: { id, status: "PENDING" }, data: { status: decision, decidedById: user.id, decidedAt: new Date() } });
-    if (!changed.count) return;
-    if (decision === "APPROVED") {
-      const corrected = await tx.attendanceSession.updateMany({ where: { id: req.sessionId, checkOut: null }, data: { checkOut: req.requestedCheckOut } });
-      if (!corrected.count) throw new Error("The attendance session changed. Reload before deciding.");
-    }
-  });
+  const result = await decideCorrectionRequest(user, id, decision);
+  if (result.error && !result.gone) throw new Error(result.error);
   refresh();
 }
 

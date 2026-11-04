@@ -5,12 +5,12 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
-import { canManage } from "@/lib/team";
 import { getSettings } from "@/lib/settings";
 import { todayIST } from "@/lib/time";
 import { MAX_DOCUMENT_BYTES, sniffMime } from "@/lib/hr-constants";
 import { EXPENSE_CATEGORIES, VEHICLES } from "@/lib/expenses";
 import type { FormState } from "@/components/action-form";
+import { decideClaimRequest } from "@/lib/decisions";
 
 function refresh() {
   revalidatePath("/expenses", "layout");
@@ -105,25 +105,11 @@ export async function withdrawClaim(id: string) {
 /** The employee's manager or an admin approves (optionally a lower amount) or rejects. */
 export async function decideClaim(id: string, formData: FormData) {
   const user = await requireUser(["ADMIN", "MANAGER"]);
-  const claim = await db.expenseClaim.findUnique({ where: { id } });
-  if (!claim || claim.status !== "SUBMITTED") return;
-  if (claim.employeeId === user.employee?.id || !(await canManage(user, claim.employeeId))) throw new Error("Not allowed");
   const decision = z.enum(["APPROVED", "REJECTED"]).parse(formData.get("decision"));
   const note = String(formData.get("note") ?? "").trim() || null;
-  const claimed = Number(claim.amount);
   const asked = String(formData.get("approvedAmount") ?? "").trim();
-  const approvedAmount = asked === "" ? claimed : Math.min(claimed, Math.max(0, Number(asked) || 0));
-  if (decision === "APPROVED" && approvedAmount <= 0) throw new Error("Approve an amount above zero, or reject the claim");
-  await db.expenseClaim.update({
-    where: { id },
-    data: {
-      status: decision,
-      approvedAmount: decision === "APPROVED" ? approvedAmount : null,
-      decisionNote: note,
-      decidedById: user.id,
-      decidedAt: new Date(),
-    },
-  });
+  const result = await decideClaimRequest(user, id, decision, note, asked === "" ? null : Number(asked) || 0);
+  if (result.error && !result.gone) throw new Error(result.error);
   refresh();
 }
 

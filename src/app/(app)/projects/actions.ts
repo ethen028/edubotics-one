@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/leave";
-import { PROJECT_STAGES, canApproveProject, canEditProject, canUpdateTask, projectScope } from "@/lib/projects";
+import { PROJECT_STAGES, canEditProject, canUpdateTask, projectScope } from "@/lib/projects";
 import { readFiles } from "@/lib/project-files";
 import { afterStatusChange, nextTaskState, recordTaskUpdate } from "@/lib/task-updates";
 import { notify } from "@/lib/notifications";
@@ -14,6 +14,7 @@ import type { FormState } from "@/components/action-form";
 import { logActivity } from "@/lib/activity";
 import { formatDate } from "@/lib/format";
 import { flash } from "@/lib/flash";
+import { decideProjectApproval } from "@/lib/decisions";
 
 const optional = z
   .string()
@@ -142,26 +143,10 @@ export async function moveStage(id: string, formData: FormData) {
 
 export async function decideProject(id: string, formData: FormData) {
   const user = await requireUser(["ADMIN", "MANAGER"]);
-  const project = await db.project.findUnique({ where: { id } });
-  if (!project || project.stage !== "APPROVAL") return;
-  if (!(await canApproveProject(user, project))) throw new Error("Not allowed");
   const decision = z.enum(["APPROVED", "REJECTED"]).parse(formData.get("decision"));
   const note = String(formData.get("note") ?? "").trim() || null;
-  await db.project.update({
-    where: { id },
-    data: {
-      stage: decision === "APPROVED" ? "HANDOVER" : "REVIEW",
-      approvalNote: note,
-      decidedById: user.id,
-      decidedAt: new Date(),
-    },
-  });
-  await notify([project.ownerId], user.id, {
-    kind: "project.decided",
-    title: decision === "APPROVED" ? `${project.name} was approved` : `${project.name} was sent back`,
-    body: note,
-    href: `/projects/${id}`,
-  });
+  const result = await decideProjectApproval(user, id, decision, note);
+  if (result.error && !result.gone) throw new Error(result.error);
   refresh(id);
 }
 

@@ -60,7 +60,7 @@ These are business decisions, not code choices. Don't change them without the ow
 
 ## Not built, on purpose or not yet
 
-- Phone app: built (`mobile-app/`, Expo) with native Home and More and every other page inside the app, but not yet installed on phones: it needs Orbit on an HTTPS address and an Expo account to build the install file (plan, 3 Nov 2026). Push notifications and native screens for leave, approvals, expenses and messages come next.
+- Phone app: built (`mobile-app/`, Expo) with native Home and More and every other page inside the app, but not yet installed on phones: it needs Orbit on an HTTPS address and an Expo account to build the install file (plan, 3 Nov 2026). Native screens so far: Home, More, My leave, Approvals. Push notifications and native screens for My work, expenses and messages come next.
 - Public internet access: the office copy is Wi-Fi only, so trainers at schools can't reach it. Google sign-in is built but off for the same reason.
 - Form 16 (it comes from the income tax TRACES portal; Orbit gives an annual salary statement instead), termination letters, digital or e-signing of letters.
 - File storage outside the database, encrypted backups, a public API.
