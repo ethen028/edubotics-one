@@ -1,6 +1,8 @@
 # Moving Orbit to Convex: plan
 
-Status: **proposal only, 4 Nov 2026.** No code has changed. Nothing here starts until the owner picks an option (end of this doc).
+Status: **decided 4 Nov 2026: move the web app first** (the phone app follows later). Phase 0 (the trial) is under way: the Notice board runs on Convex, see [convex.md](convex.md).
+
+Change from the first draft: modules move one at a time behind the same sign-in, and each can be merged on its own. People, sign-in and companies stay in PostgreSQL until their own phase; Convex rows refer to them by their PostgreSQL ids. That keeps `main` working throughout instead of a three-month branch.
 
 This plan replaces Prisma + PostgreSQL with [Convex](https://www.convex.dev) as Orbit's database and backend. It keeps Next.js for the pages, the look, and the phone app's routes.
 

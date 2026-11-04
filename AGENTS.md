@@ -12,6 +12,7 @@ Orbit is the internal operations app for Edubotics Global (Kochi, Kerala): CRM, 
 | [docs/CODE_STYLE.md](docs/CODE_STYLE.md) | How pages, server actions and lib files are written here |
 | [docs/SECURITY.md](docs/SECURITY.md) | Rules every change must keep (permissions, files, secrets) |
 | [docs/TESTING.md](docs/TESTING.md) | Which checks to run and how to add tests |
+| [docs/convex.md](docs/convex.md) | The move to Convex: which modules live there, how sign-in and company checks work in Convex |
 | [README.md](README.md) | Module list and how to run it |
 
 The long developer handover (every module, the data model, business rules, screenshots) is kept outside the repo in the handover pack: `HANDOVER.md` / "Orbit: Developer Handover". Ask the owner for it if you need more than these docs.
@@ -28,6 +29,7 @@ The long developer handover (every module, the data model, business rules, scree
 8. **Write for staff, not developers.** Labels and messages are short plain English ("Leave approved", not "Mutation succeeded").
 9. **Never commit secrets or `.env`.** `npm run security:secrets` runs in CI.
 10. **Every query stays in one company.** Orbit holds a group of companies; `db` filters every query to the current company by itself (`src/lib/company-scope.ts`). Use `rawDb` only where docs/ARCHITECTURE.md says, and add `"companyId"` by hand to raw SQL. New tables get a `companyId` like the others.
+11. **Convex functions use `companyQuery` / `companyMutation`** (`convex/lib/orbit.ts`), never plain `query` / `mutation`; they check the role and keep every read and write in the caller's company. A module moved to Convex gets a `convex-test` test file.
 
 ## Commands
 

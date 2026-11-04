@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
+import { api } from "@convex/_generated/api";
 import { isManagerOrAdmin, requireUser } from "@/lib/auth";
-import { ackRoster, canEditNotice, isAcked } from "@/lib/notices";
+import { convexQuery } from "@/lib/convex";
+import { ackRoster, isAcked, namesOf, toDate } from "@/lib/notices";
 import { formatDate, formatDateTime, humanize } from "@/lib/format";
 import { todayIST } from "@/lib/time";
 import { Badge, PageHeader } from "@/components/ui";
@@ -14,18 +15,21 @@ export const metadata = { title: "Notice" };
 export default async function NoticePage({ params }: PageProps<"/notices/[id]">) {
   const user = await requireUser();
   const { id } = await params;
-  const notice = await db.notice.findUnique({
-    where: { id },
-    include: {
-      author: { select: { name: true } },
-      attachment: { select: { fileName: true, mimeType: true, size: true } },
-      acks: { where: { userId: user.id } },
-    },
-  });
-  if (!notice) notFound();
+  const found = await convexQuery(api.notices.get, { id });
+  if (!found) notFound();
+  const names = await namesOf([found.authorId]);
+  const notice = {
+    ...found,
+    id: found._id,
+    author: { name: names.get(found.authorId) ?? "Former staff" },
+    createdAt: new Date(found.createdAt),
+    updatedAt: new Date(found.updatedAt),
+    archivedAt: toDate(found.archivedAt),
+    ackDueDate: toDate(found.ackDueDate),
+  };
   const manager = isManagerOrAdmin(user) || user.role === "HR"; // HR posts policies and announcements too
-  const editable = canEditNotice(user, notice);
-  const mine = notice.acks[0];
+  const editable = found.editable;
+  const mine = found.myAck ? { ...found.myAck, ackedAt: new Date(found.myAck.ackedAt) } : null;
   const acked = isAcked(notice, mine);
   const roster = manager && notice.requiresAck ? await ackRoster(notice) : null;
   const overdue = notice.ackDueDate && notice.ackDueDate < todayIST();

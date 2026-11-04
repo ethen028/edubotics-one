@@ -1,8 +1,18 @@
-import type { Notice, NoticeKind } from "@prisma/client";
 import { ActionForm, SubmitButton, type FormState } from "@/components/action-form";
 import { Field } from "@/components/ui";
 import { toDateInput } from "@/lib/format";
-import { POLICY_CATEGORIES } from "@/lib/notices";
+import { POLICY_CATEGORIES } from "@/lib/notice-rules";
+
+type NoticeKind = "ANNOUNCEMENT" | "POLICY";
+type Notice = {
+  title: string;
+  body: string;
+  category?: string | null;
+  pinned: boolean;
+  requiresAck: boolean;
+  ackDueDate: Date | null;
+  showUntil: Date | null;
+};
 
 export function NoticeForm({
   action,

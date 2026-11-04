@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { db, rawDb } from "./db";
 import { firstCompanyId } from "./company";
 import { spaceLevel } from "./backup-rules";
@@ -14,6 +16,10 @@ import { spaceLevel } from "./backup-rules";
  *
  * The backup folder, not the database, is the record of what exists: restoring an older backup
  * rewinds the database, but the folder and its status file stay as they were.
+ *
+ * While Orbit moves to Convex, the modules already moved (the Notice board so far) live in Convex instead.
+ * Each backup then also saves a Convex export with its files next to the dump, with the same name ending
+ * ".convex.zip" (`convexBackupName`). Restoring puts both back (docs/backups.md).
  *
  * No "server-only" import: the scheduler is started from src/instrumentation.ts.
  */
@@ -57,6 +63,36 @@ function stamp(d: Date) {
 
 export function backupName(at: Date, kind: BackupKind) {
   return `edubotics-one-${stamp(at)}${kind === "scheduled" ? "" : `-${kind}`}.dump`;
+}
+
+/** The Convex half of a backup: edubotics-one-2026-10-07-1700.dump goes with edubotics-one-2026-10-07-1700.convex.zip. */
+export function convexBackupName(dumpName: string) {
+  return dumpName.replace(/\.dump$/, ".convex.zip");
+}
+
+const CONVEX_ADMIN_KEY_FILE = "/convex-keys/admin-key";
+
+/**
+ * Saves everything in Convex (rows and files) next to the dump. Skipped where Convex isn't part of the
+ * Docker setup yet (no admin key), so an older docker-compose.yml keeps backing up as before.
+ */
+async function exportConvex(dir: string, dumpName: string) {
+  const key = (await fs.readFile(CONVEX_ADMIN_KEY_FILE, "utf8").catch(() => "")).trim();
+  if (!key || !process.env.CONVEX_SELF_HOSTED_URL) return null;
+  const name = convexBackupName(dumpName);
+  const part = path.join(/*turbopackIgnore: true*/ dir, `.${name}.part.zip`);
+  await fs.rm(part, { force: true });
+  try {
+    await promisify(execFile)("npx", ["convex", "export", "--include-file-storage", "--path", part], {
+      env: { ...process.env, CONVEX_SELF_HOSTED_ADMIN_KEY: key },
+      timeout: WAIT_FOR_HELPER,
+    });
+    await fs.rename(part, path.join(/*turbopackIgnore: true*/ dir, name));
+  } catch (e) {
+    await fs.rm(part, { force: true }).catch(() => {});
+    throw new Error(`The Convex part of the backup (Notice board) failed: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);
+  }
+  return name;
 }
 
 function parseName(name: string) {
@@ -168,6 +204,8 @@ async function doBackup(kind: BackupKind): Promise<BackupRun> {
   try {
     await dumpVia(dir, name);
     result.size = (await fs.stat(path.join(/*turbopackIgnore: true*/ dir, name))).size;
+    const convexName = await exportConvex(dir, name);
+    if (convexName) result.size += (await fs.stat(path.join(/*turbopackIgnore: true*/ dir, convexName))).size;
     result.ok = true;
   } catch (e) {
     result.error = e instanceof Error ? e.message : String(e);
@@ -176,12 +214,15 @@ async function doBackup(kind: BackupKind): Promise<BackupRun> {
   if (result.ok && result.name) {
     const copy = copyDir();
     if (copy) {
-      try {
-        await fs.copyFile(path.join(/*turbopackIgnore: true*/ dir, result.name), path.join(/*turbopackIgnore: true*/ copy, `.${result.name}.part`));
-        await fs.rename(path.join(/*turbopackIgnore: true*/ copy, `.${result.name}.part`), path.join(/*turbopackIgnore: true*/ copy, result.name));
-      } catch (e) {
-        await fs.rm(path.join(/*turbopackIgnore: true*/ copy, `.${result.name}.part`), { force: true }).catch(() => {});
-        result.copyError = e instanceof Error ? e.message : String(e);
+      for (const file of [result.name, convexBackupName(result.name)]) {
+        if (file !== result.name && !(await fs.stat(path.join(/*turbopackIgnore: true*/ dir, file)).catch(() => null))) continue;
+        try {
+          await fs.copyFile(path.join(/*turbopackIgnore: true*/ dir, file), path.join(/*turbopackIgnore: true*/ copy, `.${file}.part`));
+          await fs.rename(path.join(/*turbopackIgnore: true*/ copy, `.${file}.part`), path.join(/*turbopackIgnore: true*/ copy, file));
+        } catch (e) {
+          await fs.rm(path.join(/*turbopackIgnore: true*/ copy, `.${file}.part`), { force: true }).catch(() => {});
+          result.copyError = e instanceof Error ? e.message : String(e);
+        }
       }
     }
     await prune().catch((e) => console.error("Could not tidy old backups", e));
@@ -228,6 +269,7 @@ async function prune() {
     if (!dir) continue;
     for (const name of backupsToDelete(await listDir(dir), new Date(), keepDays, keepMonths)) {
       await fs.rm(path.join(/*turbopackIgnore: true*/ dir, name), { force: true });
+      await fs.rm(path.join(/*turbopackIgnore: true*/ dir, convexBackupName(name)), { force: true });
     }
   }
 }
