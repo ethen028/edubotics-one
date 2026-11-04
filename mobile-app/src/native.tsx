@@ -4,6 +4,8 @@ import { Icon } from './Icon';
 import { C } from './theme';
 import { Leave } from './screens/Leave';
 import { Approvals } from './screens/Approvals';
+import { Work } from './screens/Work';
+import { Timesheet } from './screens/Timesheet';
 
 export type NativeProps = {
   token: string;
@@ -20,6 +22,8 @@ export type NativeProps = {
 export const NATIVE: Record<string, (props: NativeProps) => React.ReactElement> = {
   '/hr/leave': Leave,
   '/approvals': Approvals,
+  '/work': Work,
+  '/timesheets': Timesheet,
 };
 
 /** A native screen opened from Home or More: the title bar with a back arrow, and the Android back button. */
