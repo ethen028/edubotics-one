@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Prisma, TicketStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isAdmin, requireUser } from "@/lib/auth";
-import { Empty, PageHeader } from "@/components/ui";
+import { Empty, PageHeader, Pager } from "@/components/ui";
+import { pageHref, pageNumber, pageQuery, pageRows } from "@/lib/paging";
 import { formatDateTime } from "@/lib/format";
 import { OPEN_TICKET_STATUSES, ticketNo } from "@/lib/helpdesk";
 import { PriorityBadge } from "../projects/ui";
@@ -42,16 +43,18 @@ export default async function HelpdeskPage({ searchParams }: PageProps<"/helpdes
         ? {}
         : { status: status as TicketStatus }),
   };
-  const tickets = await db.helpdeskTicket.findMany({
+  const page = pageNumber(sp.page);
+  const found = await db.helpdeskTicket.findMany({
     where,
     include: {
       requester: { select: { name: true } },
       assignee: { select: { name: true } },
       _count: { select: { comments: { where: { body: { not: null } } } } },
     },
-    orderBy: [{ status: "asc" }, { priority: "desc" }, { createdAt: "desc" }],
-    take: 200,
+    orderBy: [{ status: "asc" }, { priority: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    ...pageQuery(page),
   });
+  const { rows: tickets, more, first } = pageRows(found, page);
 
   const href = (v: string, s: string) => `?view=${v}&status=${s}`;
 
@@ -146,6 +149,7 @@ export default async function HelpdeskPage({ searchParams }: PageProps<"/helpdes
           </table>
         </div>
       )}
+      <Pager page={page} more={more} shown={tickets.length} first={first} href={(n) => pageHref({ view, status }, n)} />
     </>
   );
 }

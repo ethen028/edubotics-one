@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { Empty, PageHeader } from "@/components/ui";
+import { Empty, PageHeader, Pager } from "@/components/ui";
+import { pageHref, pageNumber, pageQuery, pageRows } from "@/lib/paging";
 import { ContactForm } from "../forms";
 import { createContact } from "../actions";
 import { activeUsers, orgOptions } from "../data";
@@ -11,7 +12,8 @@ export const metadata = { title: "Contacts" };
 
 export default async function ContactsPage({ searchParams }: PageProps<"/crm/contacts">) {
   await requireUser();
-  const { q = "" } = (await searchParams) as Record<string, string | undefined>;
+  const { q = "", page: pageParam } = (await searchParams) as Record<string, string | undefined>;
+  const page = pageNumber(pageParam);
   const where: Prisma.ContactWhereInput = q
     ? {
         OR: [
@@ -22,11 +24,17 @@ export default async function ContactsPage({ searchParams }: PageProps<"/crm/con
         ],
       }
     : {};
-  const [contacts, users, orgs] = await Promise.all([
-    db.contact.findMany({ where, include: { organization: true }, orderBy: { name: "asc" }, take: 300 }),
+  const [found, users, orgs] = await Promise.all([
+    db.contact.findMany({
+      where,
+      include: { organization: { select: { id: true, name: true } } },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+      ...pageQuery(page),
+    }),
     activeUsers(),
     orgOptions(),
   ]);
+  const { rows: contacts, more, first } = pageRows(found, page);
 
   return (
     <>
@@ -76,6 +84,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/crm/con
               </table>
             </div>
           )}
+          <Pager page={page} more={more} shown={contacts.length} first={first} href={(n) => pageHref({ q }, n)} />
         </div>
         <div>
           <ContactForm action={createContact} organizations={orgs} users={users} compact />

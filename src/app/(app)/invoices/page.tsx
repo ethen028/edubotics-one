@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { Badge, Empty, PageHeader, Stat } from "@/components/ui";
+import { Badge, Empty, PageHeader, Pager, Stat } from "@/components/ui";
+import { pageHref, pageNumber, pageRows } from "@/lib/paging";
 import { formatDate, formatINR } from "@/lib/format";
 import { todayIST } from "@/lib/time";
 import { formatMoney, payStateColor, payStateLabel, type PayState } from "@/lib/invoices";
@@ -21,7 +22,10 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
   const sp = (await searchParams) as Record<string, string | undefined>;
   const filter = FILTERS.find(([k]) => k === sp.show) ?? FILTERS[0];
   const invoices = await invoicesWithBalance();
-  const shown = invoices.filter((i) => filter[2](i.state));
+  const matching = invoices.filter((i) => filter[2](i.state));
+  // Totals and filter counts need every invoice; only the table is cut into pages.
+  const page = pageNumber(sp.page);
+  const { rows: shown, more, first } = pageRows(matching, page, undefined, false);
 
   const today = todayIST();
   const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
@@ -81,7 +85,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
         ))}
       </div>
 
-      {shown.length === 0 ? (
+      {matching.length === 0 ? (
         <Empty>
           {invoices.length === 0
             ? "No invoices yet. Start one here, or from a won deal or a delivery project."
@@ -129,6 +133,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
           </table>
         </div>
       )}
+      <Pager page={page} more={more} shown={shown.length} first={first} href={(n) => pageHref({ show: filter[0] }, n)} />
     </>
   );
 }
