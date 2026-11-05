@@ -99,3 +99,16 @@ test("the phone's approvals use the same rules as the web Approvals page", () =>
     assert.match(fn, /updateMany\(/, fn.slice(0, 40));
   }
 });
+
+test("the phone's CRM screens stand for real CRM pages, and say when they show sample data", () => {
+  const native = readFileSync("mobile-app/src/native.tsx", "utf8");
+  const crmPaths = [...native.matchAll(/^ {2}'(\/crm\/[\w/]+)': \w+,$/gm)].map((m) => m[1]);
+  assert.deepEqual(crmPaths.sort(), ["/crm/activities", "/crm/contacts", "/crm/deals", "/crm/leads", "/crm/organizations"]);
+  const person = PEOPLE.employee;
+  const menu = phoneMenu(buildNav(person, QUIET), person).flatMap((g) => g.items.map((i) => i.href));
+  for (const path of crmPaths) assert.ok(menu.includes(path!), `${path} should be in an employee's phone menu`);
+  for (const record of ["/crm/leads/abc", "/crm/deals/abc", "/crm/organizations/abc"]) assert.ok(canOpenPage(person, record), record);
+  const data = readFileSync("mobile-app/src/crm/data.ts", "utf8");
+  const parts = readFileSync("mobile-app/src/crm/parts.tsx", "utf8");
+  if (/CRM_IS_SAMPLE = true/.test(data)) assert.match(parts, /CRM_IS_SAMPLE \? <SampleNote \/>/, "sample data must be labelled on screen");
+});
