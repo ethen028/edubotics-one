@@ -1,9 +1,9 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import type { NativeProps } from '../../native';
-import { listFollowUps, markDone } from '../../crm/data';
+import { listFollowUps } from '../../crm/data';
 import type { ActivityType, FollowUp } from '../../crm/types';
-import { ActivityLine, Chips, Empty, Loading, Screen, Section, st, useLoad } from '../../crm/parts';
+import { ActivityLine, Chips, Empty, Loading, Screen, Section, completeFollowUp, snoozeFollowUp, st, useLoad } from '../../crm/parts';
 
 /** Follow-ups due today, with anything overdue above them and the next few days below. Tick one off in place. */
 export function FollowUps({ token, open, changed }: NativeProps) {
@@ -13,18 +13,15 @@ export function FollowUps({ token, open, changed }: NativeProps) {
   const pick = (items: FollowUp[]) => items.filter((a) => kind === 'ALL' || a.type === kind);
   const KINDS: { key: ActivityType | 'ALL'; label: string }[] = [{ key: 'ALL', label: 'All' }, { key: 'CALL', label: 'Calls' }, { key: 'MEETING', label: 'Meetings' }, { key: 'VISIT', label: 'Visits' }, { key: 'EMAIL', label: 'Emails' }];
 
-  async function done(a: FollowUp) {
-    try { await markDone(token, a.id); changed(); }
-    catch (e) { Alert.alert('Not saved', e instanceof Error ? e.message : 'Try again.'); }
-  }
+
   const openAbout = (a: FollowUp) =>
     a.deal ? () => open(`/crm/deals/${a.deal!.id}`, a.deal!.title)
       : a.lead ? () => open(`/crm/leads/${a.lead!.id}`, a.lead!.name)
         : a.organization ? () => open(`/crm/organizations/${a.organization!.id}`, a.organization!.name)
           : undefined;
-  const list = (items: FollowUp[]) => items.map((a) => <ActivityLine key={a.id} a={a} onPress={openAbout(a)} onDone={() => void done(a)} />);
+  const list = (items: FollowUp[]) => items.map((a) => <ActivityLine key={a.id} a={a} onPress={openAbout(a)} onDone={() => void completeFollowUp(token, a, changed)} onSnooze={() => void snoozeFollowUp(token, a, changed)} />);
 
-  if (!data && !error) return <Loading />;
+  if (!data && !error) return <Loading hero />;
   return (
     <Screen refreshing={refreshing} onRefresh={reload}>
       {data ? (

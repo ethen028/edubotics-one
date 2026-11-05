@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import type { NativeProps } from '../../native';
 import { listInstitutions } from '../../crm/data';
 import type { OrgType } from '../../crm/types';
@@ -16,11 +16,15 @@ export function Institutions({ token, open }: NativeProps) {
   const q = useSettled(find);
   const { data, error, refreshing, reload } = useLoad(useCallback(() => listInstitutions(token, q, type), [token, q, type]));
 
-  if (!data && !error) return <Loading />;
-  return (
-    <Screen refreshing={refreshing} onRefresh={reload}>
+  const header = (
+    <>
       <SearchBox value={find} onChange={setFind} placeholder="Find a school or college" />
       <Chips options={TYPES} value={type} onChange={setType} />
+    </>
+  );
+  if (!data && !error) return <View style={{ flex: 1 }}><View style={st.stickyHead}>{header}</View><Loading /></View>;
+  return (
+    <Screen refreshing={refreshing} onRefresh={reload} header={header}>
       {error ? <Text style={st.error}>{error}</Text> : null}
       {data && data.length === 0 ? <Empty text={q ? `Nothing matches "${q}".` : 'Nothing here yet.'} /> : null}
       {data?.map((o) => (

@@ -1,5 +1,5 @@
 import * as sample from './sample';
-import type { ActivityType, Deal, DealDetail, DealStage, FollowUp, Institution, InstitutionDetail, Contact, Lead, LeadDetail, LeadStatus, OrgType } from './types';
+import type { ActivityType, Deal, DealDetail, DealStage, FollowUp, Institution, InstitutionDetail, Contact, Lead, LeadDetail, LeadSource, LeadStatus, OrgType } from './types';
 
 /**
  * Where the phone's CRM screens get their data. For now every function answers from SAMPLE DATA (./sample.ts);
@@ -49,10 +49,12 @@ export async function getLead(_token: string, id: string): Promise<LeadDetail | 
   return wait(lead ? { ...lead, activities: activitiesFor((a) => a.lead?.id === id) } : null);
 }
 
+/** Answers with the status it had, so the screen can offer Undo. */
 export async function setLeadStatus(_token: string, id: string, status: LeadStatus) {
   const lead = sample.leads.find((l) => l.id === id);
+  const before = lead?.status ?? status;
   if (lead) lead.status = status;
-  return changed(await wait({ ok: 'Lead updated' }));
+  return changed(await wait({ ok: 'Lead updated', before }));
 }
 
 export async function listDeals(_token: string): Promise<Deal[]> {
@@ -64,14 +66,37 @@ export async function getDeal(_token: string, id: string): Promise<DealDetail | 
   return wait(deal ? { ...deal, activities: activitiesFor((a) => a.deal?.id === id) } : null);
 }
 
+type DealState = Pick<Deal, 'stage' | 'closedAt' | 'lostReason'>;
+
+/** Answers with where the deal was, so the screen can offer Undo (restoreDeal puts it back). */
 export async function moveDeal(_token: string, id: string, stage: DealStage, lostReason?: string) {
   const deal = sample.deals.find((d) => d.id === id);
+  const before: DealState | null = deal ? { stage: deal.stage, closedAt: deal.closedAt, lostReason: deal.lostReason } : null;
   if (deal) {
     deal.stage = stage;
     deal.closedAt = stage === 'WON' || stage === 'LOST' ? new Date().toISOString() : null;
     deal.lostReason = stage === 'LOST' ? lostReason?.trim() || null : null;
   }
-  return changed(await wait({ ok: stage === 'WON' ? 'Deal won' : stage === 'LOST' ? 'Deal marked lost' : 'Deal moved' }));
+  return changed(await wait({ ok: stage === 'WON' ? 'Deal won' : stage === 'LOST' ? 'Deal marked lost' : `Moved to ${stage.charAt(0)}${stage.slice(1).toLowerCase()}`, before }));
+}
+
+export async function restoreDeal(_token: string, id: string, state: DealState) {
+  const deal = sample.deals.find((d) => d.id === id);
+  if (deal) Object.assign(deal, state);
+  return changed(await wait({ ok: 'Put back' }));
+}
+
+/** A new lead from the phone's quick add. Only the school or person is needed; the rest can follow. */
+export async function addLead(_token: string, input: { organizationName: string; name?: string; phone?: string; city?: string; interest?: string; source: LeadSource; orgType: OrgType | null }) {
+  const org = input.organizationName.trim();
+  if (!org) throw new Error('Enter the school, college or person.');
+  const lead: Lead = {
+    id: `l${Date.now()}`, organizationName: org, name: input.name?.trim() || `Office, ${org}`, orgType: input.orgType,
+    phone: input.phone?.trim() || null, email: null, city: input.city?.trim() || null, interest: input.interest?.trim() || null,
+    source: input.source, status: 'NEW', notes: null, owner: { id: 'u-rahul', name: 'Rahul Varghese' }, createdAt: new Date().toISOString(),
+  };
+  sample.leads.push(lead);
+  return changed(await wait({ ok: 'Lead added', id: lead.id, title: org }));
 }
 
 export async function listInstitutions(_token: string, find = '', type: OrgType | 'ALL' = 'ALL'): Promise<Institution[]> {
@@ -107,10 +132,18 @@ export async function listFollowUps(_token: string): Promise<{ overdue: FollowUp
   });
 }
 
-export async function markDone(_token: string, id: string) {
+export async function markDone(_token: string, id: string, done = true) {
   const a = sample.followUps.find((x) => x.id === id);
-  if (a) a.done = true;
-  return changed(await wait({ ok: 'Marked done' }));
+  if (a) a.done = done;
+  return changed(await wait({ ok: done ? 'Marked done' : 'Opened again' }));
+}
+
+/** Moves a follow-up's due time; answers with the old one for Undo. */
+export async function setDue(_token: string, id: string, dueAt: string) {
+  const a = sample.followUps.find((x) => x.id === id);
+  const before = a?.dueAt ?? null;
+  if (a) a.dueAt = dueAt;
+  return changed(await wait({ ok: 'Moved', before }));
 }
 
 /** Logs a call, visit or note on a lead or deal, or sets a follow-up when it has a due date. */

@@ -12,10 +12,10 @@ export function Contacts({ token, open }: NativeProps) {
   const q = useSettled(find);
   const { data, error, refreshing, reload } = useLoad(useCallback(() => listContacts(token, q), [token, q]));
 
-  if (!data && !error) return <Loading />;
+  const header = <SearchBox value={find} onChange={setFind} placeholder="Find a person, school or number" />;
+  if (!data && !error) return <View style={{ flex: 1 }}><View style={st.stickyHead}>{header}</View><Loading /></View>;
   return (
-    <Screen refreshing={refreshing} onRefresh={reload}>
-      <SearchBox value={find} onChange={setFind} placeholder="Find a person, school or number" />
+    <Screen refreshing={refreshing} onRefresh={reload} header={header}>
       {error ? <Text style={st.error}>{error}</Text> : null}
       {data && data.length === 0 ? <Empty text={q ? `No one matches "${q}".` : 'No contacts yet.'} /> : null}
       {data?.map((c) => {

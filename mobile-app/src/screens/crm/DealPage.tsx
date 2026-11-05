@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { lastPart, type NativeProps } from '../../native';
 import { Button } from '../../ui';
 import { C, radius } from '../../theme';
-import { getDeal, moveDeal } from '../../crm/data';
+import { getDeal, moveDeal, restoreDeal } from '../../crm/data';
 import type { DealStage } from '../../crm/types';
 import {
-  ActivityLine, Empty, Facts, Hero, Loading, LogForm, OPEN_STAGES, Pill, Reach, Screen, Section, STAGE, dayLabel, rupees, st, useLoad,
+  ActivityLine, Empty, Facts, Hero, Loading, LogForm, NextStep, OPEN_STAGES, Pill, Reach, Screen, Section, STAGE, dayLabel, rupees, st, toast, toastError, useLoad,
 } from '../../crm/parts';
 
 /** One deal: value and school, where it stands in the pipeline, move it on, mark it won or lost, log calls. */
@@ -22,13 +22,14 @@ export function DealPage({ token, path, open, changed }: NativeProps) {
     try {
       const res = await moveDeal(token, id, stage, reason);
       setLosing(false); setReason('');
-      Alert.alert(res.ok);
       changed();
-    } catch (e) { Alert.alert('Not saved', e instanceof Error ? e.message : 'Try again.'); }
+      const before = res.before;
+      toast(res.ok, before ? { action: { label: 'Undo', run: async () => { await restoreDeal(token, id, before); changed(); } } } : {});
+    } catch (e) { toastError(e); }
     finally { setBusy(null); }
   }
 
-  if (!deal && !error) return <Loading />;
+  if (!deal && !error) return <Loading hero rows={3} />;
   if (!deal) return <Screen refreshing={refreshing} onRefresh={reload}><Text style={st.error}>{error || 'This deal is not there any more.'}</Text></Screen>;
   const at = OPEN_STAGES.indexOf(deal.stage);
   const next = at >= 0 && at < OPEN_STAGES.length - 1 ? OPEN_STAGES[at + 1] : null;
@@ -74,6 +75,8 @@ export function DealPage({ token, path, open, changed }: NativeProps) {
           <Button kind="danger" label="Lost" onPress={() => setLosing(true)} style={{ flex: 1 }} />
         </View>
       )}
+
+      {closed ? null : <NextStep token={token} activities={deal.activities} onChanged={changed} />}
 
       {deal.contact ? (
         <Section title={deal.contact.name}>

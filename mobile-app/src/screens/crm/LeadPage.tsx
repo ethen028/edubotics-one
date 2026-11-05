@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, Pressable, Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 import { lastPart, type NativeProps } from '../../native';
 import { getLead, setLeadStatus } from '../../crm/data';
 import type { LeadStatus } from '../../crm/types';
 import {
-  ActivityLine, Chips, Empty, Facts, Hero, LEAD_STATUS, Loading, LogForm, ORG_TYPE, Pill, Reach, Screen, Section, SOURCE, dayLabel, st, useLoad,
+  ActivityLine, Chips, Empty, Facts, Hero, LEAD_STATUS, Loading, LogForm, NextStep, ORG_TYPE, Pill, Reach, Screen, Section, SOURCE, dayLabel, st, toast, toastError, useLoad,
 } from '../../crm/parts';
 
 const CHANGEABLE: LeadStatus[] = ['NEW', 'CONTACTED', 'QUALIFIED', 'UNQUALIFIED'];
@@ -18,12 +18,15 @@ export function LeadPage({ token, path, open, changed }: NativeProps) {
   async function move(status: LeadStatus) {
     if (!lead || status === lead.status || saving) return;
     setSaving(true);
-    try { await setLeadStatus(token, id, status); changed(); }
-    catch (e) { Alert.alert('Not saved', e instanceof Error ? e.message : 'Try again.'); }
+    try {
+      const res = await setLeadStatus(token, id, status);
+      changed();
+      toast(`Marked ${LEAD_STATUS[status].label.toLowerCase()}`, { action: { label: 'Undo', run: async () => { await setLeadStatus(token, id, res.before); changed(); } } });
+    } catch (e) { toastError(e); }
     finally { setSaving(false); }
   }
 
-  if (!lead && !error) return <Loading />;
+  if (!lead && !error) return <Loading hero rows={3} />;
   if (!lead) return <Screen refreshing={refreshing} onRefresh={reload}><Text style={st.error}>{error || 'This lead is not there any more.'}</Text></Screen>;
   return (
     <Screen refreshing={refreshing} onRefresh={reload}>
@@ -38,6 +41,8 @@ export function LeadPage({ token, path, open, changed }: NativeProps) {
           <Chips options={CHANGEABLE.map((k) => ({ key: k, label: LEAD_STATUS[k].label }))} value={lead.status as 'NEW'} onChange={move} />
         </Section>
       )}
+
+      <NextStep token={token} activities={lead.activities} onChanged={changed} />
 
       <Facts rows={[
         ['Contact', lead.name],

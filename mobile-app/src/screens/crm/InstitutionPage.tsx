@@ -11,7 +11,7 @@ export function InstitutionPage({ token, path, open }: NativeProps) {
   const { data: org, error, refreshing, reload } = useLoad(useCallback(() => getInstitution(token, id), [token, id]));
   const [tab, setTab] = useState<'overview' | 'people' | 'deals' | 'activity'>('overview');
 
-  if (!org && !error) return <Loading />;
+  if (!org && !error) return <Loading hero rows={3} />;
   if (!org) return <Screen refreshing={refreshing} onRefresh={reload}><Text style={st.error}>{error || 'This institution is not there any more.'}</Text></Screen>;
   return (
     <Screen refreshing={refreshing} onRefresh={reload}>

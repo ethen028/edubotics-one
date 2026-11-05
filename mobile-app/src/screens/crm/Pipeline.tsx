@@ -16,7 +16,7 @@ export function Pipeline({ token, open }: NativeProps) {
   const [layout, setLayout] = useState<'board' | 'list'>('board');
   const { data, error, refreshing, reload } = useLoad(useCallback(() => listDeals(token), [token]));
 
-  if (!data && !error) return <Loading />;
+  if (!data && !error) return <Loading hero />;
   const deals = data ?? [];
   const openDeals = deals.filter((d) => OPEN_STAGES.includes(d.stage));
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
