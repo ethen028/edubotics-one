@@ -41,6 +41,28 @@ export const ACTIVITY: Record<ActivityType, { label: string; icon: string }> = {
   NOTE: { label: 'Note', icon: 'file' },
 };
 
+/** The round icon at the start of a lead or institution row: a school, another kind of institution, or a person. */
+export const orgIcon = (type: OrgType | null) => (type === 'SCHOOL' ? 'school' : type ? 'building' : 'user');
+export function RoundIcon({ name }: { name: string }) {
+  return <View style={st.roundIcon}><Icon name={name} color={C.blue} size={20} /></View>;
+}
+
+/** Two to four side-by-side tabs inside a screen (Overview / People / Deals, Board / List). */
+export function Segments<K extends string>({ options, value, onChange }: { options: { key: K; label: string }[]; value: K; onChange: (k: K) => void }) {
+  return (
+    <View style={st.segments} accessibilityRole="tablist">
+      {options.map((o) => {
+        const on = o.key === value;
+        return (
+          <Pressable key={o.key} onPress={() => onChange(o.key)} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[st.segment, on && st.segmentOn]}>
+            <Text style={[st.segmentText, on && st.segmentTextOn]} numberOfLines={1}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 /** ₹4,20,000 the Indian way, without leaning on the phone's Intl support. */
 export function rupees(n: number) {
   const whole = Math.round(n).toString();
@@ -148,11 +170,12 @@ export function Chips<K extends string>({ options, value, onChange, edge = 16 }:
 }
 
 /** A tappable card in a list. */
-export function Row({ onPress, children, style, label }: { onPress?: () => void; children: React.ReactNode; style?: StyleProp<ViewStyle>; label?: string }) {
+export function Row({ onPress, children, style, label, icon }: { onPress?: () => void; children: React.ReactNode; style?: StyleProp<ViewStyle>; label?: string; icon?: string }) {
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={label}
-      style={({ pressed }) => [st.row, pressed && st.rowPressed, style]}>
-      <View style={{ flex: 1 }}>{children}</View>
+      style={({ pressed }) => [st.row, icon ? { alignItems: 'flex-start' } : null, pressed && st.rowPressed, style]}>
+      {icon ? <RoundIcon name={icon} /> : null}
+      <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
       {onPress ? <Icon name="chevron" color={C.muted} size={16} /> : null}
     </Pressable>
   );
@@ -351,6 +374,12 @@ export const st = StyleSheet.create({
   actWhen: { color: C.muted, fontSize: 12, marginTop: 3 },
   doneButton: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', backgroundColor: C.greenSoft },
   link: { color: C.blue, fontSize: 14, fontWeight: '600' },
+  roundIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.tint, alignItems: 'center', justifyContent: 'center' },
+  segments: { flexDirection: 'row', backgroundColor: C.grey, borderRadius: radius.button, padding: 4, marginBottom: 14 },
+  segment: { flex: 1, minHeight: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  segmentOn: { backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
+  segmentText: { color: C.muted, fontSize: 13, fontWeight: '600' },
+  segmentTextOn: { color: C.blue, fontWeight: '700' },
   form: { backgroundColor: C.card, borderRadius: radius.card, borderWidth: 1, borderColor: C.line, padding: 14, paddingBottom: 14, marginBottom: 14, overflow: 'hidden' },
   formLabel: { color: C.ink, fontSize: 13, fontWeight: '600', marginBottom: 8 },
   input: { minHeight: 48, borderWidth: 1, borderColor: C.line, borderRadius: radius.button, paddingHorizontal: 12, paddingVertical: 12, color: C.ink, fontSize: 15, marginBottom: 12, textAlignVertical: 'top' },

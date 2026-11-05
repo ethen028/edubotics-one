@@ -1,13 +1,17 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 import type { NativeProps } from '../../native';
 import { listFollowUps, markDone } from '../../crm/data';
-import type { FollowUp } from '../../crm/types';
-import { ActivityLine, Empty, Loading, Screen, Section, st, useLoad } from '../../crm/parts';
+import type { ActivityType, FollowUp } from '../../crm/types';
+import { ActivityLine, Chips, Empty, Loading, Screen, Section, st, useLoad } from '../../crm/parts';
 
 /** Follow-ups due today, with anything overdue above them and the next few days below. Tick one off in place. */
 export function FollowUps({ token, open, changed }: NativeProps) {
   const { data, error, refreshing, reload } = useLoad(useCallback(() => listFollowUps(token), [token]));
+  const [kind, setKind] = useState<ActivityType | 'ALL'>('ALL');
+  const all = data ? [...data.overdue, ...data.today, ...data.later] : [];
+  const pick = (items: FollowUp[]) => items.filter((a) => kind === 'ALL' || a.type === kind);
+  const KINDS: { key: ActivityType | 'ALL'; label: string }[] = [{ key: 'ALL', label: 'All' }, { key: 'CALL', label: 'Calls' }, { key: 'MEETING', label: 'Meetings' }, { key: 'VISIT', label: 'Visits' }, { key: 'EMAIL', label: 'Emails' }];
 
   async function done(a: FollowUp) {
     try { await markDone(token, a.id); changed(); }
@@ -32,13 +36,14 @@ export function FollowUps({ token, open, changed }: NativeProps) {
         </View>
       ) : null}
       {error ? <Text style={st.error}>{error}</Text> : null}
-      {data?.overdue.length ? <Section title="Overdue" count={data.overdue.length}>{list(data.overdue)}</Section> : null}
+      <Chips options={KINDS.map((k) => ({ ...k, count: all.filter((a) => k.key === 'ALL' || a.type === k.key).length }))} value={kind} onChange={setKind} />
+      {data && pick(data.overdue).length ? <Section title="Overdue" count={pick(data.overdue).length}>{list(pick(data.overdue))}</Section> : null}
       {data ? (
-        <Section title="Today" count={data.today.length}>
-          {data.today.length ? list(data.today) : <Empty text="Nothing due today." />}
+        <Section title="Today" count={pick(data.today).length}>
+          {pick(data.today).length ? list(pick(data.today)) : <Empty text="Nothing due today." />}
         </Section>
       ) : null}
-      {data?.later.length ? <Section title="Coming up" count={data.later.length}>{list(data.later)}</Section> : null}
+      {data && pick(data.later).length ? <Section title="Coming up" count={pick(data.later).length}>{list(pick(data.later))}</Section> : null}
     </Screen>
   );
 }

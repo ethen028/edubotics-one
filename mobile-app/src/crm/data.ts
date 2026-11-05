@@ -1,5 +1,5 @@
 import * as sample from './sample';
-import type { ActivityType, Deal, DealDetail, DealStage, FollowUp, Institution, InstitutionDetail, Contact, Lead, LeadDetail, LeadStatus } from './types';
+import type { ActivityType, Deal, DealDetail, DealStage, FollowUp, Institution, InstitutionDetail, Contact, Lead, LeadDetail, LeadStatus, OrgType } from './types';
 
 /**
  * Where the phone's CRM screens get their data. For now every function answers from SAMPLE DATA (./sample.ts);
@@ -34,6 +34,16 @@ export async function listLeads(_token: string, find = '', status: LeadStatus | 
     .sort(byNewest));
 }
 
+/** How many leads each status chip would show (Open counts New, Contacted and Qualified). */
+export async function countLeads(_token: string): Promise<Record<LeadStatus | 'OPEN' | 'ALL', number>> {
+  const n = (f: (l: Lead) => boolean) => sample.leads.filter(f).length;
+  return wait({
+    ALL: sample.leads.length, OPEN: n((l) => !['UNQUALIFIED', 'CONVERTED'].includes(l.status)),
+    NEW: n((l) => l.status === 'NEW'), CONTACTED: n((l) => l.status === 'CONTACTED'), QUALIFIED: n((l) => l.status === 'QUALIFIED'),
+    UNQUALIFIED: n((l) => l.status === 'UNQUALIFIED'), CONVERTED: n((l) => l.status === 'CONVERTED'),
+  });
+}
+
 export async function getLead(_token: string, id: string): Promise<LeadDetail | null> {
   const lead = sample.leads.find((l) => l.id === id);
   return wait(lead ? { ...lead, activities: activitiesFor((a) => a.lead?.id === id) } : null);
@@ -64,9 +74,9 @@ export async function moveDeal(_token: string, id: string, stage: DealStage, los
   return changed(await wait({ ok: stage === 'WON' ? 'Deal won' : stage === 'LOST' ? 'Deal marked lost' : 'Deal moved' }));
 }
 
-export async function listInstitutions(_token: string, find = ''): Promise<Institution[]> {
+export async function listInstitutions(_token: string, find = '', type: OrgType | 'ALL' = 'ALL'): Promise<Institution[]> {
   const q = find.trim().toLowerCase();
-  return wait(sample.institutions.filter((o) => !q || has(q, o.name, o.city, o.district, o.board)).sort((a, b) => a.name.localeCompare(b.name)));
+  return wait(sample.institutions.filter((o) => type === 'ALL' || o.type === type).filter((o) => !q || has(q, o.name, o.city, o.district, o.board)).sort((a, b) => a.name.localeCompare(b.name)));
 }
 
 export async function getInstitution(_token: string, id: string): Promise<InstitutionDetail | null> {
