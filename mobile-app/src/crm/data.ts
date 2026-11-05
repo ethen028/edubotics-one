@@ -1,0 +1,161 @@
+import * as sample from './sample';
+import type { ActivityType, Deal, DealDetail, DealStage, FollowUp, Institution, InstitutionDetail, Contact, Lead, LeadDetail, LeadSource, LeadStatus, OrgType } from './types';
+
+/**
+ * Where the phone's CRM screens get their data. For now every function answers from SAMPLE DATA (./sample.ts);
+ * nothing here talks to Orbit yet. When the /api/mobile/crm routes exist, each function becomes one api() call
+ * with the same name and answer, and the screens don't change. The token is already passed for that day.
+ *
+ * Who sees what will be Orbit's rule (owners see their own records, managers and admins see all), checked on
+ * the server. The sample shows everything.
+ */
+export const CRM_IS_SAMPLE = true;
+
+/** Screens that stay open underneath (a list under its record) listen here and reload after a change. */
+const listeners = new Set<() => void>();
+export function onCrmChange(listener: () => void) {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+const changed = <T,>(answer: T) => { listeners.forEach((l) => l()); return answer; };
+
+const wait = <T,>(value: T) => new Promise<T>((done) => setTimeout(() => done(structuredCopy(value)), 120));
+const structuredCopy = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const has = (q: string, ...fields: (string | null | undefined)[]) => fields.some((f) => f?.toLowerCase().includes(q));
+const byNewest = (a: { createdAt: string }, b: { createdAt: string }) => b.createdAt.localeCompare(a.createdAt);
+const activitiesFor = (match: (a: FollowUp) => boolean) =>
+  sample.followUps.filter(match).sort((a, b) => (b.dueAt ?? b.createdAt).localeCompare(a.dueAt ?? a.createdAt));
+
+export async function listLeads(_token: string, find = '', status: LeadStatus | 'OPEN' | 'ALL' = 'OPEN'): Promise<Lead[]> {
+  const q = find.trim().toLowerCase();
+  return wait(sample.leads
+    .filter((l) => status === 'ALL' || (status === 'OPEN' ? !['UNQUALIFIED', 'CONVERTED'].includes(l.status) : l.status === status))
+    .filter((l) => !q || has(q, l.name, l.organizationName, l.city, l.interest, l.phone, l.email))
+    .sort(byNewest));
+}
+
+/** How many leads each status chip would show (Open counts New, Contacted and Qualified). */
+export async function countLeads(_token: string): Promise<Record<LeadStatus | 'OPEN' | 'ALL', number>> {
+  const n = (f: (l: Lead) => boolean) => sample.leads.filter(f).length;
+  return wait({
+    ALL: sample.leads.length, OPEN: n((l) => !['UNQUALIFIED', 'CONVERTED'].includes(l.status)),
+    NEW: n((l) => l.status === 'NEW'), CONTACTED: n((l) => l.status === 'CONTACTED'), QUALIFIED: n((l) => l.status === 'QUALIFIED'),
+    UNQUALIFIED: n((l) => l.status === 'UNQUALIFIED'), CONVERTED: n((l) => l.status === 'CONVERTED'),
+  });
+}
+
+export async function getLead(_token: string, id: string): Promise<LeadDetail | null> {
+  const lead = sample.leads.find((l) => l.id === id);
+  return wait(lead ? { ...lead, activities: activitiesFor((a) => a.lead?.id === id) } : null);
+}
+
+/** Answers with the status it had, so the screen can offer Undo. */
+export async function setLeadStatus(_token: string, id: string, status: LeadStatus) {
+  const lead = sample.leads.find((l) => l.id === id);
+  const before = lead?.status ?? status;
+  if (lead) lead.status = status;
+  return changed(await wait({ ok: 'Lead updated', before }));
+}
+
+export async function listDeals(_token: string): Promise<Deal[]> {
+  return wait([...sample.deals].sort((a, b) => (a.expectedClose ?? '').localeCompare(b.expectedClose ?? '')));
+}
+
+export async function getDeal(_token: string, id: string): Promise<DealDetail | null> {
+  const deal = sample.deals.find((d) => d.id === id);
+  return wait(deal ? { ...deal, activities: activitiesFor((a) => a.deal?.id === id) } : null);
+}
+
+type DealState = Pick<Deal, 'stage' | 'closedAt' | 'lostReason'>;
+
+/** Answers with where the deal was, so the screen can offer Undo (restoreDeal puts it back). */
+export async function moveDeal(_token: string, id: string, stage: DealStage, lostReason?: string) {
+  const deal = sample.deals.find((d) => d.id === id);
+  const before: DealState | null = deal ? { stage: deal.stage, closedAt: deal.closedAt, lostReason: deal.lostReason } : null;
+  if (deal) {
+    deal.stage = stage;
+    deal.closedAt = stage === 'WON' || stage === 'LOST' ? new Date().toISOString() : null;
+    deal.lostReason = stage === 'LOST' ? lostReason?.trim() || null : null;
+  }
+  return changed(await wait({ ok: stage === 'WON' ? 'Deal won' : stage === 'LOST' ? 'Deal marked lost' : `Moved to ${stage.charAt(0)}${stage.slice(1).toLowerCase()}`, before }));
+}
+
+export async function restoreDeal(_token: string, id: string, state: DealState) {
+  const deal = sample.deals.find((d) => d.id === id);
+  if (deal) Object.assign(deal, state);
+  return changed(await wait({ ok: 'Put back' }));
+}
+
+/** A new lead from the phone's quick add. Only the school or person is needed; the rest can follow. */
+export async function addLead(_token: string, input: { organizationName: string; name?: string; phone?: string; city?: string; interest?: string; source: LeadSource; orgType: OrgType | null }) {
+  const org = input.organizationName.trim();
+  if (!org) throw new Error('Enter the school, college or person.');
+  const lead: Lead = {
+    id: `l${Date.now()}`, organizationName: org, name: input.name?.trim() || `Office, ${org}`, orgType: input.orgType,
+    phone: input.phone?.trim() || null, email: null, city: input.city?.trim() || null, interest: input.interest?.trim() || null,
+    source: input.source, status: 'NEW', notes: null, owner: { id: 'u-rahul', name: 'Rahul Varghese' }, createdAt: new Date().toISOString(),
+  };
+  sample.leads.push(lead);
+  return changed(await wait({ ok: 'Lead added', id: lead.id, title: org }));
+}
+
+export async function listInstitutions(_token: string, find = '', type: OrgType | 'ALL' = 'ALL'): Promise<Institution[]> {
+  const q = find.trim().toLowerCase();
+  return wait(sample.institutions.filter((o) => type === 'ALL' || o.type === type).filter((o) => !q || has(q, o.name, o.city, o.district, o.board)).sort((a, b) => a.name.localeCompare(b.name)));
+}
+
+export async function getInstitution(_token: string, id: string): Promise<InstitutionDetail | null> {
+  const org = sample.institutions.find((o) => o.id === id);
+  if (!org) return wait(null);
+  return wait({
+    ...org,
+    contacts: sample.contacts.filter((c) => c.organization?.id === id),
+    deals: sample.deals.filter((d) => d.organization?.id === id),
+    activities: activitiesFor((a) => a.organization?.id === id),
+  });
+}
+
+export async function listContacts(_token: string, find = ''): Promise<Contact[]> {
+  const q = find.trim().toLowerCase();
+  return wait(sample.contacts.filter((c) => !q || has(q, c.name, c.designation, c.organization?.name, c.phone, c.email)).sort((a, b) => a.name.localeCompare(b.name)));
+}
+
+/** Open follow-ups up to the end of today (overdue ones included), and the next few days after it. */
+export async function listFollowUps(_token: string): Promise<{ overdue: FollowUp[]; today: FollowUp[]; later: FollowUp[] }> {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const end = new Date(start); end.setDate(end.getDate() + 1);
+  const open = sample.followUps.filter((a) => !a.done && a.dueAt).sort((a, b) => a.dueAt!.localeCompare(b.dueAt!));
+  return wait({
+    overdue: open.filter((a) => new Date(a.dueAt!) < start),
+    today: open.filter((a) => new Date(a.dueAt!) >= start && new Date(a.dueAt!) < end),
+    later: open.filter((a) => new Date(a.dueAt!) >= end).slice(0, 10),
+  });
+}
+
+export async function markDone(_token: string, id: string, done = true) {
+  const a = sample.followUps.find((x) => x.id === id);
+  if (a) a.done = done;
+  return changed(await wait({ ok: done ? 'Marked done' : 'Opened again' }));
+}
+
+/** Moves a follow-up's due time; answers with the old one for Undo. */
+export async function setDue(_token: string, id: string, dueAt: string) {
+  const a = sample.followUps.find((x) => x.id === id);
+  const before = a?.dueAt ?? null;
+  if (a) a.dueAt = dueAt;
+  return changed(await wait({ ok: 'Moved', before }));
+}
+
+/** Logs a call, visit or note on a lead or deal, or sets a follow-up when it has a due date. */
+export async function logActivity(_token: string, on: { leadId?: string; dealId?: string }, input: { type: ActivityType; subject: string; dueAt?: string | null }) {
+  const lead = on.leadId ? sample.leads.find((l) => l.id === on.leadId) : undefined;
+  const deal = on.dealId ? sample.deals.find((d) => d.id === on.dealId) : undefined;
+  sample.followUps.push({
+    id: `a${Date.now()}`, type: input.type, subject: input.subject.trim(), body: null,
+    dueAt: input.dueAt ?? null, done: !input.dueAt, assignee: lead?.owner ?? deal?.owner ?? null,
+    lead: lead ? { id: lead.id, name: lead.organizationName ?? lead.name } : null,
+    deal: deal ? { id: deal.id, title: deal.title } : null,
+    organization: deal?.organization ?? null, contact: null, createdAt: new Date().toISOString(),
+  });
+  return changed(await wait({ ok: input.dueAt ? 'Follow-up set' : 'Saved' }));
+}

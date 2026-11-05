@@ -27,6 +27,7 @@ export const badge = {
   green: { bg: '#d1fae5', fg: '#065f46' },
   amber: { bg: '#fef3c7', fg: '#92400e' },
   red: { bg: '#fee2e2', fg: '#b91c1c' },
+  purple: { bg: '#ede9fe', fg: '#5b21b6' },
 } as const;
 
 export const radius = { card: 14, button: 10, pill: 999 } as const;
