@@ -10,7 +10,7 @@
  */
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
-import { PrismaClient } from "@prisma/client";
+import { newPrismaClient } from "../src/lib/prisma-client";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
@@ -24,7 +24,7 @@ async function main() {
   const url = process.env.CONVEX_URL;
   const privateKey = process.env.CONVEX_AUTH_PRIVATE_KEY;
   if (!url || !privateKey) throw new Error("Set CONVEX_URL and CONVEX_AUTH_PRIVATE_KEY first.");
-  const db = new PrismaClient();
+  const db = newPrismaClient();
   try {
     const companies = await db.company.findMany({ orderBy: { createdAt: "asc" }, select: { id: true, name: true } });
     for (const company of companies) {

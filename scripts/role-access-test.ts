@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readdir } from "node:fs/promises";
-import { PrismaClient, type Role } from "@prisma/client";
+import type { Role } from "@prisma/client";
+import { newPrismaClient } from "../src/lib/prisma-client";
 import { companyScope, mainCompanyId } from "../src/lib/company-scope";
 import { canOpenPage } from "../src/lib/page-access";
 import { SignJWT } from "jose";
@@ -15,7 +16,7 @@ assert.ok(["localhost", "127.0.0.1"].includes(database.hostname) && database.pat
 const base = new URL(process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3001");
 assert.ok(["localhost", "127.0.0.1"].includes(base.hostname), "Only targets localhost");
 assert.ok(process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 32, "Set SESSION_SECRET");
-const rawDb = new PrismaClient();
+const rawDb = newPrismaClient();
 const db = rawDb.$extends(companyScope(() => mainCompanyId(rawDb))); // the first company, like the app before sign-in
 const sessions: string[] = [];
 
