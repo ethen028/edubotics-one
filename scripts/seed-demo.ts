@@ -10,7 +10,8 @@
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
-import { PrismaClient, type Role } from "@prisma/client";
+import type { Role } from "@prisma/client";
+import { newPrismaClient } from "../src/lib/prisma-client";
 import bcrypt from "bcryptjs";
 import { loadOperatingCalendar } from "../src/lib/plan-load";
 import { companyScope, mainCompanyId } from "../src/lib/company-scope";
@@ -40,7 +41,7 @@ if (!/demo|test/i.test(dbName) && process.env.DEMO_SEED_ALLOW !== "yes") {
   );
 }
 
-const rawPrisma = new PrismaClient();
+const rawPrisma = newPrismaClient();
 // Demo data goes into the first company, through the same company filter the app uses.
 const prisma = rawPrisma.$extends(companyScope(() => mainCompanyId(rawPrisma)));
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];

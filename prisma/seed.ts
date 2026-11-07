@@ -3,7 +3,7 @@
  * operating calendar and the first admin login.
  * Safe to run more than once. Run with `npm run db:seed`.
  */
-import { PrismaClient } from "@prisma/client";
+import { newPrismaClient } from "../src/lib/prisma-client";
 import bcrypt from "bcryptjs";
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
@@ -13,7 +13,7 @@ import { loadOperatingCalendar } from "../src/lib/plan-load";
 
 // tsx does not load .env the way Next.js and the Prisma CLI do.
 if (existsSync(".env")) loadEnvFile(".env");
-const rawDb = new PrismaClient();
+const rawDb = newPrismaClient();
 let companyId = "";
 // Every query below runs inside `companyId`, the same company filter the app uses (src/lib/company-scope.ts).
 const db = rawDb.$extends(companyScope(async () => companyId));

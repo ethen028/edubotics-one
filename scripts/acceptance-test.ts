@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { PrismaClient, type Role } from "@prisma/client";
+import type { Role } from "@prisma/client";
+import { newPrismaClient } from "../src/lib/prisma-client";
 import { companyScope, mainCompanyId } from "../src/lib/company-scope";
 import { SignJWT } from "jose";
 
@@ -9,7 +10,7 @@ const base = new URL(process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3001");
 assert.ok(["localhost", "127.0.0.1"].includes(database.hostname) && database.pathname.endsWith("_test"), "Use a local _test database");
 assert.ok(["localhost", "127.0.0.1"].includes(base.hostname), "Acceptance tests only target localhost");
 assert.ok(process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 32);
-const rawDb = new PrismaClient();
+const rawDb = newPrismaClient();
 const db = rawDb.$extends(companyScope(() => mainCompanyId(rawDb))); // the first company, like the app before sign-in
 const tag = `UAT${randomUUID().replaceAll("-", "").slice(0, 10)}`;
 const users: string[] = [], employees: string[] = [], sessions: string[] = [];

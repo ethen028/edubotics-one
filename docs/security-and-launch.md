@@ -109,7 +109,7 @@ Domain in their name, transfer repo, hosting on their card, payments to their ac
 
 ## Dependencies and release gates
 
-The scoped `@prisma/config` override to `deepmerge-ts` 8.0.0 fixes the config-merging advisory; compatibility tests exercise Prisma config loading. Since 7 November 2026 the full `npm audit` is clean (0 issues): the old `braces` advisory GHSA-vfj7-8cjw-p6xm is gone from the tree, and a scoped `@typescript-eslint/typescript-estree` override to `minimatch` 11.0.5 fixes the lint-only GHSA-g3hv-75wg-m249. The gate's exception list is empty, so any high or critical finding fails CI, and it fails closed if the audit cannot complete.
+Prisma 7 ships `deepmerge-ts` 8.0.2, so the old `@prisma/config` override is gone; compatibility tests still exercise Prisma config loading. Since 7 November 2026 the full `npm audit` is clean (0 issues): the old `braces` advisory GHSA-vfj7-8cjw-p6xm is gone from the tree, and a scoped `@typescript-eslint/typescript-estree` override to `minimatch` 11.0.5 fixes the lint-only GHSA-g3hv-75wg-m249. The gate's exception list is empty, so any high or critical finding fails CI, and it fails closed if the audit cannot complete.
 
 CI and container installs disable automatic dependency scripts, then explicitly run the Prisma-engine and esbuild setup plus Prisma generation. Review any additional lifecycle script before adding it to this allowlist.
 

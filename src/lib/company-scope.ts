@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { RELATION_KEYS } from "./prisma-relations";
 
 /**
  * Keeps every query inside one company of the group. Every business table has a `companyId`; this Prisma
@@ -17,7 +18,11 @@ type ModelInfo = { scoped: boolean; fields: Map<string, Field> };
 const MODELS = new Map<string, ModelInfo>(
   Prisma.dmmf.datamodel.models.map((m) => [m.name, {
     scoped: !UNSCOPED_MODELS.has(m.name) && m.fields.some((f) => f.name === "companyId"),
-    fields: new Map(m.fields.map((f) => [f.name, f as Field])),
+    // Prisma 7's run-time model list no longer says which columns hold a foreign key; that comes from the schema.
+    fields: new Map(m.fields.map((f): [string, Field] => [f.name, {
+      name: f.name, kind: f.kind, type: f.type,
+      relationFromFields: RELATION_KEYS[m.name]?.[f.name]?.from, relationToFields: RELATION_KEYS[m.name]?.[f.name]?.to,
+    }])),
   }]),
 );
 

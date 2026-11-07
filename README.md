@@ -58,7 +58,7 @@ Start with [AGENTS.md](AGENTS.md). It links the product brief ([docs/PRD.md](doc
 
 ## Tech
 
-Next.js 16 (App Router, server actions) · TypeScript · Tailwind CSS 4 · PostgreSQL · Prisma 6. Sign-in is email + password with a signed, HTTP-only session cookie, plus an optional 6-digit code from an authenticator app (My account → Sign-in codes, with ten one-time backup codes).
+Next.js 16 (App Router, server actions) · TypeScript · Tailwind CSS 4 · PostgreSQL · Prisma 7. Sign-in is email + password with a signed, HTTP-only session cookie, plus an optional 6-digit code from an authenticator app (My account → Sign-in codes, with ten one-time backup codes).
 
 ## Run it in the office without hosting
 
@@ -106,7 +106,7 @@ To try the app with made-up data, point `DATABASE_URL` at a separate, empty data
 | `npm run dev` | Development server |
 | `npm run build` / `npm start` | Production build and server |
 | `npm run typecheck` / `npm run lint` | Checks (also run in CI) |
-| `npm run db:migrate` | Create a migration after editing `prisma/schema.prisma` |
+| `npm run db:migrate` | Create a migration after editing `prisma/schema.prisma` (also refreshes `src/lib/prisma-relations.ts`) |
 | `npm run db:deploy` | Apply migrations in production |
 | `npm run db:seed` | Starter data and first admin |
 | `npm run db:seed-demo` | Made-up demo staff and data, on a separate demo database only |
