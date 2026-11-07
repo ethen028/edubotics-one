@@ -1,11 +1,9 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-// Temporary, explicit tooling-only exceptions. Reassess before this date.
-// Never feed untrusted patterns to ESLint.
-const reviewed = new Set([
-  "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
-]);
+// Temporary, explicit tooling-only exceptions (advisory URLs). Empty since 7 Nov 2026: the full audit is clean.
+// Add one only for a dev-only advisory with no fix, and move the review date below.
+const reviewed = new Set([]);
 const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error("Run this check with npm run security:dependencies");
 const result = spawnSync(process.execPath, [npmCli, "audit", "--json"], { encoding: "utf8", timeout: 60_000 });
