@@ -7,6 +7,8 @@ Orbit for Android and iPhone, built with Expo (React Native) and TypeScript. It 
 - **Sign in** with the Orbit email and password, and the code from the authenticator app for people who switched sign-in codes on. Same lockout, rate limits and activity log as the web sign-in. The session is kept in the phone's secure storage.
 - **My leave** (phone screen): balances, ask for leave with a date picker and half day, cancel, coming holidays. Same rules as the web form (`src/lib/leave-requests.ts`).
 - **Approvals** (phone screen, managers and admins): everything waiting on them, grouped like the web Approvals page, with Approve and Reject (or Send back), a note, and the amount to approve on expense claims. Same rules as the web page (`src/lib/decisions.ts`, `src/lib/leave-requests.ts`); resignations open the web page.
+- **My work** (phone screen, the My work tab): tasks assigned to you by when they're due, with progress, blocked and waiting notes, and a tap to change status. "Post update" opens the task page. Rules: `src/lib/my-work.ts`.
+- **Timesheet** (phone screen): a week at a time, hours per day, log time against a task or project (start and end, or just hours), remove entries and send the week to your manager. Same checks as the web form (`src/lib/timesheet-entries.ts`); editing an entry and attaching files stay on the web page for now.
 - **Home**: check in and out, hours today, "Waiting on you" (approvals, Inbox, messages) and shortcuts (My leave, Timesheet, Expenses, My payslips, Calendar, Follow-ups), each shown only when the person's role has the page.
 - **Tabs**: Home, My work, Messages, Approvals, More. A tab only shows when the person can open that page.
 - **More**: every page the person's role can open, grouped as in the web menu, with a search box; their name (opens My account) and Sign out.
@@ -26,6 +28,8 @@ The app never puts its session token in a web address. To open a page it asks `P
 | `POST /api/mobile/attendance` | Check in or out |
 | `GET /api/mobile/leave`, `POST /api/mobile/leave`, `POST /api/mobile/leave/[id]/cancel` | My leave |
 | `GET /api/mobile/approvals`, `POST /api/mobile/approvals/decide` | Approvals |
+| `GET /api/mobile/work`, `POST /api/mobile/work/[id]/status` | My work |
+| `GET /api/mobile/timesheet?week=`, `POST /api/mobile/timesheet`, `POST /api/mobile/timesheet/entries/[id]/delete`, `POST /api/mobile/timesheet/[id]/submit` | Timesheet |
 | `GET /api/mobile/menu` | The person's menu (same as the website's) and waiting counts |
 | `POST /api/mobile/open-code`, `GET /api/mobile/open` | Open an Orbit page inside the app |
 
