@@ -16,7 +16,8 @@
     "test:roles": "node --env-file=.env --import tsx scripts/role-access-test.ts",
     "test:security": "node --conditions=react-server --env-file-if-exists=.env --import tsx scripts/security-integration.ts",
     "typecheck": "next typegen && tsc --noEmit",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "prisma migrate dev && tsx scripts/prisma-relations.ts",
+    "db:relations": "tsx scripts/prisma-relations.ts",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed-demo": "tsx scripts/seed-demo.ts",
@@ -26,13 +27,14 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "@react-pdf/renderer": "^4.9.0",
     "bcryptjs": "^3.0.3",
     "convex": "^1.49.0",
-    "convex-helpers": "^0.1.133",
-    "jose": "^6.2.14",
-    "next": "16.4.3",
+    "convex-helpers": "^0.1.134",
+    "jose": "^6.2.15",
+    "next": "16.4.5",
     "nodemailer": "^10.3.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -40,20 +42,20 @@
     "zod": "^4.6.7"
   },
   "overrides": {
-    "@prisma/config": {
-      "deepmerge-ts": "8.0.0"
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.5"
     }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22",
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "convex-test": "^0.0.67",
     "eslint": "^9",
-    "eslint-config-next": "16.4.3",
-    "prisma": "^6.19.3",
+    "eslint-config-next": "16.4.5",
+    "prisma": "^7.10.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"

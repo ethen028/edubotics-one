@@ -1,53 +1,16 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { Empty, PageHeader } from "@/components/ui";
 import { formatDate, humanize } from "@/lib/format";
-import { daysFromNow, todayIST } from "@/lib/time";
+import { myWork } from "@/lib/my-work";
 import { setTaskStatus } from "../projects/actions";
 import { BlockedBadge, ChecklistCount, PriorityBadge, ProgressBar, WORK_STATUSES, WaitingBadge } from "../projects/ui";
 
 export const metadata = { title: "My work" };
 
-const PRIORITY_ORDER = { HIGH: 0, MEDIUM: 1, LOW: 2 } as const;
-
 export default async function MyWorkPage() {
   const user = await requireUser();
-  const today = todayIST();
-  const weekAhead = new Date(today.getTime() + 7 * 86400000);
-
-  const [open, recentlyDone] = await Promise.all([
-    db.projectTask.findMany({
-      where: { assigneeId: user.id, status: { not: "DONE" }, project: { stage: { not: "COMPLETE" } } },
-      include: {
-        project: { select: { id: true, name: true, onHold: true } },
-        dependsOn: { select: { title: true, status: true } },
-        checklist: { select: { doneAt: true } },
-      },
-      orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
-    }),
-    db.projectTask.findMany({
-      where: { assigneeId: user.id, status: "DONE", completedAt: { gte: daysFromNow(-7) } },
-      include: { project: { select: { id: true, name: true } } },
-      orderBy: { completedAt: "desc" },
-    }),
-  ]);
-  open.sort((a, b) => {
-    const da = a.dueDate?.getTime() ?? Infinity;
-    const dbb = b.dueDate?.getTime() ?? Infinity;
-    return da - dbb || PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-  });
-
-  const groups = [
-    { title: "Update requested", tasks: open.filter((t) => t.updateRequestedAt) },
-    ...[
-      { title: "Overdue", tasks: open.filter((t) => t.dueDate && t.dueDate < today) },
-      { title: "Due today", tasks: open.filter((t) => t.dueDate && t.dueDate.getTime() === today.getTime()) },
-      { title: "This week", tasks: open.filter((t) => t.dueDate && t.dueDate > today && t.dueDate <= weekAhead) },
-      { title: "Later or no date", tasks: open.filter((t) => !t.dueDate || t.dueDate > weekAhead) },
-      // A task with an open request is listed once, under "Update requested".
-    ].map((g) => ({ ...g, tasks: g.tasks.filter((t) => !t.updateRequestedAt) })),
-  ];
+  const { open, recentlyDone, groups } = await myWork(user);
 
   return (
     <>

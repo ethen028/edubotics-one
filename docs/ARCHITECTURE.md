@@ -16,7 +16,7 @@ Browser ──► src/proxy.ts ──► page.tsx (server component) ──► s
 | --- | --- | --- |
 | Framework | Next.js 16.4 App Router, React 19.2, TypeScript 5 (strict) | Read `node_modules/next/dist/docs/` before using a Next API; this version differs from older docs |
 | Styling | Tailwind CSS 4 | Tokens and component classes in `src/app/globals.css`, dark mode in `src/app/theme-dark.css` |
-| Database | PostgreSQL 16, Prisma 6 | `prisma/schema.prisma` (about 100 models), migrations in `prisma/migrations/` |
+| Database | PostgreSQL 16, Prisma 7 (through the `pg` driver) | `prisma/schema.prisma` (about 100 models), migrations in `prisma/migrations/`. Database address for the command line in `prisma.config.ts`; every client is made by `newPrismaClient()` in `src/lib/prisma-client.ts`. `src/lib/prisma-relations.ts` lists each foreign key for the company filter (made from the schema by `npm run db:relations`) |
 | Auth | Own email + password | bcryptjs hashes; a `jose`-signed HTTP-only cookie names a `Session` row. Google sign-in is built but off (needs HTTPS) |
 | Validation | zod 4 | Every server action parses its `FormData` |
 | PDFs | `@react-pdf/renderer` | `src/lib/pdf/`: invoices, quotes, credit notes, payslips, receipts, certificates, HR letters and ID cards (wording in `src/lib/letter-rules.ts`) |
@@ -34,7 +34,7 @@ src/
     (app)/layout.tsx     Shell: icon rail, top bar, Find anything, notifications
     api/                 Route handlers only where a page can't do it: file downloads, health,
                          message polling, client error reports, the payment-reminder cron, and the phone
-                         app's routes under api/mobile (sign-in, day, check-in, menu, opening pages, leave, approvals)
+                         app's routes under api/mobile (sign-in, day, check-in, menu, opening pages, leave, approvals, my work, timesheet)
     login, careers, ...  Public and pre-sign-in pages
     globals.css          Design tokens and shared classes
   components/            Shared UI: ui.tsx, action-form.tsx, sidebar.tsx, icons.tsx, logo.tsx, ...

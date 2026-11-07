@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN npm ci --ignore-scripts && npm rebuild @prisma/engines esbuild && npx prisma generate
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1

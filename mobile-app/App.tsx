@@ -14,7 +14,7 @@ import { C } from './src/theme';
 
 /**
  * Orbit on the phone. Home, More and the pages listed in src/native.tsx are phone screens; every other page
- * (and for now the My work, Messages and Approvals tabs) is the real Orbit page inside the app, signed in
+ * (and for now the Messages tab) is the real Orbit page inside the app, signed in
  * (src/OrbitPage.tsx), until its phone screen is built.
  * Tabs only appear when the person's menu has the page, so roles see what they see on the web.
  */
