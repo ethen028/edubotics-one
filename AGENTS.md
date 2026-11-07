@@ -12,6 +12,7 @@ Orbit is the internal operations app for Edubotics Global (Kochi, Kerala): CRM, 
 | [docs/CODE_STYLE.md](docs/CODE_STYLE.md) | How pages, server actions and lib files are written here |
 | [docs/SECURITY.md](docs/SECURITY.md) | Rules every change must keep (permissions, files, secrets) |
 | [docs/TESTING.md](docs/TESTING.md) | Which checks to run and how to add tests |
+| [docs/convex.md](docs/convex.md) | The move to Convex: which modules live there, how sign-in and company checks work in Convex |
 | [README.md](README.md) | Module list and how to run it |
 
 The long developer handover (every module, the data model, business rules, screenshots) is kept outside the repo in the handover pack: `HANDOVER.md` / "Orbit: Developer Handover". Ask the owner for it if you need more than these docs.
@@ -22,12 +23,13 @@ The long developer handover (every module, the data model, business rules, scree
 2. **Reuse before you add.** Shared UI is in `src/components/` (`ui.tsx`, `action-form.tsx`), business rules in `src/lib/`. Look for an existing helper first; don't add a parallel module for something that already has a home.
 3. **No new dependencies without a reason.** The app has ten runtime dependencies and no UI kit, icon library or chart library. Icons are hand-drawn paths in `src/components/icons.tsx`; charts are plain SVG/CSS.
 4. **Money and numbering are tested code.** GST, TDS, payroll, commission and document numbers live in `src/lib/` and have tests in `tests/`. Change them only with a test that shows the new behaviour.
-5. **Schema changes go through migrations.** Edit `prisma/schema.prisma`, run `npm run db:migrate`, commit the new folder under `prisma/migrations/`. Never edit an applied migration. New tables get row-level security switched on (see `prisma/migrations/20261017133000_private_table_rls`).
+5. **Schema changes go through migrations.** Edit `prisma/schema.prisma`, run `npm run db:migrate`, commit the new folder under `prisma/migrations/` and the refreshed `src/lib/prisma-relations.ts` (the company filter's foreign-key list; a test fails if it is stale). Never edit an applied migration. Make Prisma clients only with `newPrismaClient()` (`src/lib/prisma-client.ts`); Prisma 7 needs the `pg` driver passed in. New tables get row-level security switched on (see `prisma/migrations/20261017133000_private_table_rls`).
 6. **Statutory payroll switches stay off** (PF, ESI, professional tax, TDS, gratuity) until the owner's accountant confirms them. Don't change their defaults.
 7. **Keep the look.** One blue accent (with the robot logo's orange for small marks) on a pale blue-grey page with white cards and a deep blue-navy menu. Brand colours live in `src/lib/brand.ts` and the tokens at the top of `src/app/globals.css`. No new colours, extra gradients, heavy effects or emoji in the UI. See the design doc.
 8. **Write for staff, not developers.** Labels and messages are short plain English ("Leave approved", not "Mutation succeeded").
 9. **Never commit secrets or `.env`.** `npm run security:secrets` runs in CI.
 10. **Every query stays in one company.** Orbit holds a group of companies; `db` filters every query to the current company by itself (`src/lib/company-scope.ts`). Use `rawDb` only where docs/ARCHITECTURE.md says, and add `"companyId"` by hand to raw SQL. New tables get a `companyId` like the others.
+11. **Convex functions use `companyQuery` / `companyMutation`** (`convex/lib/orbit.ts`), never plain `query` / `mutation`; they check the role and keep every read and write in the caller's company. A module moved to Convex gets a `convex-test` test file.
 
 ## Commands
 

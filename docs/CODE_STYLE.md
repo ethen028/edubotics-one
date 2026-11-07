@@ -41,7 +41,7 @@ export async function createLead(_: FormState, formData: FormData): Promise<Form
 
 ## Database
 
-- Edit `prisma/schema.prisma`, then `npm run db:migrate -- --name what_changed`. Commit the migration folder.
+- Edit `prisma/schema.prisma`, then `npm run db:migrate -- --name what_changed`. Commit the migration folder and `src/lib/prisma-relations.ts`, which that command refreshes.
 - Money: `Decimal @db.Decimal(14, 2)`. Rates: `Decimal(5, 2)`. Dates without a time: stored at UTC midnight, parsed with `parseDateOnly`.
 - Index foreign keys you filter on. Add `@@unique` for anything that must not repeat (document numbers use `@@unique([fy, seq])`).
 - New tables need row-level security switched on in the migration, like `prisma/migrations/20261018200100_staff_messages_rls`. `npm run test:security` fails otherwise.

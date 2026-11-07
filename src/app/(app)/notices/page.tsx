@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { api } from "@convex/_generated/api";
 import { db } from "@/lib/db";
 import { isManagerOrAdmin, requireUser } from "@/lib/auth";
-import { isAcked, myPendingAcks } from "@/lib/notices";
+import { convexQuery } from "@/lib/convex";
+import { isAcked, myPendingAcks, namesOf } from "@/lib/notices";
 import { formatDate } from "@/lib/format";
 import { Badge, Empty, PageHeader } from "@/components/ui";
 import { PendingAcks } from "./ui";
@@ -15,19 +17,21 @@ export default async function NoticesPage({ searchParams }: PageProps<"/notices"
   const kind = tab === "policies" ? "POLICY" : "ANNOUNCEMENT";
   const showArchived = manager && archived === "1";
 
-  const [notices, pending, activeUsers] = await Promise.all([
-    db.notice.findMany({
-      where: { kind, archivedAt: showArchived ? { not: null } : null },
-      include: {
-        author: { select: { name: true } },
-        attachment: { select: { fileName: true } },
-        acks: { where: { user: { active: true } }, select: { userId: true, version: true } },
-      },
-      orderBy: kind === "POLICY" ? [{ pinned: "desc" }, { category: "asc" }, { title: "asc" }] : [{ pinned: "desc" }, { createdAt: "desc" }],
-    }),
-    myPendingAcks(user),
-    db.user.count({ where: { active: true } }),
+  const [rows, pending, activeUsers] = await Promise.all([
+    convexQuery(api.notices.list, { kind, archived: showArchived }),
+    myPendingAcks(),
+    db.user.findMany({ where: { active: true }, select: { id: true } }),
   ]);
+  const active = new Set(activeUsers.map((u) => u.id));
+  const names = await namesOf(rows.map((n) => n.authorId));
+  const notices = rows.map((n) => ({
+    ...n,
+    id: n._id,
+    createdAt: new Date(n.createdAt),
+    updatedAt: new Date(n.updatedAt),
+    author: { name: names.get(n.authorId) ?? "Former staff" },
+    acks: n.acks.filter((a) => active.has(a.userId)), // only people who can still sign in count
+  }));
 
   const tabClass = (on: boolean) =>
     `rounded-lg px-3 py-1.5 text-sm font-medium ${on ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"}`;
@@ -104,7 +108,7 @@ export default async function NoticesPage({ searchParams }: PageProps<"/notices"
                       {isAcked(n, mine) ? <Badge color="green">You acknowledged</Badge> : <Badge color="amber">Please acknowledge</Badge>}
                       {manager && (
                         <span className="text-slate-500">
-                          {ackCount} of {activeUsers} read
+                          {ackCount} of {active.size} read
                         </span>
                       )}
                     </div>

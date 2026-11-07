@@ -63,6 +63,12 @@ On the office computer, open a command window in the edubotics-one folder (step 
 
    It checks the file, then asks you to type `yes`. It either restores everything or, if anything goes wrong, changes nothing.
 
+   If the backups folder also has a file with the same name ending `.convex.zip` (the Notice board, which now lives in Convex), put that back too:
+
+   ```
+   docker compose run --rm app sh docker/convex-restore.sh edubotics-one-2026-10-07-1700.convex.zip
+   ```
+
 3. Start the app again:
 
    ```

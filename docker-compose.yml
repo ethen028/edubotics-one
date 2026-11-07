@@ -18,12 +18,63 @@ services:
       interval: 3s
       retries: 20
 
+  # Convex: Orbit's new database, moving in module by module (docs/CONVEX-MIGRATION-PLAN.md). The Notice board
+  # lives here already; everything else is still in "db". Self-hosted on this computer, nothing goes online.
+  convex:
+    image: ghcr.io/convex/convex-backend:${CONVEX_VERSION:-latest}
+    restart: unless-stopped
+    stop_grace_period: 10s
+    environment:
+      INSTANCE_NAME: orbit
+      INSTANCE_SECRET: ${CONVEX_INSTANCE_SECRET:?Set CONVEX_INSTANCE_SECRET in .env (see .env.example)}
+      # The address browsers and file links use. Staff open Orbit on port 3000; Convex stays on 3210.
+      CONVEX_CLOUD_ORIGIN: ${CONVEX_PUBLIC_URL:-http://127.0.0.1:3210}
+      CONVEX_SITE_ORIGIN: ${CONVEX_PUBLIC_SITE_URL:-http://127.0.0.1:3211}
+      DISABLE_BEACON: "true"
+      DOCUMENT_RETENTION_DELAY: "172800"
+    volumes:
+      - convex-data:/convex/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3210/version"]
+      interval: 5s
+      retries: 30
+      start_period: 10s
+
+  # Runs once: makes the key Orbit uses to load its functions into Convex, kept in the convex-keys volume.
+  convex-admin-key:
+    image: ghcr.io/convex/convex-backend:${CONVEX_VERSION:-latest}
+    restart: "no"
+    environment:
+      INSTANCE_NAME: orbit
+      INSTANCE_SECRET: ${CONVEX_INSTANCE_SECRET:?Set CONVEX_INSTANCE_SECRET in .env (see .env.example)}
+    entrypoint: ["/bin/sh", "-c", "[ -s /keys/admin-key ] || ./generate_admin_key.sh | tail -n 1 > /keys/admin-key"]
+    volumes:
+      - convex-keys:/keys
+
+  # Optional: Convex's own admin screens, for a developer. `docker compose --profile convex-dashboard up -d`,
+  # then open http://localhost:6791 on this computer with the key from `docker compose exec app cat /convex-keys/admin-key`.
+  convex-dashboard:
+    image: ghcr.io/convex/convex-dashboard:${CONVEX_VERSION:-latest}
+    profiles: ["convex-dashboard"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6791:6791"
+    environment:
+      NEXT_PUBLIC_DEPLOYMENT_URL: http://127.0.0.1:3210
+    depends_on:
+      convex:
+        condition: service_healthy
+
   app:
     build: .
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      convex:
+        condition: service_healthy
+      convex-admin-key:
+        condition: service_completed_successfully
     ports:
       - "${APP_BIND_ADDRESS:-127.0.0.1}:3000:3000"
     healthcheck:
@@ -37,6 +88,10 @@ services:
       # Set explicitly in production so encrypted settings survive host/volume replacement.
       # Office installs may leave it blank; docker/start.sh then creates a persistent value in app-data.
       SESSION_SECRET: ${SESSION_SECRET:-}
+      # Where Next reaches Convex inside Docker. docker/start.sh loads Orbit's functions into it on every start
+      # and makes the sign-in key pair the first time (kept in app-data).
+      CONVEX_URL: http://convex:3210
+      CONVEX_SELF_HOSTED_URL: http://convex:3210
       # The office network uses plain http, so the login cookie can't require https.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       APP_URL: ${APP_URL:-}
@@ -61,6 +116,7 @@ services:
       BACKUP_COPY_FOLDER_SHOWN: ${BACKUP_COPY_FOLDER:-}
     volumes:
       - app-data:/data
+      - convex-keys:/convex-keys:ro
       - ${BACKUP_FOLDER:-./backups}:/backups
       # Without a second folder this is the same backups folder again, and the app doesn't copy to it.
       - ${BACKUP_COPY_FOLDER:-./backups}:/backup-copy
@@ -102,6 +158,8 @@ services:
         condition: service_healthy
 
 volumes:
+  convex-data:
+  convex-keys:
   caddy-data:
   caddy-config:
   db-data:

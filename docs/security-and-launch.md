@@ -109,7 +109,7 @@ Domain in their name, transfer repo, hosting on their card, payments to their ac
 
 ## Dependencies and release gates
 
-The scoped `@prisma/config` override to `deepmerge-ts` 8.0.0 fixes the config-merging advisory; compatibility tests exercise Prisma config loading. Five high audit entries remain in the development ESLint dependency chain, all from unpatched `braces` GHSA-vfj7-8cjw-p6xm. The gate accepts only that exact dev-only advisory until 17 November 2026, never accepts unknown high/critical findings, and fails closed if the audit cannot complete. Do not feed untrusted glob patterns to ESLint. This is a documented mitigation, not a claim of a clean full audit.
+Prisma 7 ships `deepmerge-ts` 8.0.2, so the old `@prisma/config` override is gone; compatibility tests still exercise Prisma config loading. Since 7 November 2026 the full `npm audit` is clean (0 issues): the old `braces` advisory GHSA-vfj7-8cjw-p6xm is gone from the tree, and a scoped `@typescript-eslint/typescript-estree` override to `minimatch` 11.0.5 fixes the lint-only GHSA-g3hv-75wg-m249. The gate's exception list is empty, so any high or critical finding fails CI, and it fails closed if the audit cannot complete.
 
 CI and container installs disable automatic dependency scripts, then explicitly run the Prisma-engine and esbuild setup plus Prisma generation. Review any additional lifecycle script before adding it to this allowlist.
 
@@ -129,4 +129,4 @@ Run `npm test`, `npm run typecheck`, `npm run lint`, `npm run security:secrets`,
 - [OWASP password recovery guidance](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html)
 - [Cloudflare server-side token validation](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/)
 - [Next.js nonce CSP guide](https://nextjs.org/docs/app/guides/content-security-policy), also checked against bundled 16.3 documentation
-- [Deepmerge 8 release](https://github.com/RebeccaStevens/deepmerge-ts/releases/tag/v8.0.0) and [remaining braces advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+- [Deepmerge 8 release](https://github.com/RebeccaStevens/deepmerge-ts/releases/tag/v8.0.0) and [minimatch advisory](https://github.com/advisories/GHSA-g3hv-75wg-m249)

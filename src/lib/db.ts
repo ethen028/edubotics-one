@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
+import { newPrismaClient } from "./prisma-client";
 import { companyScope } from "./company-scope";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
@@ -7,7 +8,7 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
  * The database without the company filter. Only for sign-in (people are looked up before anyone knows which
  * company they are in), the superadmin's group pages and background jobs that loop over every company.
  */
-export const rawDb = globalForPrisma.prisma ?? new PrismaClient();
+export const rawDb = globalForPrisma.prisma ?? newPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = rawDb;
 
