@@ -7,7 +7,7 @@ import { SignIn } from './src/SignIn';
 import { Home } from './src/Home';
 import { More } from './src/More';
 import { OrbitPage } from './src/OrbitPage';
-import { NATIVE, NativePage } from './src/native';
+import { nativeFor, NativePage } from './src/native';
 import { Icon } from './src/Icon';
 import { Badge } from './src/ui';
 import { C } from './src/theme';
@@ -20,6 +20,7 @@ import { C } from './src/theme';
  */
 
 type Tab = { key: string; label: string; icon: string; href?: string };
+type Opened = { path: string; title: string; web?: boolean };
 const TABS: Tab[] = [
   { key: 'home', label: 'Home', icon: 'home' },
   { key: 'work', label: 'My work', icon: 'check', href: '/work' },
@@ -47,11 +48,13 @@ function Orbit() {
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('home');
   const [visited, setVisited] = useState<string[]>(['home']);
-  const [opened, setOpened] = useState<{ path: string; title: string; web?: boolean } | null>(null);
+  /** Pages opened on top of the tabs, newest last: a list, then a record from it, then another. Back closes one. */
+  const [stack, setStack] = useState<Opened[]>([]);
+  const opened = stack.at(-1) ?? null;
 
   const signOutHere = useCallback(async () => {
     await forgetToken();
-    setToken(null); setDashboard(null); setMenu(null); setOpened(null); setTab('home'); setVisited(['home']);
+    setToken(null); setDashboard(null); setMenu(null); setStack([]); setTab('home'); setVisited(['home']);
   }, []);
 
   const load = useCallback(async (t: string) => {
@@ -85,7 +88,7 @@ function Orbit() {
         setToken(t); void load(t);
         if (mustChange) {
           Alert.alert('Choose a new password', 'Your password has to be changed before you can use Orbit.');
-          setOpened({ path: '/change-password', title: 'New password' });
+          setStack([{ path: '/change-password', title: 'New password' }]);
         }
       }} />
     );
@@ -97,10 +100,10 @@ function Orbit() {
   const go = (key: string) => { setTab(key); setVisited((v) => (v.includes(key) ? v : [...v, key])); };
   const open = (path: string, title: string, how: { web?: boolean } = {}) => {
     const asTab = tabs.find((t) => t.href === path);
-    if (asTab && !how.web && !opened) go(asTab.key); else setOpened({ path, title, web: how.web });
+    if (asTab && !how.web && !opened) go(asTab.key); else setStack((s) => [...s, { path, title, web: how.web }]);
   };
   const refresh = () => void load(token);
-  const close = () => { setOpened(null); refresh(); };
+  const close = () => { setStack((s) => s.slice(0, -1)); refresh(); };
 
   return (
     <SafeAreaView style={st.app} edges={['top', 'left', 'right']}>
@@ -110,10 +113,10 @@ function Orbit() {
         </View>
         {tabs.filter((t) => t.href && visited.includes(t.key)).map((t) => (
           <View key={t.key} style={[st.fill, tab !== t.key && st.hidden]}>
-            {NATIVE[t.href!] ? (
+            {nativeFor(t.href!) ? (
               <>
                 <View style={st.tabHead}><Text style={st.tabTitle}>{t.label}</Text></View>
-                {React.createElement(NATIVE[t.href!], { token, open, changed: refresh })}
+                {React.createElement(nativeFor(t.href!)!, { token, path: t.href!, open, changed: refresh })}
               </>
             ) : (
               <OrbitPage token={token} path={t.href!} title={t.label} onSignedOut={signOutHere} active={tab === t.key && !opened} />
@@ -123,21 +126,25 @@ function Orbit() {
         <View style={[st.fill, tab !== 'more' && st.hidden]}>
           <More dashboard={dashboard} menu={menu} menuError={menuError} refreshing={refreshing} onRefresh={refresh} onOpen={open} onSignOut={signOut} />
         </View>
-        {opened && (
-          <View style={st.fill}>
-            {NATIVE[opened.path] && !opened.web ? (
-              <NativePage title={opened.title} onClose={close}>{React.createElement(NATIVE[opened.path], { token, open, changed: refresh })}</NativePage>
-            ) : (
-              <OrbitPage token={token} path={opened.path} title={opened.title} onClose={close} onSignedOut={signOutHere} active />
-            )}
-          </View>
-        )}
+        {stack.map((page, n) => {
+          const top = n === stack.length - 1;
+          const screen = page.web ? undefined : nativeFor(page.path);
+          return (
+            <View key={`${n}:${page.path}`} style={[st.fill, !top && st.hidden]}>
+              {screen ? (
+                <NativePage title={page.title} onClose={close} active={top}>{React.createElement(screen, { token, path: page.path, open, changed: refresh })}</NativePage>
+              ) : (
+                <OrbitPage token={token} path={page.path} title={page.title} onClose={close} onSignedOut={signOutHere} active={top} />
+              )}
+            </View>
+          );
+        })}
       </View>
       <SafeAreaView edges={['bottom']} style={st.tabBar}>
         {tabs.map((t) => {
           const on = tab === t.key && !opened;
           return (
-            <Pressable key={t.key} onPress={() => { setOpened(null); go(t.key); }} style={st.tab} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={t.label}>
+            <Pressable key={t.key} onPress={() => { setStack([]); go(t.key); }} style={st.tab} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={t.label}>
               {on && <View style={st.tabMark} />}
               <View>
                 <Icon name={t.icon} color={on ? C.blue : C.muted} size={22} />
